@@ -1,0 +1,13 @@
+# MCP servers for the Sabor da Maria agent.
+# No native build step: openpyxl is pure Python and pydantic/uvicorn/redis ship
+# wheels for linux/amd64 and arm64, so the runtime image needs no gcc.
+fastmcp==4.0.3
+openpyxl==3.1.5
+httpx==0.28.1
+redis==8.1.0
+psycopg[binary]==3.3.5
+
+# Test suite, run with `jacquinho test`. Small enough to keep in the runtime
+# image so the tests run against exactly what ships.
+pytest==8.4.2
+pytest-asyncio==1.2.0

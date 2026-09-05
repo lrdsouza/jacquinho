@@ -1,0 +1,148 @@
+'''FastMCP middleware that keeps the confidence log honest.'''
+
+from __future__ import annotations
+
+import logging
+
+from fastmcp.exceptions import ToolError
+from fastmcp.server.middleware import Middleware
+
+from ..domain.observer import ConfidenceObserver
+
+logger = logging.getLogger('jacquinho.confidence')
+
+
+class ConfidenceMiddleware(Middleware):
+    '''Scores the evidence trail after every tool call, without being asked.
+
+    The agent can forget to grade its own answer; the server cannot forget to
+    watch. Every evidence-bearing result folds into a running score, and the
+    badge is written to the log right after the call that changed it - which is
+    where it can be read next to the message it belongs to.
+    '''
+
+    # Tools that commit her to something. Advice can be wrong and be corrected;
+    # these cost money or go on a menu, so they are refused outright until the
+    # viability gate has passed in this session. This is the difference between
+    # asking the agent not to skip a step and it not being able to.
+    NEEDS_GATE = {
+        'pricing_price_scenarios': 'nenhum preço sai antes do gate de viabilidade',
+        'menu_add_dish': 'nenhum prato entra no cardápio antes do gate',
+        'budget_commit_purchase': 'nenhuma compra é fechada antes do gate',
+    }
+
+    # The observer scores the evidence trail; it never sees the sentence. A
+    # model that gathers impeccable evidence and then writes a different number
+    # still scores well, and only the judge - which reads the draft - catches
+    # that. So the one irreversible act, putting a dish on the menu, additionally
+    # requires that an assessment happened for that dish. It does not make the
+    # observer read the message; it makes the thing that does read it
+    # unavoidable at the moment it matters.
+    NEEDS_ASSESSMENT = {
+        'menu_add_dish': (
+            'nenhum prato entra no cardápio sem passar por '
+            'confidence_assess_answer. O observador pontua a evidência, mas quem '
+            'lê o que você escreveu é o julgamento.'
+        ),
+    }
+
+    def __init__(self, observer: ConfidenceObserver, db=None):
+        self.observer = observer
+        self.db = db
+
+    @staticmethod
+    def _payload(result) -> dict | None:
+        '''Pull the structured content out of a tool result, if it has any.'''
+        data = getattr(result, 'structured_content', None)
+        if isinstance(data, dict):
+            # FastMCP wraps a bare return value under 'result'.
+            inner = data.get('result')
+            return inner if isinstance(inner, dict) else data
+        return None
+
+    def _persist(self, tool: str, report: dict) -> None:
+        if self.db is None:
+            return
+        try:
+            from psycopg.types.json import Json
+
+            self.db.execute(
+                '''INSERT INTO answer_assessments
+                       (dish, draft_answer, mode, claim, deterministic_score,
+                        final_score, band, badge, blocking_issues, signals)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb)''',
+                (report.get('dish') or f'(observado após {tool})', '', 'observer',
+                 report['claim'],
+                 report['score'], report['score'], report['band'], report['badge'],
+                 Json(report['blocking_issues']), Json(report['signals'])),
+            )
+        except Exception:
+            # An audit trail that breaks the conversation is worse than no trail.
+            pass
+
+    @staticmethod
+    def _session(context) -> str:
+        '''One trail per client connection, so two conversations do not share one.
+
+        Not ``ctx.session_id``: over HTTP that is a fresh UUID per request, so
+        every call would land in its own trail and nothing would accumulate.
+        The MCP session header is the connection, which is what a conversation
+        actually is.
+        '''
+        try:
+            from fastmcp.server.dependencies import get_http_headers
+
+            headers = get_http_headers() or {}
+            value = headers.get('mcp-session-id')
+            if isinstance(value, str) and value:
+                return value
+        except Exception:
+            pass
+        # In-memory transport, or a client that sends no session header: one
+        # conversation at a time, which is what a local run is.
+        return 'local'
+
+    @staticmethod
+    def _dish(context) -> str | None:
+        '''The dish this call is about, when the call names one.'''
+        arguments = getattr(context.message, 'arguments', None) or {}
+        value = arguments.get('dish')
+        return value if isinstance(value, str) and value.strip() else None
+
+    async def on_call_tool(self, context, call_next):
+        name = getattr(context.message, 'name', '') or '?'
+        dish = self._dish(context)
+        reason = self.NEEDS_GATE.get(name)
+        # The gate is checked for THIS dish. Approving the parmegiana and then
+        # asking about lasanha used to un-approve the parmegiana.
+        session = self._session(context)
+        if reason and not self.observer.gate_approved(session, dish):
+            raise ToolError(
+                f'Recusado: {reason}. Rode kitchen_analyse_recipe_requirements com o '
+                'texto da receita, ou kitchen_check_feasibility com o que o prato '
+                'exige, e só volte aqui quando o veredito for approved. Ler o perfil '
+                'da cozinha não conta: ler não é verificar.'
+            )
+
+        needs_judgement = self.NEEDS_ASSESSMENT.get(name)
+        if needs_judgement and not self.observer.assessed(session, dish):
+            raise ToolError(f'Recusado: {needs_judgement}')
+
+        result = await call_next(context)
+        try:
+            payload = self._payload(result)
+            # An explicit assessment declares what the message asserts; that
+            # beats guessing it from whichever tool happened to run last.
+            if name == 'confidence_assess_answer' and isinstance(payload, dict):
+                declared = (payload.get('deterministic') or {}).get('claim')
+                if declared:
+                    self.observer.declare_claim(session, dish, declared)
+            report = self.observer.record(session, name, payload, dish)
+            # Every call gets a log line, so a watcher never looks dead; only a
+            # call that actually changed the picture earns an audit row.
+            if report['moved']:
+                self._persist(name, report)
+        except Exception as error:
+            # Observation must never break the call it is observing.
+            logger.debug('confidence observer skipped %s: %s', context, error)
+        return result

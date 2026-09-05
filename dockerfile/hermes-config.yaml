@@ -1,0 +1,12 @@
+_config_version: 40
+model:
+  default: claude-haiku-4-5
+  provider: anthropic
+mcp_servers:
+  jacquinho:
+    url: http://jacquinho-mcp:8000/mcp
+    timeout: 90
+    connect_timeout: 30
+onboarding:
+  seen:
+    tool_progress_prompt: true

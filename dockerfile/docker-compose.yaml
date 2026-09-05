@@ -1,0 +1,139 @@
+# Sabor da Maria — Hermes Agent + the MCP servers.
+#
+#   cd dockerfile
+#   cp .env.example .env      # fill in the provider key
+#   docker compose up -d jacquinho-mcp
+#   HERMES_UID=$(id -u) HERMES_GID=$(id -g) docker compose run --rm hermes
+#
+# `run`, not `up`: the Hermes default command is the interactive TUI, which
+# needs a terminal.
+#
+# The MCP speaks HTTP rather than stdio on purpose. A stdio server runs as a
+# subprocess of whatever calls it, which would force it to live inside the
+# Hermes container and make this file pointless. Over HTTP the MCP can also be
+# exercised on its own, without booting the agent.
+
+name: jacquinho
+
+services:
+  redis:
+    # Chat transcript, her feedback on each dish, and the launch menu.
+    # appendonly keeps it across restarts: a conversation lost is a
+    # conversation she has to have again.
+    image: redis:7-alpine
+    container_name: jacquinho-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    # The recipe catalogue: what each dish demands, and why it is blocked.
+    # A block records the capability that caused it, so the day she gets that
+    # capability the dish comes back on its own - which is a relationship, not
+    # a cache entry.
+    image: postgres:17-alpine
+    container_name: jacquinho-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jacquinho
+      POSTGRES_PASSWORD: jacquinho
+      POSTGRES_DB: jacquinho
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U jacquinho -d jacquinho']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  jacquinho-mcp:
+    build:
+      context: ..
+      dockerfile: dockerfile/Dockerfile
+    image: jacquinho-mcp:local
+    container_name: jacquinho-mcp
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      TOP_UP_BUDGET: '80'
+      PLATFORM_FEE: '0.10'
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_DSN: postgresql://jacquinho:jacquinho@postgres:5432/jacquinho
+      # Where she cooks and sells. Drives competitor price search and which
+      # regional IPCA is read.
+      LOCALE_CITY: ${LOCALE_CITY:-Sao Paulo}
+      LOCALE_STATE: ${LOCALE_STATE:-SP}
+      IBGE_LOCALITY: ${IBGE_LOCALITY:-N7[3501]}
+      # 'auto' uses Brave when BRAVE_API_KEY is set, else the keyless
+      # DuckDuckGo fallback. Force one with 'brave' or 'duckduckgo'.
+      SEARCH_PROVIDER: ${SEARCH_PROVIDER:-auto}
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+    volumes:
+      # The spreadsheet is input, never output.
+      - ../data:/data:ro
+    # No `ports:` — only Hermes needs to reach it, over the compose network.
+    # Uncomment to poke at it from the host.
+    # ports:
+    #   - '127.0.0.1:8000:8000'
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; socket.create_connection(('127.0.0.1', 8000), 2).close()"
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  hermes:
+    # Official image. To build from source instead, clone the Hermes repo into
+    # ../vendor/hermes-agent and swap this for `build: ../vendor/hermes-agent`.
+    image: nousresearch/hermes-agent:latest
+    container_name: jacquinho-hermes
+    depends_on:
+      jacquinho-mcp:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    # Lets a model server running on the host be reached as
+    # host.docker.internal, so a local provider needs no compose edit.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    env_file:
+      # Provider credentials pass straight through, whichever one you use.
+      - .env
+    environment:
+      # The image remaps its internal user to this UID/GID through s6, so files
+      # it writes stay editable on the host.
+      HERMES_UID: ${HERMES_UID:-1000}
+      HERMES_GID: ${HERMES_GID:-1000}
+      # The image supervises its services with s6-overlay, which narrates every
+      # start and stop. None of it is actionable, and it buries the agent's own
+      # first screen. Errors still print.
+      S6_VERBOSITY: '0'
+    volumes:
+      # HERMES_HOME=/opt/data in the image: memory, sessions, user profile.
+      - hermes-data:/opt/data
+      # Hermes-side customisation. config.yaml wires up the MCP server; SOUL.md
+      # carries voice and who-speaks-first, which cannot travel over MCP because
+      # Hermes treats MCP text as untrusted data rather than as instructions.
+      - ./hermes-config.yaml:/opt/data/config.yaml
+      - ../hermes/SOUL.md:/opt/data/SOUL.md:ro
+      - ../data:/data:ro
+    # No `command:` — the image entrypoint falls through to the interactive TUI.
+
+volumes:
+  hermes-data:
+  redis-data:
+  postgres-data:
