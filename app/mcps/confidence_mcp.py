@@ -25,6 +25,7 @@ from ..domain.confidence import (
     Signal,
 )
 from .base import BaseMCP
+from .middleware import ConfidenceMiddleware
 
 
 class EvidenceBundle(BaseModel):
@@ -57,9 +58,37 @@ class ConfidenceMCP(BaseMCP):
         'written, to the end of the message you send her.'
     )
 
-    def __init__(self, settings, db):
+    def __init__(self, settings, db, observer=None):
         self.db = db
+        self.observer = observer
         super().__init__(settings)
+
+    def _complete(self, given: dict) -> dict:
+        '''Fill the gaps in what the agent handed over from what was observed.
+
+        The agent assembles the evidence bundle by hand and leaves things out -
+        a real run produced a badge saying 'sem preço de mercado' minutes after
+        the market had been researched. The observer already holds the whole
+        trail; what the agent passes wins, and the rest is filled in rather than
+        counted as absent.
+        '''
+        if self.observer is None:
+            return given
+        trail = self.observer.trails.get(
+            (ConfidenceMiddleware.SESSION_FALLBACK, self.observer.active_dish.get(
+                ConfidenceMiddleware.SESSION_FALLBACK, self.observer.NO_DISH))
+        )
+        if trail is None:
+            return given
+        observed = {
+            'pantry': trail.pantry, 'feasibility': trail.feasibility,
+            'cmv': trail.cmv, 'consensus': trail.consensus,
+            'market': trail.market, 'economy': trail.economy,
+        }
+        return {
+            slot: given.get(slot) if given.get(slot) else observed.get(slot)
+            for slot in observed
+        }
 
     def _persist(self, dish: str, draft: str, report: dict) -> None:
         '''Keep the assessment, so a weak answer can be found after the fact.'''
@@ -117,7 +146,7 @@ class ConfidenceMCP(BaseMCP):
             nothing else, then call submit_judgement. In hybrid the final score
             is the lower of the two assessors.
             '''
-            payload = evidence.model_dump()
+            payload = self._complete(evidence.model_dump())
             verdict = DeterministicScorer().score(
                 feasibility=payload['feasibility'],
                 cmv=payload['cmv'],

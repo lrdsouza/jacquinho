@@ -25,6 +25,10 @@ class ConfidenceMiddleware(Middleware):
     # these cost money or go on a menu, so they are refused outright until the
     # viability gate has passed in this session. This is the difference between
     # asking the agent not to skip a step and it not being able to.
+    # The key used when no MCP session header reaches the middleware, which is
+    # every local run. Named so other code can ask the observer the same thing.
+    SESSION_FALLBACK = 'local'
+
     NEEDS_GATE = {
         'pricing_price_scenarios': 'nenhum preço sai antes do gate de viabilidade',
         'menu_add_dish': 'nenhum prato entra no cardápio antes do gate',
@@ -122,7 +126,7 @@ class ConfidenceMiddleware(Middleware):
             pass
         # In-memory transport, or a client that sends no session header: one
         # conversation at a time, which is what a local run is.
-        return 'local'
+        return ConfidenceMiddleware.SESSION_FALLBACK
 
     @staticmethod
     def _dish(context) -> str | None:

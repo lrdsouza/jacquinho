@@ -113,3 +113,31 @@ async def test_the_gate_takes_a_dish_so_approval_does_not_leak(server):
         tools = {t.name: t for t in await client.list_tools()}
     for name in ('kitchen_check_feasibility', 'kitchen_elicitation_gaps'):
         assert 'dish' in tools[name].inputSchema['properties']
+
+
+@pytest.mark.asyncio
+async def test_assessment_fills_gaps_from_what_was_observed(server):
+    """The agent assembles the evidence bundle by hand and leaves things out.
+
+    A real run produced a badge saying 'sem preço de mercado' minutes after the
+    market had been researched, because the bundle omitted it.
+    """
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': 'Teste', 'equipment_needed': [], 'techniques_needed': []},
+        )
+        await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': 'Teste',
+             'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
+        )
+        # The bundle below mentions neither the gate nor the CMV.
+        report = await client.call_tool(
+            'confidence_assess_answer',
+            {'dish': 'Teste', 'draft_answer': 'x', 'claim': 'cost',
+             'mode': 'deterministic', 'evidence': {}},
+        )
+    signals = {s['signal']: s['score'] for s in report.data['deterministic']['signals']}
+    assert signals['feasibility'] == 1.0
+    assert signals['cost'] > 0

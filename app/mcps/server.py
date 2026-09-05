@@ -123,6 +123,7 @@ class MCPServer:
         )
         self.seed_report = self._seed()
         self.root = FastMCP(name='sabor-da-maria', instructions=ROOT_INSTRUCTIONS)
+        self.observer = ConfidenceObserver()
         self.children = {
             'chat': ConversationMCP(self.settings),
             'pantry': PantryMCP(self.settings, self.repository, self.database),
@@ -133,10 +134,9 @@ class MCPServer:
             'economy': EconomyMCP(self.settings),
             'budget': BudgetMCP(self.settings, self.database),
             'pricing': PricingMCP(self.settings, self.repository, self.database),
-            'confidence': ConfidenceMCP(self.settings, self.database),
+            'confidence': ConfidenceMCP(self.settings, self.database, self.observer),
             'menu': MenuMCP(self.settings, self.database),
         }
-        self.observer = ConfidenceObserver()
         self._mount()
         self._register_prompts()
         self._install_middleware()
