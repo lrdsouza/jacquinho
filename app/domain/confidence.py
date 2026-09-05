@@ -118,7 +118,7 @@ class ConfidenceBadge:
         band = BAND_LABEL[band_for(score)]
         kind = f'{Claim.label(claim)}: ' if claim else ''
         if blocking:
-            return f'〔{kind}confiança {band} — {len(blocking)} impedimento(s)〕'
+            return f'〔{kind}confiança {band}, {len(blocking)} impedimento(s)〕'
         evidence = cls._evidence(signals)
         return f'〔{kind}confiança {band} · ' + ' · '.join(evidence[:3]) + '〕'
 

@@ -43,7 +43,7 @@ Escala de 0 a 1, com duas bandas:
 Cada sinal é uma função determinística sobre o resultado de uma ferramenta. Sem
 modelo, sem aleatoriedade: as mesmas entradas dão sempre a mesma nota.
 
-### `pantry` — peso 20
+### `pantry`, peso 20
 
 | Estado | Nota |
 |---|---:|
@@ -53,7 +53,7 @@ modelo, sem aleatoriedade: as mesmas entradas dão sempre a mesma nota.
 Binário de propósito. A planilha é determinística: ler é saber. Não há meio-termo
 entre ter lido e não ter.
 
-### `feasibility` — peso 25
+### `feasibility`, peso 25
 
 Do veredito do portão de viabilidade.
 
@@ -64,10 +64,10 @@ Do veredito do portão de viabilidade.
 | `rejected` | 0,00 |
 | O portão nunca rodou | 0,00 |
 
-`needs_answers` não é zero porque perguntar é progresso — mas fica longe de
+`needs_answers` não é zero porque perguntar é progresso, mas fica longe de
 0,50, porque uma pergunta em aberto ainda impede a compra.
 
-### `cost` — peso 25
+### `cost`, peso 25
 
 Parte de 1,00 e desconta:
 
@@ -80,7 +80,7 @@ Parte de 1,00 e desconta:
 O último desconto é o mais fácil de esquecer: estimar o preço de um item novo
 pelo histórico dela é um chute educado, não uma cotação.
 
-### `web_consensus` — peso 20
+### `web_consensus`, peso 20
 
 Do maior `source_count` entre os pratos que passaram no consenso.
 
@@ -94,7 +94,7 @@ Do maior `source_count` entre os pratos que passaram no consenso.
 
 Conta **domínios**, não páginas: cinco páginas do mesmo site são uma opinião.
 
-### `market` — peso 20
+### `market`, peso 20
 
 Do número de fontes distintas com preço observado.
 
@@ -105,7 +105,7 @@ Do número de fontes distintas com preço observado.
 | 1 a 2 | 0,40 |
 | 0 | 0,00 |
 
-### `economy` — peso 10
+### `economy`, peso 10
 
 Da idade do IPCA lido.
 
@@ -124,7 +124,7 @@ se ela existe.
 ## As cinco afirmações
 
 Uma mensagem afirma um tipo de coisa, e só a evidência daquele tipo entra na
-conta. Pontuar "você tem 37 ingredientes" contra o preço de mercado dá zero — e
+conta. Pontuar "você tem 37 ingredientes" contra o preço de mercado dá zero, e
 não diz nada sobre a frase.
 
 | Afirmação | Rótulo no badge | Sinais | Peso somado |
@@ -140,13 +140,13 @@ O tipo em jogo é inferido da última ferramenta relevante que rodou:
 ```mermaid
 flowchart LR
     A["pantry_*"] --> P["pantry_fact"]
-    B["dishes_* · recipes_search<br/>recipes_next_candidate"] --> D["dish_suggestion"]
+    B["dishes_* · recipes_search<br/>recipes_next_candidate<br/>recipes_check_pantry_coverage"] --> D["dish_suggestion"]
     C["kitchen_check_feasibility<br/>kitchen_elicitation_gaps<br/>kitchen_analyse_recipe_requirements"] --> F["feasibility"]
     E["pricing_calculate_cmv"] --> G["cost"]
     H["pricing_price_scenarios<br/>market_* · economy_*"] --> I["price"]
 ```
 
-Uma ferramenta fora dessa lista não muda a afirmação em jogo — ela apenas não
+Uma ferramenta fora dessa lista não muda a afirmação em jogo: ela apenas não
 diz nada sobre o que está prestes a ser dito.
 
 ---
@@ -190,7 +190,7 @@ enviada, mesmo pontuando bem.
 nome não comprometem ninguém.
 
 Três ferramentas vão além do aviso e são **recusadas** pelo middleware enquanto o
-portão não aprovar — `pricing_price_scenarios`, `menu_add_dish` e
+portão não aprovar. São elas `pricing_price_scenarios`, `menu_add_dish` e
 `budget_commit_purchase`. São as que custam dinheiro.
 
 ---
@@ -203,7 +203,7 @@ ferramenta produziu, a trilha de evidências continua igual e a nota não cai.
 
 Por isso existe o juiz: um turno separado do mesmo modelo, com rubrica estrita,
 que lê o rascunho contra as evidências e nomeia afirmações sem apoio. No modo
-híbrido a nota final é **a menor das duas** — uma resposta vale o que diz o
+híbrido a nota final é **a menor das duas**, porque uma resposta vale o que diz o
 revisor menos convencido. Discordância acima de 0,25 é reportada.
 
 O juiz só roda quando o agente pede (`confidence_assess_answer` seguido de
@@ -216,7 +216,7 @@ O juiz só roda quando o agente pede (`confidence_assess_answer` seguido de
 Uma métrica cujos limites não estão escritos vira número mágico. As seis falhas
 identificadas, e o estado de cada uma.
 
-### 1. O observador não lê a mensagem — *mitigada*
+### 1. O observador não lê a mensagem · *mitigada*
 
 Ele pontua a trilha de evidência, não o texto. Um agente que reúne evidência
 impecável e depois escreve um número diferente do calculado recebe nota alta.
@@ -224,7 +224,7 @@ impecável e depois escreve um número diferente do calculado recebe nota alta.
 **Por que não dá para resolver de todo:** o middleware fica na fronteira do MCP.
 Ele vê chamadas de ferramenta; a frase final nunca passa por ali.
 
-**O que foi feito:** duas coisas. O único ato irreversível — `menu_add_dish` —
+**O que foi feito:** duas coisas. O único ato irreversível, `menu_add_dish`,
 passou a exigir que uma avaliação tenha ocorrido para aquele prato. E
 `confidence_audit_figures` passou a conferir, **sem modelo nenhum**, se cada
 cifra e cada percentual da mensagem aparece no que as ferramentas devolveram.
@@ -236,7 +236,7 @@ este sistema existe para impedir, agora é pego deterministicamente.
 sem que o portão tenha aprovado continua dependendo do juiz, que continua
 dependendo de ser chamado.
 
-### 2. A afirmação era inferida, não declarada — *corrigida*
+### 2. A afirmação era inferida, não declarada · *corrigida*
 
 O tipo vinha da última ferramenta relevante. Numa mensagem que mistura assuntos,
 só o último tipo era medido.
@@ -247,7 +247,7 @@ continua como padrão para quando nada foi declarado.
 
 **Residual:** uma mensagem com duas afirmações ainda recebe uma nota só.
 
-### 3. Os degraus são arbitrários — *explicitada, não resolvida*
+### 3. Os degraus são arbitrários · *explicitada, não resolvida*
 
 Quatro domínios valendo 1,00 e três valendo 0,80 veio de julgamento, não de
 medição. Ninguém verificou que pratos com quatro fontes dão menos errado.
@@ -257,23 +257,23 @@ medição. Ninguém verificou que pratos com quatro fontes dão menos errado.
 docstring dizendo que são **ordinais, não calibrados**. Ordenam respostas
 corretamente; o valor absoluto não é probabilidade de nada.
 
-**Residual:** calibrar exige registrar desfecho — o prato foi aceito? o preço se
-sustentou? — e ainda não há esse dado.
+**Residual:** calibrar exige registrar desfecho (o prato foi aceito? o preço se
+sustentou?) e ainda não há esse dado.
 
-### 4. A sessão era global — *parcialmente corrigida*
+### 4. A sessão era global · *parcialmente corrigida*
 
 Duas conversas simultâneas compartilhavam a mesma trilha.
 
 **O que foi feito:** a trilha passou a ser chaveada por `(sessão, prato)`. Ao
 implementar, descobriu-se que `ctx.session_id` é um **UUID novo a cada
-requisição** — cada chamada caía numa trilha própria e nada acumulava. A chave
+requisição**, então cada chamada caía numa trilha própria e nada acumulava. A chave
 passou a ser o header `mcp-session-id`, que é a conexão.
 
 **Residual:** esse header não chega ao middleware nesta versão do FastMCP, então
 a chave cai em `local`. Estável, e portanto correta para uma conversa por vez;
 o isolamento real entre conversas simultâneas continua em aberto.
 
-### 5. A trilha só crescia — *corrigida*
+### 5. A trilha só crescia · *corrigida*
 
 Evidência de um prato contava para outro. Aprovar a parmegiana e depois
 perguntar sobre lasanha derrubava a aprovação da parmegiana, que era então
@@ -281,16 +281,16 @@ recusada no cardápio sem explicação.
 
 **O que foi feito:** trilha por prato. A leitura da despensa continua
 compartilhada, porque é sobre a cozinha dela e não sobre um prato. E o portão
-ganhou o argumento `dish` — ele não tinha, e por isso a aprovação caía numa
+ganhou o argumento `dish`, que ele não tinha, e por isso a aprovação caía numa
 trilha sem nome.
 
-### 6. `pantry` era binário — *corrigida*
+### 6. `pantry` era binário · *corrigida*
 
 Ler a despensa dava 1,00 mesmo para uma mensagem sobre ingrediente não
 consultado. O sinal dizia "o arquivo foi aberto", não "isto foi verificado".
 
 **O que foi feito:** quando uma receita é conferida com
-`recipes_check_pantry_coverage`, a **cobertura** vira a nota — 0,5 para um de
+`recipes_check_pantry_coverage`, a **cobertura** vira a nota: 0,5 para um de
 dois ingredientes. A leitura da lista inteira continua valendo 1,00, que é
 correto: aí a despensa toda é conhecida. Uma conferência específica não é
 sobrescrita por uma leitura genérica posterior.
@@ -310,7 +310,7 @@ de o agente lembrar. É a maior melhoria que sobrou.
 ### Isolar sessões de verdade
 
 O que resta da falha 4. Precisa de um identificador de conexão que chegue ao
-middleware — o header, um parâmetro de sessão nas ferramentas, ou um recurso do
+middleware. As saídas são o header, um parâmetro de sessão nas ferramentas, ou um recurso do
 FastMCP que ainda não existe nesta versão. Sem isso, duas conversas ao mesmo
 tempo compartilham trilha.
 
@@ -322,6 +322,6 @@ só, a da última.
 
 ### Calibrar os degraus
 
-O que resta da falha 3, e o mais caro. Registrar desfecho — o prato foi aceito?
-o preço se sustentou? a compra coube? — e mover os limiares com base em dado.
+O que resta da falha 3, e o mais caro. Registrar desfecho (o prato foi aceito?
+o preço se sustentou? a compra coube?) e mover os limiares com base em dado.
 É o que transforma a nota de heurística ordenada em medida.

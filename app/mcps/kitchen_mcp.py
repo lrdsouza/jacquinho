@@ -234,7 +234,7 @@ class KitchenMCP(BaseMCP):
                         'hedges': hedges,
                         'next_step': (
                             f'Um {item!r} que ela tem "mas" alguma coisa não passa '
-                            'no portão como se estivesse inteiro — e o detalhe fica '
+                            'no portão como se estivesse inteiro, e o detalhe fica '
                             'na nota, que o portão não lê. Grave como '
                             "state='unknown' e pergunte a ela o que exatamente "
                             'acontece, para saber se dá para contar com isso neste '
@@ -293,7 +293,7 @@ class KitchenMCP(BaseMCP):
 
             entry = self._profile().record(
                 category, resolved.key, state,
-                f'{note} — ela: “{her_words}”'.strip(' —') if her_words else note,
+                f'{note} | ela: “{her_words}”'.strip(' |') if her_words else note,
             )
             item = resolved.key
             planner = self._planner()

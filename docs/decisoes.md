@@ -1,11 +1,11 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-28-6E56CF)
-![Modelo](https://img.shields.io/badge/modelo-Claude%20Haiku%204.5-D97757)
+![Registros](https://img.shields.io/badge/registros-35-6E56CF)
+![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
-decisão tem consequência de infraestrutura — latência, escalabilidade,
-observabilidade, elasticidade — ela fecha dizendo qual. Onde não tem, não
+decisão tem consequência de infraestrutura (latência, escalabilidade,
+observabilidade, elasticidade) ela fecha dizendo qual. Onde não tem, não
 inventa uma.
 
 ---
@@ -21,8 +21,8 @@ um número plausível, e plausível é indistinguível de correto até alguém g
 dinheiro em cima. Aritmética em código é auditável, testável e idêntica em toda
 execução.
 
-**Consequência.** Todo resultado que envolve dinheiro carrega a própria conta —
-`0,20 x 14,00 = 2,80` — para que o agente possa mostrar o cálculo em vez de
+**Consequência.** Todo resultado que envolve dinheiro carrega a própria conta,
+`0,20 x 14,00 = 2,80`, para que o agente possa mostrar o cálculo em vez de
 afirmar um total.
 
 **Latência e observabilidade.** Uma multiplicação em Python custa microssegundos;
@@ -48,7 +48,7 @@ agente. Como serviço HTTP ele é iniciável, depurável e alcançável de forma
 independente, sem agente nenhum.
 
 **Elasticidade e observabilidade.** O servidor MCP não guarda estado entre
-requisições — tudo vive no Postgres ou no Redis — então ele escala
+requisições, porque tudo vive no Postgres ou no Redis, então ele escala
 horizontalmente atrás de um mesmo endereço, sem afinidade de sessão. E como toda
 chamada de ferramenta passa por um único processo HTTP, existe um log de acesso
 só onde ver o que o agente de fato fez, em vez de reconstruir isso da
@@ -60,7 +60,7 @@ transcrição.
 
 **Decisão.** Não há arquivos de skill. O **procedimento** vive nas descrições das
 ferramentas, no campo `next_step` dos resultados e em quatro prompts MCP. A
-**voz** — idioma, quem fala primeiro, postura — vive em `SOUL.md`, do lado do
+**voz** (idioma, quem fala primeiro, postura) vive em `SOUL.md`, do lado do
 agente.
 
 **Motivo.** Uma regra escrita onde não pode ser imposta se descola do código que
@@ -74,7 +74,7 @@ entram no system prompt. Uma persona escrita ali simplesmente não chega ao
 modelo.
 
 O sintoma foi exato: a um "oi" o agente respondia *"Oi! What can I help you
-with?"* — em inglês e sem abrir a consultoria. Assim que uma ferramenta era
+with?"*, em inglês e sem abrir a consultoria. Assim que uma ferramenta era
 chamada ele voltava ao trilho, porque aí o procedimento chegava pela descrição da
 ferramenta. Faltava só o que só o system prompt entrega.
 
@@ -89,7 +89,7 @@ o procedimento, e o `SOUL.md` é versionado no repositório junto dela.
 
 **Observabilidade.** A versão do comportamento é a tag da imagem. Para saber que
 regras estavam valendo numa conversa de semana passada basta a versão que estava
-no ar — não é preciso caçar que arquivo solto existia na máquina do agente
+no ar, e não é preciso caçar que arquivo solto existia na máquina do agente
 naquele dia.
 
 ---
@@ -97,7 +97,7 @@ naquele dia.
 ## 4. Ferramentas MCP em vez de skills
 
 **Decisão.** Tudo que pode ser verificado é uma ferramenta MCP. Só o que não pode
-ser verificado — voz, postura, julgamento sobre o que dizer — fica como texto.
+ser verificado (voz, postura, julgamento sobre o que dizer) fica como texto.
 O projeto não tem nenhuma skill.
 
 **Motivo.** Uma skill é instrução: texto que o modelo lê e, se tudo correr bem,
@@ -116,7 +116,7 @@ a ferramenta consegue **não entregar o número** até o portão fechar. O
 devolve preço de venda nenhum, por mais que se peça.
 
 *Uma skill não guarda estado.* O saldo do orçamento que diminui, o perfil da
-cozinha em três estados, o bloqueio que se desfaz quando a capacidade muda — são
+cozinha em três estados, o bloqueio que se desfaz quando a capacidade muda: são
 transições com integridade. Texto não tem transação, nem `NUMERIC`, nem `CHECK`,
 nem índice parcial.
 
@@ -126,24 +126,24 @@ todos verificados chamando funções, sem nenhuma conversa envolvida. Skill só 
 avalia rodando diálogo, o que é lento, caro e não determinístico.
 
 **Consequência.** A regra que ficou: **o que pode ser conferido vira ferramenta;
-o que só pode ser dito continua texto.** E o texto que sobrou é pouco — voz e
+o que só pode ser dito continua texto.** E o texto que sobrou é pouco: voz e
 quem fala primeiro, no `SOUL.md`, mais quatro prompts que carregam procedimento
 de várias etapas.
 
 **O outro lado.** Isso não é gratuito. Uma ferramenta custa esquema, validação e
 um caminho de erro para cada argumento; uma skill custa um parágrafo. Para
-comportamento que não tem certo e errado computável, a ferramenta é peso morto —
+comportamento que não tem certo e errado computável, a ferramenta é peso morto,
 e foi exatamente esse o erro que a persona no MCP revelou. Onde não há o que
 verificar, texto é a resposta certa.
 
 **Observabilidade.** Toda chamada de ferramenta é uma requisição HTTP com linha de
 log: dá para ver o que o agente fez, em que ordem, com que argumentos e o que
-voltou. Uma skill "ter sido seguida" não é um evento observável — a única
+voltou. Uma skill "ter sido seguida" não é um evento observável, e a única
 evidência é a própria resposta, que é o que estava em dúvida.
 
 **Elasticidade e portabilidade.** As ferramentas são um serviço, não um arquivo na
 casa do agente. Escalam horizontalmente sem afinidade de sessão, e qualquer
-cliente MCP as alcança — o comportamento não fica preso a um agente específico.
+cliente MCP as alcança, então o comportamento não fica preso a um agente específico.
 
 ---
 
@@ -187,7 +187,7 @@ produzir.
 
 **As chaves são canônicas, não texto livre.** A primeira versão aceitava qualquer
 string em `item`, e o agente gravava `forno de 45l`. O portão então procurava
-`forno`, não achava, e devolvia `unknown` — enquanto ler o perfil dava a
+`forno`, não achava, e devolvia `unknown`, enquanto ler o perfil dava a
 resposta. O atalho ficava melhor que o caminho certo, e o agente naturalmente
 pegava o atalho. Agora `record_capability` resolve o que chega para uma chave do
 catálogo (`forno de 45l` → `forno`, o detalhe indo para `note`) e recusa o que
@@ -321,7 +321,7 @@ inicial, então o segundo prato é avaliado contra o que de fato sobrou.
 
 **Consistência.** O saldo é derivado por `sum()` no banco, nunca guardado, então
 não pode divergir das entradas. As compras são linhas apenas inseridas, em
-`NUMERIC`, não em ponto flutuante — dinheiro não acumula erro de arredondamento
+`NUMERIC`, não em ponto flutuante, porque dinheiro não acumula erro de arredondamento
 aqui, e duas sessões simultâneas não conseguem gastar o mesmo dinheiro duas
 vezes.
 
@@ -362,7 +362,7 @@ ferramentas não lembra de chamar mais uma antes de cada mensagem, e uma
 instrução que pode ser pulada não é garantia.
 
 Então o servidor virou observador. Um middleware intercepta toda chamada, guarda
-as que carregam evidência — gate, CMV, consenso, mercado, inflação — e recalcula
+as que carregam evidência (gate, CMV, consenso, mercado, inflação) e recalcula
 a nota depois de cada uma, escrevendo uma linha no log. `jacquinho confidence`
 lê esse log ao lado do chat. Nada depende de o agente lembrar.
 
@@ -370,11 +370,11 @@ Isso é a mesma regra da decisão sobre ferramentas contra skills, aplicada à
 própria camada de confiança: o que pode ser conferido não fica como pedido.
 
 **E é visível.** Toda avaliação devolve um `display.badge` que o agente cola no
-fim da mensagem — `〔preço: confiança alta · CMV completo · 4 fontes〕`. Esse caminho
+fim da mensagem: `〔preço: confiança alta · CMV completo · 4 fontes〕`. Esse caminho
 depende do modelo e portanto falha às vezes; o log não depende de nada.
 
 **A confiança é da afirmação, não do pipeline.** A primeira versão pontuava toda
-mensagem contra os cinco sinais — gate, CMV, consenso, mercado, inflação — e o
+mensagem contra os cinco sinais (gate, CMV, consenso, mercado, inflação) e o
 resultado era 0,00 na conversa inteira. Faz sentido: "você tem 37 ingredientes"
 não precisa de preço de mercado. Marcar isso como zero não dizia nada sobre a
 frase e tudo sobre um medidor apontado para o lugar errado.
@@ -392,7 +392,7 @@ diferente:
 
 O tipo em jogo é inferido da ferramenta que acabou de rodar: quem leu a despensa
 vai falar da despensa; quem calculou cenário vai falar de preço. A nota então
-usa só os sinais daquele tipo, e os impedimentos também — um fato da despensa não
+usa só os sinais daquele tipo, e os impedimentos também: um fato da despensa não
 é barrado por falta de preço de mercado.
 
 O efeito é que a nota volta a discriminar. Ler a despensa dá 1,00, porque a
@@ -402,7 +402,7 @@ planilha é determinística e ler é saber. Afirmar preço sem ter apurado nada 
 **A escala é 0 a 1.** Uma nota de 0 a 100 lê como prova de escola e convida a
 discutir um ponto para cima ou para baixo; 0 a 1 lê como o que é, um grau de
 crença, e mantém os dois avaliadores na mesma régua. As bandas ficam em 0,75 e
-0,50. O número aparece no log, para quem avalia a execução — o badge que ela
+0,50. O número aparece no log, para quem avalia a execução. O badge que ela
 recebe continua sem número, porque citar decimal de heurística é falsa precisão.
 Se o juiz responder `80` querendo dizer `0,80`, o valor é normalizado em vez de
 virar uma confiança de oitenta.
@@ -442,8 +442,8 @@ tipado. A próxima opção sai da lista, ordenada pelo que ela respondeu. A web 
 é consultada de novo quando a lista esvazia.
 
 **Motivo.** Sem uma lista, a busca é amnésica e toda recusa recomeça do zero.
-Guardar as exigências de cada receita é o que permite que uma única resposta —
-ela não tem forno — elimine toda receita que precise de um, sem nova busca.
+Guardar as exigências de cada receita é o que permite que uma única resposta,
+"ela não tem forno", elimine toda receita que precise de um, sem nova busca.
 
 **Consequência.** Um prato que a cozinha dela não faz não é oferecido como
 próxima opção. Candidatas bloqueadas são reportadas à parte com o que as
@@ -451,7 +451,7 @@ bloqueia, para que um impedimento duro nunca se esconda atrás de uma pergunta
 em aberto.
 
 **Escalabilidade da consulta.** Bloqueio não é apagado, é liberado, então o
-histórico só cresce. A consulta quente — "o que ainda está aberto" — usa índice
+histórico só cresce. A consulta quente, "o que ainda está aberto", usa índice
 parcial sobre `lifted_at IS NULL`, de modo que ela enxerga apenas os bloqueios em
 vigor e não fica mais lenta conforme o histórico engorda.
 
@@ -460,7 +460,7 @@ vigor e não fica mais lenta conforme o histórico engorda.
 ## 18. O Redis guarda a conversa: 20 turnos mais 1 resumo
 
 **Decisão.** O contexto que o agente segura é sempre a mesma coisa: os **20
-últimos turnos** — na prática cerca de dez dela e dez do agente — mais **uma
+últimos turnos**, na prática cerca de dez dela e dez do agente, mais **uma
 única mensagem de resumo** que representa tudo o que veio antes. Quando 20
 turnos novos se acumulam desde o último resumo, o resumo é reescrito para
 absorvê-los. Os turnos antigos continuam gravados; o corte é do que o agente
@@ -484,7 +484,7 @@ segundo modelo entra no circuito.
 **Motivo.** Uma conversa de cozinha é longa e repetitiva. Reenviar tudo a cada
 turno cresce sem limite, e cortar sem resumir perde justamente o que importa:
 que ela não tem forno, que recusou fritura, que já gastou sessenta reais. A
-janela mais o resumo mantêm as duas coisas — o texto recente literal, e a
+janela mais o resumo mantêm as duas coisas: o texto recente literal, e a
 memória do que ficou decidido.
 
 **Consequência.** O resumo é instruído a guardar decisões, capacidades e
@@ -492,7 +492,7 @@ recusas com seus motivos, e a jogar fora conversa fiada. É o que uma retomada
 precisa reler.
 
 **Latência, escalabilidade e elasticidade.** A janela é uma lista Redis: gravar
-é um `RPUSH`, ler é um `LRANGE` dos últimos vinte — operações de tempo
+é um `RPUSH`, ler é um `LRANGE` dos últimos vinte, operações de tempo
 constante, fora do caminho do banco relacional. E o efeito que mais importa não
 é de disco e sim de token: o contexto por turno fica **limitado por construção**,
 então o custo de uma conversa cresce linearmente com o número de turnos, não com
@@ -501,7 +501,7 @@ servidor MCP atendem a mesma conversa sem afinidade de sessão.
 
 **Por que aqui e não no Postgres.** Isto é estado quente: reescrito a cada turno,
 lido a cada turno, e sem valor depois de resumido. Os tickets de julgamento
-seguem a mesma lógica e ficam no Redis com TTL de uma hora — um ticket
+seguem a mesma lógica e ficam no Redis com TTL de uma hora, porque um ticket
 abandonado no meio de uma conversa deve expirar, não se acumular.
 
 ---
@@ -519,7 +519,7 @@ existia antes deixou de existir.
 sessão, e três propriedades disso pesam:
 
 *São relacionais.* Um bloqueio existe **por causa de** uma capacidade. Quando a
-capacidade muda — ela compra o fogão que não tinha —, todo prato que esperava
+capacidade muda, quando ela compra o fogão que não tinha, todo prato que esperava
 por aquilo precisa voltar sozinho. Isso é um `UPDATE ... WHERE blocking_item =
 %s RETURNING`, uma linha de SQL. Em chave-valor seria varredura e reconstrução
 em Python.
@@ -537,40 +537,48 @@ banco, não na camada que o escreveu.
 
 **Observabilidade.** Todo o estado da consultoria é inspecionável com `psql`. Por
 que um prato saiu, o que o trouxe de volta, quanto do orçamento foi para quê,
-que capacidades foram confirmadas e quando — tudo com data e motivo, legível sem
+que capacidades foram confirmadas e quando, tudo com data e motivo, legível sem
 reproduzir a conversa. É a diferença entre depurar o sistema e entrevistá-lo.
+
+**A régua que decide onde a próxima coisa vai.** Vai para o Redis quando perdê-la
+custa contexto; vai para o Postgres quando perdê-la custa uma pergunta repetida
+ou dinheiro gasto duas vezes. Foi por ela que os utensílios ficaram no Postgres,
+e é por ela que a fala capturada pelos hooks ficou no Redis: é conversa, e o
+Postgres só a consulta no instante em que confere uma citação.
 
 ---
 
-## 20. O modelo padrão é o Claude Haiku 4.5
+## 20. O modelo padrão é o Claude Sonnet 5
 
-**Decisão.** `model.default` é `claude-haiku-4-5`, com provedor `anthropic`,
+**Decisão.** `model.default` é `claude-sonnet-5`, com provedor `anthropic`,
 fixado em `dockerfile/hermes-config.yaml`. A credencial é a de uma **conta
 Anthropic no plano Pro**, autorizada por OAuth com `jacquinho login`, não uma
-chave de API — o plano Pro não emite uma.
+chave de API, porque o plano Pro não emite uma.
 
-**Motivo.** Este agente faz muitas chamadas de ferramenta por turno e quase
-nenhuma delas pede raciocínio profundo. A aritmética está em Python, as regras
-são portões que devolvem `verdict` e `safe_to_shop`, e o trabalho do modelo é
-rotear, perguntar e redigir em português claro. É a forma de trabalho em que o
-modelo mais barato da família se sai bem, e uma consultoria inteira gasta dezenas
-de chamadas.
+**Motivo.** A escolha começou no modelo mais barato da família, e pela razão
+certa: a aritmética está em Python, as regras são portões que devolvem `verdict`
+e `safe_to_shop`, e o trabalho do modelo é rotear, perguntar e redigir em
+português claro. Nada disso pede raciocínio profundo, e uma consultoria inteira
+gasta dezenas de chamadas.
 
-**Consequência.** Subir é uma linha. `claude-sonnet-5` para julgamento mais forte
-mantendo bom uso de ferramentas, `claude-opus-5` quando capacidade importar mais
-que custo. Nada mais muda: os onze servidores MCP e as 56 ferramentas se
-comportam de forma idêntica por baixo.
+O que a simulação mostrou é que o gargalo não é profundidade, é **condução**.
+São 56 ferramentas e cadeias de vários passos, e o modelo mais barato perdia o
+fio: chamava a ferramenta certa com o prato errado, esquecia de nomear o `dish`,
+repetia busca. Cada tropeço desses custa mais chamadas do que o modelo mais caro
+teria custado.
 
-**Custo e latência.** Modelo menor também responde mais rápido, o que importa numa
-conversa em que ela está com o celular na mão no meio da cozinha. E como o único
-turno caro do fluxo é o do juiz, a decisão de modelo e a decisão de ordem —
-determinístico primeiro, juiz depois — se reforçam.
+**Consequência.** Trocar é uma linha. `claude-haiku-4-5` se custo pesar mais que
+condução, `claude-opus-5` quando capacidade importar mais que custo. Nada mais
+muda: os onze servidores MCP e as 56 ferramentas se comportam de forma idêntica
+por baixo, porque o comportamento não mora no modelo.
+
+**Custo e latência.** O único turno caro do fluxo é o do juiz, e é por isso que a
+ordem importa: o avaliador determinístico roda primeiro e de graça, e o juiz só
+entra depois. A decisão de modelo e a decisão de ordem se reforçam.
 
 **Nota sobre a credencial.** Uma assinatura não necessariamente libera a família
 inteira de modelos. Rode `jacquinho hermes model` depois do login para ver o que
-a conta oferece e ajuste a linha `default:` se o Haiku não estiver lá. Como o
-comportamento inteiro vive nos servidores MCP, trocar de modelo não muda nenhuma
-regra do sistema.
+a conta oferece e ajuste a linha `default:` se o Sonnet não estiver lá.
 
 ---
 
@@ -590,7 +598,7 @@ gravado em uma camada.
 
 **Elasticidade.** Imagem pequena sobe rápido. Como o servidor MCP não guarda
 estado no disco dele, subir uma réplica é puxar cerca de duzentos megabytes e
-apontar para o mesmo Postgres e o mesmo Redis — não há nada para migrar junto.
+apontar para o mesmo Postgres e o mesmo Redis, e não há nada para migrar junto.
 
 ---
 
@@ -603,7 +611,7 @@ banco falso de vinte linhas devolve exatamente o que a semeadura teria escrito.
 
 **Motivo.** Este projeto tem duas classes de risco. A primeira é o agente dizer
 algo errado, e para isso existem o portão, a confiança e o juiz. A segunda é a
-ferramenta simplesmente quebrar — e essa não tem nada a ver com modelo. Um
+ferramenta simplesmente quebrar, e essa não tem nada a ver com modelo. Um
 `AttributeError` numa consulta de despensa vira "não achei o ingrediente", que é
 indistinguível de "ela não tem".
 
@@ -618,7 +626,7 @@ nenhuma: se a normalização quebrar para `balde 2kg`, ninguém quer descobrir c
 um arquivo inventado que não tem baldes.
 
 **Observabilidade.** O primeiro efeito prático foi mover o arredondamento de
-cardápio da camada MCP para o domínio — o teste não conseguia alcançá-lo sem
+cardápio da camada MCP para o domínio, porque o teste não conseguia alcançá-lo sem
 subir um servidor, o que era o próprio sintoma de estar no lugar errado.
 
 ---
@@ -645,7 +653,7 @@ nada, e isso precisa estar escrito ao lado do número.
 
 **Consequência.** Duas correções vieram de tentar corrigir, não de planejar. A
 trilha por prato revelou que `kitchen_check_feasibility` **não tinha argumento
-`dish`** — a aprovação caía numa trilha sem nome e o prato era recusado no
+`dish`**: a aprovação caía numa trilha sem nome e o prato era recusado no
 cardápio sem explicação. E o isolamento por sessão revelou que `ctx.session_id`
 é um UUID novo a cada requisição: cada chamada caía numa trilha própria e nada
 acumulava.
@@ -665,7 +673,7 @@ que prato está em jogo, se o portão passou, se o CMV foi calculado, se o merca
 foi pesquisado, e qual é a próxima ação.
 
 **Motivo.** Nove turnos de conversa real mostraram o defeito dominante: o agente
-perde o fio e volta a oferecer o que ela já escolheu. Não por má vontade — nada
+perde o fio e volta a oferecer o que ela já escolheu. Não por má vontade: nada
 à frente dele dizia onde as coisas estavam. Dizer uma vez, num texto que ele
 pode não reler, não é o mesmo que dizer em toda chamada.
 
@@ -685,7 +693,7 @@ silenciada aí é exatamente como isso passa despercebido.
 portão aprovado **e** CMV completo para aquele prato; cardápio exige, além
 disso, que uma avaliação tenha ocorrido.
 
-**Motivo.** Metade das ferramentas nunca era chamada numa conversa real — CMV,
+**Motivo.** Metade das ferramentas nunca era chamada numa conversa real. CMV,
 mercado, feedback, memória. Instruir não bastou. A alavanca que já havia
 funcionado para o portão foi estendida: cada exigência transforma uma sugestão
 numa garantia, e só nas ferramentas que custam dinheiro ou vão para um cardápio.
@@ -704,11 +712,11 @@ mensagem e verifica se cada um aparece no que as ferramentas devolveram.
 **Motivo.** O observador pontua a evidência e nunca lê a frase; o juiz lê a
 frase mas precisa ser invocado. Entre os dois havia algo que nenhum fazia e que
 não precisa de modelo nenhum: uma cifra na mensagem ou é um número que uma
-ferramenta produziu, ou não é — e isso é decidível.
+ferramenta produziu, ou não é, e isso é decidível.
 
 Não substitui o juiz: uma mensagem pode errar de formas que número nenhum
-revela. Mas a falha específica que este sistema existe para impedir — um preço
-que ninguém calculou — é pega aqui, deterministicamente e de graça.
+revela. Mas a falha específica que este sistema existe para impedir, um preço
+que ninguém calculou, é pega aqui, deterministicamente e de graça.
 
 **Consequência.** A busca é recursiva sobre o payload inteiro, não por campo
 nomeado: um verificador que precisa ser avisado de cada campo novo fica obsoleto
@@ -734,7 +742,7 @@ O resto do estado do Hermes continua no volume, que segue gravável.
 
 **Decisão.** `menu_acceptance_check` devolve, para um prato, cada checagem que
 separa ele do cardápio, com o estado de cada uma e as perguntas que ela ainda
-não ouviu — já escritas.
+não ouviu, já escritas.
 
 **Motivo.** As checagens existiam e funcionavam. O portão sabia da sua parte, o
 observador sabia do custo e do mercado, o middleware sabia o que recusaria, o
@@ -745,8 +753,8 @@ Estado espalhado é estado que ninguém consulta. Na prática o agente descobria
 que faltava sendo recusado, o que é aprender por tropeço.
 
 **Consequência.** Duas distinções ficaram explícitas ao reunir tudo. Checagens
-que **travam** o aceite — viabilidade, custo, avaliação — contra as que apenas
-**informam** — mercado e inflação: um prato pode entrar no cardápio sem preço de
+que **travam** o aceite (viabilidade, custo, avaliação) contra as que apenas
+**informam** (mercado e inflação): um prato pode entrar no cardápio sem preço de
 mercado, mas um preço não pode ser dito sem ele, e antes isso estava implícito
 em dois conjuntos diferentes do middleware. E as lacunas voltam como a pergunta
 pronta, não como o nome do item, porque o agente não deveria precisar inventar
@@ -770,7 +778,7 @@ fraco é o caso comum. Cada chamada tornava a próxima mais atraente, e a única
 saída do laço era o modelo decidir sozinho que já bastava.
 
 Um teto resolve isso de um jeito que nenhuma redação resolve. A recusa carrega o
-que fazer em seguida — usar o que já foi achado, ou perguntar a ela — em vez de
+que fazer em seguida, seja usar o que já foi achado ou perguntar a ela, em vez de
 um erro seco.
 
 **Consequência.** Cinco buscas cobrem com folga o que a conversa precisa; se um
@@ -794,7 +802,7 @@ Dona Maria diz "não tenho forno", o agente grava, e segue perguntando outra
 coisa. Ela entregou exatamente a informação que mata a lasanha e não ouviu nada
 sobre a lasanha.
 
-O `next_step` já mandava fechar o prato, com todas as letras. Não bastou —
+O `next_step` já mandava fechar o prato, com todas as letras. Não bastou:
 instrução que o modelo pode pular não é garantia, que é a lição que se repete
 neste documento inteiro. Então a gravação passou a fazer a checagem ela mesma.
 `next_questions` ganhou a mesma verificação porque pedir a próxima pergunta é
@@ -803,7 +811,7 @@ precisamente o instante em que o agente ia mudar de assunto.
 **Consequência.** O veredito chega como estrutura, não como conselho: prato,
 `verdict: rejected`, `blocked_by`, e a frase a dizer. Dois testes cobrem os dois
 caminhos. Honestamente: isso melhorou muito o comportamento e ainda não o tornou
-certo — o modelo às vezes registra, respeita o bloqueio dali em diante e mesmo
+certo. O modelo às vezes registra, respeita o bloqueio dali em diante e mesmo
 assim não anuncia em voz alta que a lasanha ao forno saiu. Está anotado assim no
 README e em [testes.md](testes.md), porque é o que os testes de diálogo mostram.
 
@@ -814,7 +822,7 @@ dá para ver, depois da conversa, se a frase foi entregue e o agente a ignorou.
 
 ## 31. O veredito é uma dívida da conversa, não um lembrete
 
-**Decisão.** Quando um prato morre — ou volta —, a sessão passa a dever a ela
+**Decisão.** Quando um prato morre, ou volta, a sessão passa a dever a ela
 essa frase. Todas as ferramentas que significam seguir em frente são recusadas
 até que `kitchen_announce_verdict` receba o texto que ela vai ler, e esse texto
 é conferido: precisa nomear o prato dela e o que decidiu aquilo.
@@ -831,19 +839,19 @@ instante em que ele mudava de assunto. Melhorou nas três, acertou em nenhuma:
 redação é conselho, e conselho o modelo pode pular. É a mesma lição que este
 documento repete desde a decisão 1.
 
-**Consequência.** Ler nunca é recusado — despensa, perfil, histórico e o próprio
+**Consequência.** Ler nunca é recusado: despensa, perfil, histórico e o próprio
 portão seguem abertos, porque conferir antes de falar é o que ele deveria estar
 fazendo ali. O que fecha é buscar outro prato, custear, precificar, comprar,
 entrar no cardápio e fazer a próxima pergunta.
 
 A conferência da frase é deliberadamente pequena: nome do prato, motivo, e
-tamanho de frase inteira. O nome curto conta — ela chama de "a lasanha" e o
+tamanho de frase inteira. O nome curto conta, porque ela chama de "a lasanha" e o
 agente também. E a palavra que bloqueia é descontada do nome do prato antes da
 comparação, senão dizer "forno" passaria por ter nomeado "lasanha ao forno".
 
 Isso não garante que a frase conferida seja de fato enviada a ela; o servidor
 não vê a mensagem final. O que garante é que ela foi escrita, com o prato e o
-motivo dentro, antes de qualquer outra coisa acontecer — e na simulação isso foi
+motivo dentro, antes de qualquer outra coisa acontecer, e na simulação isso foi
 suficiente, o que as três redações anteriores nunca foram.
 
 **Observabilidade.** A dívida aparece em `conversation_state.deve_a_ela`, em toda
@@ -858,7 +866,7 @@ resposta de ferramenta, e a recusa diz exatamente o que falta dizer.
 Sem conversa guardada, nada pode ser confirmado. `unknown` não exige citação.
 
 **Motivo.** Numa simulação com o banco zerado, o agente decidiu sozinho que ela
-tinha forno, fogão, sabia montar camadas e gratinar — sem perguntar nada. O
+tinha forno, fogão, sabia montar camadas e gratinar, sem perguntar nada. O
 portão aprovou em cima disso e precificou uma lasanha inteira, com margem e
 tudo, para uma cozinha que não a assa. O portão funcionou perfeitamente: ele
 confere o perfil, e o perfil dizia sim.
@@ -869,7 +877,7 @@ não é consentimento" estava escrito na descrição da ferramenta desde o come�
 que o tornava exatamente o tipo de regra que este projeto já aprendeu a não
 confiar.
 
-**Consequência.** A conversa passa a ser gravada de verdade — antes o Redis
+**Consequência.** A conversa passa a ser gravada de verdade. Antes o Redis
 ficava vazio numa consultoria inteira, e a janela de contexto documentada não
 descrevia nada. A gravação vira dependência de uma coisa que o agente quer
 fazer, e por isso acontece.
@@ -880,7 +888,7 @@ carrega `ela: "…"` ao lado do estado, e quem revisar lê a origem da afirmaç�
 junto com ela.
 
 **Observabilidade.** `her_words_verified` volta em toda gravação, e é `false`
-quando a citação não pôde ser conferida — Redis fora do ar, por exemplo. A
+quando a citação não pôde ser conferida, com o Redis fora do ar, por exemplo. A
 consultoria continua; a confiança na linha é que fica menor, e dita.
 
 ---
@@ -897,18 +905,18 @@ falham abertos.
 roda porque o modelo decidiu chamar alguma coisa.
 
 *A citação.* Um `confirmed_yes` é uma afirmação sobre o que ela disse, conferida
-contra a transcrição — que até aqui era escrita pelo próprio agente. Citação
+contra a transcrição, que até aqui era escrita pelo próprio agente. Citação
 conferida contra transcrição escrita por quem cita não é conferência. O agente
 podia gravar a fala e depois citar a si mesmo.
 
 *A entrega.* O servidor decidia que o prato morreu, entregava a frase, recusava
-tudo que significasse seguir em frente — e nunca via a mensagem que chega a ela.
+tudo que significasse seguir em frente, e nunca via a mensagem que chega a ela.
 Garantia de que a frase foi **escrita**, nunca de que foi **enviada**.
 
 **Consequência.** As falas capturadas ficam num balde próprio, marcadas
 `source: hook`, e passam a valer mais: existindo qualquer fala capturada, só
 elas contam para conferir uma citação. A dívida do veredito ganhou dois
-estágios — a ferramenta *rascunha* (e isso reabre as portas dentro do turno), o
+estágios: a ferramenta *rascunha* (e isso reabre as portas dentro do turno), o
 fim do turno *quita*, olhando o texto que ela recebeu. Se não recebeu, a dívida
 reabre e o turno seguinte começa fechado.
 
@@ -930,13 +938,13 @@ mensagem, e não sobre a intenção.
 ## 34. Um veredito não é devido duas vezes
 
 **Decisão.** Cada veredito entregue fica registrado por sessão. Repetir o mesmo
-— mesmo prato, mesmo motivo — não abre dívida nova.
+, mesmo prato e mesmo motivo, não abre dívida nova.
 
 **Motivo.** Apareceu rodando a consultoria inteira. Ela já tinha ouvido que a
 lasanha ao forno estava fora, aceitado a de panela e pedido o custo. Aí
 mencionou que também não frita por imersão. Aquele `confirmed_no` disparou a
 recheca do prato "em jogo", que ainda era a lasanha ao forno, e o agente lhe
-deu o discurso do forno de novo — no meio da conta que ela tinha pedido.
+deu o discurso do forno de novo, no meio da conta que ela tinha pedido.
 
 Dizer de novo o que ela já ouviu é o mesmo defeito de nunca ter dito: a
 mensagem não é sobre onde a conversa está.
@@ -950,11 +958,11 @@ novo por que a lasanha está fora é gentileza, não repetição.
 ## 35. Um "sim" com "mas" dentro não é um sim
 
 **Decisão.** `confirmed_yes` é recusado quando as palavras dela carregam
-hesitação — "mas", "às vezes", "mais ou menos", "quebrado", "acho que". Volta
+hesitação: "mas", "às vezes", "mais ou menos", "quebrado", "acho que". Volta
 como pergunta, e o item continua `unknown`.
 
 **Motivo.** Ela disse *"meu forno acende mas não esquenta direito, às vezes
-queima embaixo"*. Foi gravado `confirmed_yes`, com o detalhe na nota — e a nota
+queima embaixo"*. Foi gravado `confirmed_yes`, com o detalhe na nota, e a nota
 é o único lugar que o portão não lê. Dali em diante o portão liberaria qualquer
 prato de forno para uma cozinha cujo forno queima o fundo, e ela compraria os
 ingredientes. Era a falha central do desafio de volta, numa forma nova: o portão
@@ -967,8 +975,8 @@ torna aceitável aqui é a assimetria: `unknown` bloqueia compra, então um fals
 positivo custa uma pergunta a mais e um falso negativo custaria os ingredientes
 dela. Errar para o lado da pergunta é barato; para o outro lado, não.
 
-O conserto de verdade é um quarto estado — "tem, mas não dá para contar com
-isso" — que muda o contrato do portão em todo lugar que o lê. Isso merece uma
+O conserto de verdade é um quarto estado, "tem, mas não dá para contar com
+isso", que muda o contrato do portão em todo lugar que o lê. Isso merece uma
 passagem própria, não um remendo pendurado nesta. Está escrito aqui em vez de
 ficar implícito no código.
 

@@ -7,9 +7,9 @@
 ![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)
 ![Redis](https://img.shields.io/badge/redis-7-DC382D?logo=redis&logoColor=white)
 ![Postgres](https://img.shields.io/badge/postgres-17-4169E1?logo=postgresql&logoColor=white)
-![Modelo](https://img.shields.io/badge/modelo-Claude%20Haiku%204.5-D97757)
+![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 ![Servidores MCP](https://img.shields.io/badge/servidores%20MCP-11-success)
-![Ferramentas](https://img.shields.io/badge/ferramentas-52-success)
+![Ferramentas](https://img.shields.io/badge/ferramentas-56-success)
 
 Uma consultora de cardápio e precificação para a **Dona Maria**, cozinheira que
 está abrindo o primeiro delivery dela. Ela sabe cozinhar. O que ela não sabe é
@@ -24,8 +24,9 @@ chamada de ferramenta, nunca da memória do modelo**.
 
 ## Uma consultoria inteira, do "oi" ao cardápio fechado
 
-Transcrição real, bancos zerados, gravada com `jacquinho`. É o caso que o
-desafio pede: ela quer um prato que exige forno, não tem forno, e o agente
+Transcrição real, bancos zerados, gravada com `jacquinho`, copiada palavra por
+palavra (é a única parte deste README que ainda usa travessão, porque é fala
+dela e do agente, não texto meu). É o caso que o desafio pede: ela quer um prato que exige forno, não tem forno, e o agente
 descobre isso **antes** de ela gastar um centavo.
 
 ```
@@ -114,7 +115,7 @@ kitchen_capabilities
 
 recipe_blocks
   lasanha ao forno  | forno | ativo   ← volta sozinha no dia em que ela tiver um
-  lasanha de panela | —     | livre
+  lasanha de panela | (nenhum) | livre
 ```
 
 Cada capacidade carrega **as palavras dela**, copiadas da mensagem que o
@@ -128,7 +129,7 @@ beco sem saída, é um prato esperando.
 | Ler a despensa | Turno 3: o molho cruzado com a planilha, item a item |
 | Descobrir a restrição antes da compra | Turno 1 pergunta, turno 2 fecha o prato |
 | Não inferir o que ela não disse | O forno virou pergunta, não suposição |
-| Sugerir receita compatível | Lasanha de panela — a versão do prato **dela** |
+| Sugerir receita compatível | Lasanha de panela, a versão do prato **dela** |
 | Calcular CMV | R$ 8,01 por marmita, aritmética em Python, sem modelo |
 | Preço com mercado e margem | Três cenários sobre a faixa observada, taxa de 10% descontada |
 | Respeitar o orçamento | R$ 30,85 de R$ 80,00, conferido antes de comprar |
@@ -140,7 +141,7 @@ beco sem saída, é um prato esperando.
 ## Uma conversa que deu errado, e por quê
 
 Esta também é real, gravada do mesmo jeito. Ela vale mais que a de cima, porque
-mostra o que o sistema faz quando o modelo erra — que é o caso que sempre vai
+mostra o que o sistema faz quando o modelo erra, que é o caso que sempre vai
 existir.
 
 ```
@@ -170,7 +171,7 @@ Jacquinho  ▸ Maria, o pudim de leite condensado do jeito tradicional, assado e
 ### O erro
 
 A terceira mensagem **afirma ter dito uma coisa que ela nunca recebeu**. O
-agente escreveu a frase do veredito — o prato, o motivo, a alternativa — e a
+agente escreveu a frase do veredito (o prato, o motivo, a alternativa) e a
 entregou para `kitchen_announce_verdict`, que a conferiu e aprovou. Aí tratou a
 chamada da ferramenta como se fosse a conversa, e escreveu para ela uma
 referência a uma mensagem que só existia dentro do servidor.
@@ -192,8 +193,8 @@ jacquinho.verdict {"dish": "pudim de leite condensado", "delivered": false,
 ```
 
 A dívida foi **reaberta**, e com ela todas as ferramentas que significam seguir
-em frente. O turno ruim já tinha ido — nenhum hook de shell pode reescrever uma
-mensagem em voo — mas a conversa não conseguiu passar por cima dele. No turno
+em frente. O turno ruim já tinha ido, porque nenhum hook de shell reescreve uma
+mensagem em voo, mas a conversa não conseguiu passar por cima dele. No turno
 seguinte, ela ouviu.
 
 É exatamente a garantia que este projeto consegue dar, dita sem exagero: **não
@@ -208,7 +209,7 @@ liberaria qualquer prato de forno para uma cozinha cujo forno queima o fundo, e
 ela compraria os ingredientes.
 
 Três estados não têm onde guardar "tem, mais ou menos". Enquanto não tiverem, um
-sim com "mas" dentro é recusado e vira pergunta de volta — a assimetria é o que
+sim com "mas" dentro é recusado e vira pergunta de volta. A assimetria é o que
 torna uma lista de palavras aceitável aqui: um falso positivo custa uma pergunta
 a mais, um falso negativo custa os ingredientes dela. Está em
 [docs/decisoes.md](docs/decisoes.md), item 35.
@@ -274,6 +275,7 @@ flowchart LR
 
     cli -->|docker compose run| hermes
     hermes -->|"MCP sobre HTTP<br/>http://jacquinho-mcp:8000/mcp"| mcp
+    hermes -.->|"hooks de turno<br/>/hooks/her-message<br/>/hooks/final-message"| mcp
     mcp --> redis
     mcp --> pg
     mcp -.lê.-> xlsx
@@ -294,7 +296,7 @@ plausível, e a Dona Maria compraria mantimentos em cima dele.
 Os onze servidores são classes separadas, com responsabilidades separadas,
 compostas em uma única instância FastMCP e montadas sob prefixos (`pantry_`,
 `pricing_`, `kitchen_`, …). Um só endpoint HTTP significa um container, um
-healthcheck, uma URL na configuração do agente — e mesmo assim os servidores
+healthcheck, uma URL na configuração do agente, e mesmo assim os servidores
 continuam podendo ser entendidos, testados e substituídos um de cada vez.
 
 HTTP em vez de stdio importa estruturalmente: um servidor stdio é um
@@ -307,8 +309,8 @@ ser exercitada sem sequer iniciar o agente.
 O projeto não tem nenhuma skill. A regra é simples: **o que pode ser conferido
 vira ferramenta; o que só pode ser dito continua texto.**
 
-Uma skill é instrução — texto que o modelo lê e, se tudo correr bem, segue. Uma
-ferramenta é execução — código que roda e devolve um valor que o modelo não
+Uma skill é instrução: texto que o modelo lê e, se tudo correr bem, segue. Uma
+ferramenta é execução: código que roda e devolve um valor que o modelo não
 produziu. A diferença aparece exatamente onde este trabalho não pode falhar,
 porque ela vai gastar dinheiro em cima da resposta.
 
@@ -341,23 +343,107 @@ conseguiria pedir isso educadamente.
 
 O outro lado, que também vale dizer: ferramenta custa esquema, validação e um
 caminho de erro para cada argumento; skill custa um parágrafo. Para
-comportamento sem certo e errado computável — voz, quem fala primeiro — a
+comportamento sem certo e errado computável, como voz e quem fala primeiro, a
 ferramenta é peso morto, e o texto é a resposta certa. É por isso que a voz mora
 em `hermes/SOUL.md` e não numa ferramenta.
+
+### Por que dois hooks fora do MCP
+
+Tudo até aqui roda porque o modelo decidiu chamar alguma coisa. Duas garantias
+tinham exatamente esse buraco no meio, e as duas custavam dinheiro dela.
+
+**A citação.** Um `confirmed_yes` sobre a cozinha dela é uma afirmação sobre algo
+que ela disse, e o servidor passou a conferir a citação contra a transcrição.
+Só que a transcrição era escrita pelo próprio agente, com `chat_save_turn`.
+Citação conferida contra transcrição escrita por quem cita não é conferência: o
+agente podia gravar a fala e depois citar a si mesmo. O buraco não é teórico, é
+a versão sofisticada da falha que ele já tinha cometido de forma grosseira, que
+foi decidir sozinho que ela tinha um forno.
+
+**A entrega.** O servidor decidia que o prato estava morto, entregava a frase,
+recusava tudo que significasse seguir em frente, e nunca via a mensagem que
+chega até ela. Garantia de que a frase foi **escrita**; nunca de que foi
+**enviada**. Aconteceu na prática: o agente escreveu para ela *"já te falei o
+veredito"*, referindo-se a uma frase que só existia dentro do servidor.
+
+O Hermes dispara scripts de shell nas fronteiras do turno, e é ali que os dois
+buracos fecham:
+
+| Hook | Momento | O que o servidor ganha |
+|---|---|---|
+| `pre_llm_call` | Antes de o modelo ler a mensagem | A fala dela, literal, que o modelo não escreveu |
+| `post_llm_call` | Depois que o laço de ferramentas termina | A resposta como ela recebe |
+
+O que a fala capturada muda: ela fica marcada `source: hook`, e **existindo
+qualquer turno capturado, só ele vale** para confirmar uma citação. O que a
+resposta capturada muda: a dívida do veredito só é quitada pelo texto que chegou
+até ela; se não chegou, reabre, e o turno seguinte começa com tudo fechado.
+
+O limite, dito sem enfeite: um hook de shell não consegue reescrever a mensagem
+em voo, porque o Hermes só aceita substituição de texto vindo de um plugin em
+Python. Então isto **não impede um turno ruim de ser enviado**. O que ele faz é
+recusar esquecê-lo. Os dois scripts estão em `hooks/`, têm sete linhas cada, e
+falham abertos: sem eles a consultoria continua e o que se perde é a
+conferência, que passa a aparecer como `her_words_verified: false`.
+
+### Por que Postgres para o que ela tem, e Redis só para a conversa
+
+A pergunta natural é por que os utensílios dela não ficam no Redis, junto com o
+resto da conversa. Três motivos, e o primeiro decide sozinho.
+
+**Um bloqueio é uma relação, não um valor.** A lasanha saiu *por causa do* forno.
+No dia em que o forno aparece, todo prato que esperava por ele volta com uma
+linha de SQL:
+
+```sql
+UPDATE recipe_blocks SET lifted_at = now(), lifted_because = %s
+ WHERE lifted_at IS NULL AND conditional AND blocking_item = 'forno'
+RETURNING recipe_slug;
+```
+
+Em chave-valor isso vira varrer tudo e reconstruir em Python, e a volta
+silenciosamente para de acontecer no dia em que alguém esquece de varrer.
+
+**O Redis aqui tem janela.** A conversa é cortada em vinte turnos por
+construção. Um perfil de cozinha guardado dentro da conversa desaparece com ela,
+e a consultoria seguinte começa perguntando tudo de novo, que é exatamente o que
+a regra mais importante deste agente proíbe.
+
+**"O que ela ainda não respondeu" é uma consulta.** `unknown` é um estado
+guardado numa coluna, e é assim que `kitchen_next_questions` sabe o que falta sem
+o modelo deduzir nada. Contar o que não existe é bem mais difícil do que ler uma
+coluna.
+
+A regra que separa os dois, e que também responde onde colocar a próxima coisa:
+
+| Vai para o Redis | Vai para o Postgres |
+|---|---|
+| Perdê-lo custa contexto | Perdê-lo custa uma pergunta repetida ou dinheiro gasto duas vezes |
+| Janela de 20 turnos, resumo, fichas de julgamento com TTL | Cozinha, receitas, bloqueios, orçamento, cardápio, avaliações |
+| Reescrito a todo turno | Sobrevive a qualquer sessão |
+
+A exceção que confirma a regra é a fala capturada pelos hooks, que fica no Redis
+porque é conversa. O lado do Postgres só a consulta no instante da gravação, para
+conferir uma citação; o que sobrevive depois é a capacidade, com as palavras dela
+copiadas na nota.
 
 ### Camadas
 
 ```mermaid
 flowchart TD
-    A["app/mcps/*_mcp.py<br/><b>Transporte</b> — assinaturas, descrições,<br/>validação de argumentos, orientação de próximo passo"]
-    B["app/domain/*.py<br/><b>Domínio</b> — unidades, despensa, cozinha, elicitação,<br/>busca, consenso, pratos, mercado, economia,<br/>orçamento, confiança, memória"]
-    C["Armazenamento<br/>Redis · arquivos JSON de estado · a planilha"]
+    H["hooks/*.sh<br/><b>Fronteira do turno</b> · a fala dela antes do modelo,<br/>a resposta depois do laço de ferramentas"]
+    A["app/mcps/*_mcp.py<br/><b>Transporte</b> · assinaturas, descrições,<br/>validação de argumentos, orientação de próximo passo"]
+    B["app/domain/*.py<br/><b>Domínio</b> · unidades, despensa, cozinha, elicitação,<br/>busca, consenso, pratos, mercado, economia, orçamento,<br/>confiança, veredito, memória"]
+    C["Armazenamento<br/>Postgres · Redis · a planilha, somente leitura"]
+    H --> B
     A --> B --> C
 ```
 
 A camada de domínio não conhece MCP. Pode ser importada e testada sem subir um
 servidor, e a camada de ferramentas fica fina o bastante para ser lida como
-documentação das obrigações do agente.
+documentação das obrigações do agente. Os hooks entram pelo lado, sem passar
+pelo transporte MCP, porque quem os chama não é o modelo e sim o runtime do
+agente.
 
 ---
 
@@ -371,7 +457,7 @@ jacquinho                   # abre o chat
 
 **A credencial usada é a de uma conta Anthropic no plano Pro.** Não há chave de
 API: o plano Pro não emite uma. O `jacquinho login` autentica por OAuth contra a
-mesma conta do `claude.ai` — ele imprime um link, você autoriza no navegador,
+mesma conta do `claude.ai`: ele imprime um link, você autoriza no navegador,
 copia o código que aparece e cola de volta no terminal. O token fica no volume
 `hermes-data` e o login é uma vez só. O passo a passo completo está em
 [docs/operacao.md](docs/operacao.md#credenciais).
@@ -382,7 +468,7 @@ OpenRouter, ou Ollama local sem conta nenhuma.
 
 O modelo padrão é o **Claude Sonnet 5**, fixado em
 `dockerfile/hermes-config.yaml`. A aritmética está em Python e as regras são
-portões, então o agente não precisa de raciocínio profundo — mas precisa segurar
+portões, então o agente não precisa de raciocínio profundo, mas precisa segurar
 o fio de uma conversa longa com mais de cinquenta ferramentas, e é aí que o
 modelo mais barato mostrou fraqueza. Condução é a parte difícil aqui, não
 pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais.
@@ -390,7 +476,7 @@ pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais.
 O agente roda em qualquer provedor que você apontar e alcança as 56 ferramentas
 de qualquer jeito. O que ele exige de verdade não é inteligência bruta e sim
 **chamada de ferramenta confiável**: são 56 ferramentas e cadeias de vários
-passos. Cada caminho — assinatura, chave, camada gratuita, Ollama local — tem um
+passos. Cada caminho (assinatura, chave, camada gratuita, Ollama local) tem um
 bloco pronto em `dockerfile/hermes-config.yaml`.
 
 Um único modelo participa do circuito. O juiz da camada de confiança é um turno
@@ -413,7 +499,7 @@ separado e restrito desse mesmo modelo.
 
 O `jacquinho` resolve o repositório através do próprio link simbólico, sobe o
 Redis e o servidor MCP, espera o healthcheck e só então abre o chat. Todo start
-reconstrói a imagem do MCP — cerca de cinco segundos com cache quente — para
+reconstrói a imagem do MCP, cerca de cinco segundos com cache quente, para
 que uma edição em `app/` nunca fique rodando contra uma imagem velha.
 
 O servidor MCP é alcançável por conta própria, para depuração:
@@ -434,7 +520,7 @@ curl -s -X POST http://localhost:8000/mcp \
 ## Como a conversa começa
 
 O agente fala primeiro. Ela não sabe o que pedir ainda: lê a despensa, comenta em
-duas linhas e abre as duas portas — *"quer que eu procure pratos que dão pra
+duas linhas e abre as duas portas: *"quer que eu procure pratos que dão pra
 fazer com isso, ou você já tem alguma ideia em mente?"*
 
 A partir daí, o prompt `open_conversation` roteia o que ela disser. Os três
@@ -502,8 +588,8 @@ sequenceDiagram
     M-->>A: a escolha dela
 ```
 
-Quando um prato cai — ela não quer cozinhar aquilo, ou a cozinha dela não dá
-conta — a recusa é registrada com o motivo e a próxima opção sai de uma lista
+Quando um prato cai, seja porque ela não quer cozinhar aquilo ou porque a
+cozinha dela não dá conta, a recusa é registrada com o motivo e a próxima opção sai de uma lista
 já guardada. Buscar na web de novo é o último recurso.
 
 ```mermaid
@@ -524,19 +610,19 @@ stateDiagram-v2
 | Prefixo | Ferramentas | Responsabilidade |
 |---|---:|---|
 | `chat` | 7 | A conversa: janela de 20 turnos mais um resumo |
-| `pantry` | 3 | A planilha como custos unitários normalizados |
+| `pantry` | 4 | A planilha como custos unitários normalizados |
 | `dishes` | 6 | Categorias de prato e descoberta por concordância entre fontes |
 | `recipes` | 10 | Montagem de buscas, cobertura da despensa e o catálogo de receitas |
-| `kitchen` | 9 | Elicitação de restrições e o gate de viabilidade |
+| `kitchen` | 10 | Elicitação de restrições, o gate de viabilidade e o veredito que ela ouve |
 | `market` | 1 | Preços de delivery observados para pratos comparáveis |
 | `economy` | 2 | Inflação regional, índice geral e alimentação no domicílio |
 | `budget` | 4 | O orçamento de complementos como saldo gastável |
 | `pricing` | 2 | CMV e cenários de preço ancorados no mercado |
-| `confidence` | 2 | Quanto a evidência sustenta a resposta |
+| `confidence` | 4 | Quanto a evidência sustenta a resposta |
 | `menu` | 6 | Prontidão para aceite, a opinião dela sobre cada prato, e o cardápio |
 
-Mais quatro prompts — `open_conversation`, `check_specific_dish`,
-`suggest_from_pantry` e `evaluate_dish` — que carregam o procedimento, e um
+Mais quatro prompts (`open_conversation`, `check_specific_dish`,
+`suggest_from_pantry` e `evaluate_dish`) que carregam o procedimento, e um
 recurso, `pantry://ingredients`.
 
 Assinaturas completas: [docs/referencia-mcp.md](docs/referencia-mcp.md).
@@ -554,33 +640,37 @@ confrontada com o que ela de fato respondeu. Três estados, e só um deles é si
 
 ```mermaid
 flowchart LR
-    U["unknown<br/><i>nunca perguntado</i>"] -->|perguntar| Y["confirmed_yes"]
-    U -->|perguntar| N["confirmed_no"]
+    U["unknown<br/><i>nunca perguntado</i>"] -->|"resposta limpa: 'tenho sim'"| Y["confirmed_yes"]
+    U -->|"'não tenho'"| N["confirmed_no"]
     U -.->|bloqueia a compra| B["safe_to_shop = false"]
     N -.->|bloqueia a compra| B
-    Y --> OK["safe_to_shop = true"]
+    Y --> OK["safe_to_shop = true<br/><i>se todas as exigências<br/>do prato estiverem assim</i>"]
+    U -->|"'tenho, mas queima embaixo'"| H{{"recusado:<br/>volta como pergunta"}}
+    H --> U
 ```
 
 #### Um "sim" é uma afirmação sobre o que ela disse
 
 O erro mais caro que este agente já cometeu não foi de conta: foi decidir que
 ela tinha um forno sobre o qual ninguém tinha perguntado. O portão aprovou em
-cima disso e a lasanha inteira foi precificada — para uma cozinha que não a
+cima disso e a lasanha inteira foi precificada, para uma cozinha que não a
 assa. Nada no servidor podia contradizer aquilo, porque o único registro do que
 ela tinha dito vivia no contexto do modelo.
 
-Agora vive no Redis. `kitchen_record_capability` exige `her_words` para qualquer
-`confirmed_yes` ou `confirmed_no`, e **procura essa frase nas falas dela** antes
-de aceitar:
+Agora vive no Redis, capturado pelo hook de início de turno antes de o modelo
+ler a mensagem. `kitchen_record_capability` exige `her_words` para qualquer
+`confirmed_yes` ou `confirmed_no`, e **procura essa frase nas falas capturadas
+dela** antes de aceitar:
 
 | Situação | Resposta do servidor |
 |---|---|
 | Sem `her_words` | Recusado: *"um confirmado é uma afirmação sobre o que ELA disse"* |
 | `her_words` que ela não disse | Recusado, com quantas falas dela foram procuradas |
 | Nenhuma fala guardada | Recusado: guarde a mensagem dela primeiro |
-| `state='unknown'` | Aceito sem citação — `unknown` é uma pergunta, não uma afirmação |
+| `state='unknown'` | Aceito sem citação: `unknown` é uma pergunta, não uma afirmação |
+| Um "sim" com hesitação dentro | Recusado, com as marcas que encontrou, e volta como pergunta |
 
-O que fica gravado carrega a citação: `forno=confirmed_no — ela: "nao tenho
+O que fica gravado carrega a citação: `forno=confirmed_no | ela: "nao tenho
 forno nao, so um cooktop de 4 bocas"`. Quem auditar depois lê a origem da
 afirmação junto com ela.
 
@@ -604,13 +694,13 @@ enquanto seguirem `unknown`.
 Uma exigência que o catálogo nunca viu também bloqueia, e pode ser incorporada
 ao catálogo para o próximo prato não redescobri-la. O catálogo já vem com 26
 itens entre equipamentos, técnicas e restrições operacionais, e o que é gravado
-é sempre uma chave dele — `forno de 45l` vira `forno`, com o detalhe na nota.
+é sempre uma chave dele: `forno de 45l` vira `forno`, com o detalhe na nota.
 Chave livre seria um portão que não encontra o que ele mesmo gravou.
 
 #### O rastreamento é com estado, e uma pergunta responde tudo
 
-As checagens moravam em cinco lugares — o portão sabia da sua parte, o
-observador sabia do custo e do mercado, o middleware sabia o que recusaria — e
+As checagens moravam em cinco lugares. O portão sabia da sua parte, o
+observador sabia do custo e do mercado, o middleware sabia o que recusaria, e
 ninguém consultava as cinco. Estado espalhado é estado que não se consulta.
 
 `menu_acceptance_check` responde a pergunta que o agente de fato tem, que é se
@@ -632,7 +722,7 @@ prato: Lasanha  |  pronto para aceitar: False
 
 Duas coisas que a saída deixa explícitas. A distinção entre **travar** e
 **informar**: um prato pode entrar no cardápio sem preço de mercado, mas um
-preço não pode ser dito sem ele — são coisas diferentes. E as lacunas voltam
+preço não pode ser dito sem ele, que são coisas diferentes. E as lacunas voltam
 como **a pergunta pronta**, não como o nome do item: o agente não precisa
 inventar como perguntar sobre air fryer.
 
@@ -685,7 +775,7 @@ ingrediente contra a despensa, converte a unidade e multiplica:
 ```
 
 Cada linha volta com a conta escrita, e o total é a soma. O modelo não escreve
-número nenhum aqui — ele só decide o que perguntar e como contar para ela. Se
+número nenhum aqui: ele só decide o que perguntar e como contar para ela. Se
 uma unidade da receita não bate com a da compra, a ferramenta devolve uma
 **pergunta** em `open_questions` em vez de estimar.
 
@@ -718,7 +808,7 @@ O pior turno que este agente já produziu não errou nenhum número: ela disse "
 tenho forno", o servidor arquivou certo, e a resposta falou de outra coisa. Ela
 entregou o fato que matou o prato dela e não ouviu nada sobre o prato dela.
 
-Três rodadas de redação mais forte não resolveram — um `next_step` mandando
+Três rodadas de redação mais forte não resolveram: um `next_step` mandando
 fechar o prato, depois a frase pronta devolvida na resposta da ferramenta.
 Redação é conselho, e conselho o modelo pode pular.
 
@@ -727,27 +817,36 @@ Então o veredito virou uma **dívida da conversa**:
 ```mermaid
 flowchart TD
     N["ela responde 'não tenho forno'"] --> P["portão roda sozinho<br/>prato arquivado por 'forno'"]
-    P --> D["a sessão passa a dever a ela<br/>o veredito, em voz alta"]
+    P --> D["dívida aberta:<br/>a sessão deve a ela o veredito"]
     D --> X["dishes_discover · recipes_search · pricing_*<br/>market_* · budget_commit · menu_add<br/>kitchen_next_questions"]
     X -.->|recusados| D
-    D --> A["kitchen_announce_verdict<br/><i>com a frase que ela vai ler</i>"]
-    A -->|nomeia o prato dela<br/>e o que o travou| L["dívida quitada,<br/>a conversa segue"]
+    D --> A["kitchen_announce_verdict<br/><i>a frase que ela vai ler</i>"]
     A -.->|"'entendido, vou ver outras opções'"| D
+    A -->|nomeia o prato dela<br/>e o que o travou| R["rascunhada:<br/>as ferramentas reabrem"]
+    R --> F["fim do turno<br/><i>post_llm_call vê o texto dela</i>"]
+    F -->|a frase chegou| Q["dívida quitada"]
+    F -.->|"a frase não chegou"| D
 ```
 
 Ler nunca é recusado: a despensa, o perfil, o histórico e o próprio portão
 seguem abertos, porque conferir antes de falar é exatamente o que ele deveria
 estar fazendo ali. O que fecha é seguir em frente.
 
-E a frase é conferida antes de passar. Ela precisa nomear **o prato dela** — o
-nome curto conta, ela chama de "a lasanha" e o agente também — e **o que
-decidiu isso**. Um aceno educado não quita nada.
+Repare nos dois estágios. A ferramenta **rascunha**, e isso já reabre as portas
+dentro do turno, porque é a parte pela qual o agente pode ser cobrado enquanto
+ainda está agindo. Quem **quita** é o fim do turno, que é o único lugar onde o
+servidor vê o texto que chegou até ela. Se não chegou, a dívida reabre e o turno
+seguinte começa fechado.
+
+E a frase é conferida antes de passar. Ela precisa nomear **o prato dela**, e o
+nome curto conta, porque ela chama de "a lasanha" e o agente também. Precisa
+também dizer **o que decidiu isso**. Um aceno educado não quita nada.
 
 ### Um bloqueio se desfaz quando o motivo dele muda
 
 Um prato recusado por falta de equipamento guarda **qual** equipamento o
 bloqueou. No dia em que ela responde que passou a ter aquilo, os pratos voltam
-sozinhos — e ela ouve isso pelo mesmo caminho, porque a volta também é uma
+sozinhos, e ela ouve isso pelo mesmo caminho, porque a volta também é uma
 dívida:
 
 ```
@@ -759,7 +858,7 @@ ela ganha um forno  -> desbloqueadas: ['Lasanha ao forno', 'Bolo de cenoura']
 ```
 
 Um prato que ela nomeou e que ninguém pesquisou ainda também é arquivado, com um
-registro honesto sobre a origem — *"dito por ela na conversa"*. Sem isso o
+registro honesto sobre a origem: *"dito por ela na conversa"*. Sem isso o
 bloqueio não teria onde se prender, e a volta um mês depois não aconteceria.
 
 ### O contexto da conversa é limitado por construção
@@ -785,13 +884,18 @@ evidências é pontuada:
 |---|---:|
 | Gate de viabilidade fechado | 25 |
 | CMV completo | 25 |
+| Cobertura da despensa | 20 |
 | Concordância entre fontes | 20 |
 | Fontes de mercado independentes | 20 |
 | Indicador de inflação atual | 10 |
 
+Só os sinais que a afirmação em jogo exige entram na conta, e os pesos são
+**ordinais, não calibrados**: eles ordenam respostas, não medem probabilidade de
+nada. A conta completa está em [docs/metricas.md](docs/metricas.md).
+
 Um turno de julgamento separado lê o rascunho contra essa mesma evidência e
 nomeia afirmações que nada sustenta. No modo híbrido a nota final é **a menor
-das duas** — uma resposta vale o que diz o revisor menos convencido.
+das duas**, porque uma resposta vale o que diz o revisor menos convencido.
 
 Impedimentos são absolutos: gate aberto, CMV incompleto ou faixa de mercado
 ausente barram a resposta independentemente da nota.
@@ -818,7 +922,7 @@ toda chamada.
 Preço exige portão aprovado **e** CMV daquele prato. Cardápio exige, além disso,
 uma avaliação. Um veredito não contado a ela fecha tudo que significa seguir em
 frente. Um "sim" sobre a cozinha dela exige a fala dela, guardada. O caminho
-certo é o único caminho, em vez do mais trabalhoso — foi por ser mais trabalhoso
+certo é o único caminho, em vez do mais trabalhoso. Era por ser mais trabalhoso
 que o agente o pulava.
 
 ### Os números da mensagem são conferidos sem modelo
@@ -837,7 +941,7 @@ preço que ninguém calculou.
 
 Avaliar a própria resposta era uma ferramenta que o agente devia chamar antes de
 falar. Ele não chamava: onze chamadas dentro de uma conversa real, zero
-avaliações. Uma instrução que o modelo pode pular não é garantia — e essa era o
+avaliações. Uma instrução que o modelo pode pular não é garantia, e essa era o
 ponto inteiro da camada.
 
 Então o servidor observa. Um middleware intercepta toda chamada de ferramenta,
@@ -848,10 +952,10 @@ depende de o agente lembrar:
 $ jacquinho confidence
 após pantry_list_ingredients       1.00  〔o que ela tem: confiança alta · lido da planilha dela〕
 após dishes_discover_dishes        1.00  〔sugestão de prato: confiança alta · consenso forte entre fontes〕
-após kitchen_check_feasibility     0.30  〔se ela consegue fazer: confiança baixa — 1 impedimento(s)〕
+após kitchen_check_feasibility     0.30  〔se ela consegue fazer: confiança baixa, 1 impedimento(s)〕
      ! O gate de viabilidade não aprovou: não apresente o prato como decidido.
-após pricing_calculate_cmv         0.64  〔custo: confiança média — 1 impedimento(s)〕
-após pricing_price_scenarios       0.00  〔preço: confiança baixa — 3 impedimento(s)〕
+após pricing_calculate_cmv         0.64  〔custo: confiança média, 1 impedimento(s)〕
+após pricing_price_scenarios       0.00  〔preço: confiança baixa, 3 impedimento(s)〕
      ! Sem preço de mercado observado: só o preço mínimo pode ser dito.
 ```
 
@@ -866,13 +970,13 @@ coisa, e cada tipo se apoia em evidência diferente:
 | custo | a planilha, o gate e o CMV |
 | preço | o gate, o CMV, o mercado e a inflação |
 
-Ler a despensa dá 1,00 — a planilha é determinística, ler é saber. Falar de
+Ler a despensa dá 1,00, porque a planilha é determinística e ler é saber. Falar de
 preço sem ter apurado nada dá 0,00 com três impedimentos. Pontuar tudo contra o
 pipeline inteiro daria zero nos dois casos, que é o mesmo que não medir.
 
 Rode em um segundo terminal, ao lado do chat. Toda chamada gera uma linha,
-apagada quando não mexeu na evidência — um observador mudo enquanto o agente
-trabalha parece quebrado.
+apagada quando não mexeu na evidência, porque um observador mudo enquanto o
+agente trabalha parece quebrado.
 
 O mesmo **badge** volta em cada avaliação para o agente colar no fim da mensagem:
 
@@ -881,7 +985,7 @@ Pela conta, R$ 19,90 deixa R$ 9,23 no seu bolso por marmita.
 〔preço: confiança alta · cozinha confere · CMV completo · preço de mercado bem apurado〕
 ```
 
-O badge lista os sinais **mais frágeis primeiro** — um marcador que enumera o
+O badge lista os sinais **mais frágeis primeiro**. Um marcador que enumera o
 que deu certo e esconde a única coisa que não deu é pior que nenhum, porque lê
 como tranquilização:
 
@@ -890,19 +994,19 @@ como tranquilização:
 | Fato da despensa | `〔o que ela tem: confiança alta · lido da planilha dela〕` |
 | Preço com mercado bem apurado | `〔preço: confiança alta · cozinha confere · CMV completo · preço de mercado bem apurado〕` |
 | Preço com uma fonte de mercado só | `〔preço: confiança média · poucas fontes de preço · cozinha confere · CMV completo〕` |
-| Preço sem mercado nenhum | `〔preço: confiança baixa — 2 impedimento(s)〕` |
+| Preço sem mercado nenhum | `〔preço: confiança baixa, 2 impedimento(s)〕` |
 
-A nota vai de **0 a 1** — grandeza de crença, não nota de escola. Ela aparece
+A nota vai de **0 a 1**, grandeza de crença e não nota de escola. Ela aparece
 no acompanhamento ao vivo, para quem está avaliando a execução; o badge que vai
 para a Dona Maria fica sem número, porque citar um decimal de uma heurística dá
 falsa precisão. "CMV completo, 6 fontes de preço" diz o que de fato se sabe.
 
 Toda avaliação fica gravada, tanto as do observador quanto as que o agente pede.
 `confidence_recent_assessments` mostra o que estava prestes a ser dito, quão
-forte era a evidência e o que estava barrando — sem reproduzir a conversa.
+forte era a evidência e o que estava barrando, sem reproduzir a conversa.
 
 Vale a distinção: o badge na mensagem depende de o modelo colá-lo, e modelo
-esquece. O log não depende de nada — é o caminho confiável.
+esquece. O log não depende de nada, e é o caminho confiável.
 
 ---
 
@@ -979,7 +1083,7 @@ alguém gastar dinheiro em cima. O custo disso é que cada cálculo precisa de u
 ferramenta com esquema e caminho de erro, em vez de um parágrafo.
 
 **Não persisti a conversa entre sessões, só o que ela decidiu.** A janela de
-conversa vive no Redis e é resumida; o que sobrevive é o registro — perfil da
+conversa vive no Redis e é resumida; o que sobrevive é o registro: perfil da
 cozinha, receitas com seus bloqueios, orçamento, cardápio. Reconstituir o
 diálogo inteiro de semanas atrás não ajuda ninguém; saber que ela não tem forno,
 sim.
@@ -987,24 +1091,24 @@ sim.
 **Não construí memória vetorial nem RAG.** A despensa tem 37 linhas e o catálogo
 de restrições 26 itens. Busca semântica sobre isso é infraestrutura para um
 problema que `SELECT` resolve, e traz uma classe de erro nova: recuperar o
-ingrediente parecido em vez do certo — exatamente o que o casamento de nomes
+ingrediente parecido em vez do certo, exatamente o que o casamento de nomes
 recusa fazer.
 
 **Não usei skills do Hermes.** O procedimento vive nas descrições das
 ferramentas e no `next_step` dos resultados, onde há verificação. Uma skill é
 instrução: texto que o modelo lê e, se tudo correr bem, segue. Onde havia o que
-conferir, virou ferramenta. Onde não havia — voz, quem fala primeiro —, ficou
-texto, no `SOUL.md`.
+conferir, virou ferramenta. Onde não havia, como a voz e quem fala primeiro,
+ficou texto, no `SOUL.md`.
 
 **Não coloquei um segundo modelo como juiz.** Um avaliador independente pegaria
 mais coisa, mas o enunciado pede um agente, e dois provedores no circuito é uma
 dependência e uma conta a mais. O juiz é um turno do mesmo modelo com rubrica
-estrita, e a parte que dá para conferir sem modelo nenhum —
-`confidence_audit_figures` — não usa modelo.
+estrita, e a parte que dá para conferir sem modelo nenhum,
+`confidence_audit_figures`, não usa modelo.
 
 **Não calibrei os limiares de confiança.** Quatro fontes valendo 1,00 e três
 valendo 0,80 veio de julgamento, não de medição. Calibrar exige registrar
-desfecho — o prato foi aceito? o preço se sustentou? — e ainda não há esse dado.
+desfecho (o prato foi aceito? o preço se sustentou?) e ainda não há esse dado.
 Preferi deixar escrito que a nota **ordena** e não mede, a fingir precisão.
 
 **Não usei um plugin em Python do Hermes.** Um hook de shell não pode reescrever
@@ -1028,7 +1132,7 @@ em [docs/metricas.md](docs/metricas.md) em vez de escondido.
 
 **Não fiz teste automatizado de diálogo.** Cada execução custa uma chamada de
 modelo e o julgamento do resultado é humano. A simulação existe, é manual, e o
-que ela achou está em [docs/testes.md](docs/testes.md) — inclusive o que
+que ela achou está em [docs/testes.md](docs/testes.md), inclusive o que
 continua torto.
 
 As decisões completas, com motivo e consequência de cada uma, estão em

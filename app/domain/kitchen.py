@@ -1,7 +1,7 @@
 '''Kitchen capability profile: the viability gate of the challenge.
 
 Every capability carries one of three states. The whole point is that
-``unknown`` can never be read as ``yes`` — that is what stops the agent from
+``unknown`` can never be read as ``yes``: that is what stops the agent from
 letting Dona Maria buy ingredients for a dish she cannot actually produce.
 '''
 

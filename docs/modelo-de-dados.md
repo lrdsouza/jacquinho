@@ -5,15 +5,16 @@ conveniência.
 
 ```mermaid
 flowchart LR
-    subgraph R["Redis — quente, reescrito a todo turno"]
+    subgraph R["Redis · quente, reescrito a todo turno"]
         r1["chat:{sessão}:turns<br/><i>janela de 20</i>"]
         r2["chat:{sessão}:summary<br/><i>1 resumo corrente</i>"]
+        r4["chat:real:turns<br/><i>capturado pelos hooks</i>"]
         r3["judgement:{ticket}<br/><i>TTL 1h</i>"]
     end
-    subgraph P["Postgres — registros dela, duráveis"]
+    subgraph P["Postgres · registros dela, duráveis"]
         p1["recipes · recipe_requirements<br/>recipe_blocks"]
         p2["kitchen_capabilities<br/>elicitation_items"]
-        p3["budget_entries · package_sizes"]
+        p3["budget_entries · package_sizes<br/>pantry_items"]
         p4["dish_categories · dish_feedback<br/>menu_items · answer_assessments"]
     end
     R -.->|"some quando<br/>resumido ou expirado"| X["descartável"]
@@ -66,13 +67,13 @@ gravada para que o custo passe a ser calculável.
 
 ### Casamento de nomes
 
-Os nomes são normalizados — minúsculas, acentos removidos, pontuação colapsada —
+Os nomes são normalizados (minúsculas, acentos removidos, pontuação colapsada)
 e casados por sobreposição de tokens significativos, com conectivos excluídos.
 Abaixo do limiar não se devolve nada, e sugestões são oferecidas no lugar.
 
 ---
 
-## Redis — o que é quente
+## Redis, o que é quente
 
 Persistência append-only. Toda operação reporta indisponibilidade em vez de
 falhar em silêncio.
@@ -82,12 +83,19 @@ falhar em silêncio.
 | `chat:sessions` | conjunto | Identificadores de conversa conhecidos |
 | `chat:{sessão}:turns` | lista | Turnos, limitados a 2000, os mais antigos descartados |
 | `chat:{sessão}:summary` | string | O resumo corrente e quantos turnos ele cobre |
+| `chat:real:turns` | lista | O que os hooks capturaram do turno, marcado `source: hook` |
 | `judgement:{ticket}` | string | Ticket de julgamento aberto, TTL de uma hora |
+
+A distinção entre as duas primeiras listas e a terceira é a que sustenta a
+conferência de citações. Tudo que o agente grava com `chat_save_turn` sai
+marcado `source: agent`; o que os hooks de fronteira de turno capturam sai
+`source: hook`. Existindo qualquer turno capturado, **só ele** vale para
+confirmar que uma frase foi dita por ela.
 
 ### A janela de 20 mais 1
 
-O contexto entregue ao agente é sempre os **20 últimos turnos** — na prática cerca
-de dez dela e dez do agente — mais **uma** mensagem de resumo representando tudo
+O contexto entregue ao agente é sempre os **20 últimos turnos**, na prática cerca
+de dez dela e dez do agente, mais **uma** mensagem de resumo representando tudo
 antes deles.
 
 ```mermaid
@@ -120,15 +128,15 @@ entra no circuito.
 
 ---
 
-## Postgres — os registros dela
+## Postgres, os registros dela
 
 Doze tabelas, um dono para cada.
 
 ### Por que os utensílios dela não ficam no Redis
 
 É a pergunta que a divisão convida, e a resposta é o que separa as duas metades
-deste documento. O que ela **tem** — fogão, panela de pressão, air fryer, a
-técnica que ela domina, o espaço na geladeira — é registro, não conversa:
+deste documento. O que ela **tem** (fogão, panela de pressão, air fryer, a
+técnica que ela domina, o espaço na geladeira) é registro, não conversa:
 
 *Um bloqueio é uma relação, não um valor.* A lasanha saiu **por causa do**
 forno. No dia em que o forno aparece, os pratos que esperavam por ele voltam com
@@ -138,7 +146,7 @@ acontecer quando alguém esquece de varrer.
 
 *O Redis aqui tem janela.* A conversa é cortada em vinte turnos por construção.
 Um perfil de cozinha guardado na conversa desapareceria junto com ela, e a
-consultoria seguinte começaria perguntando tudo de novo — que é exatamente o
+consultoria seguinte começaria perguntando tudo de novo, que é exatamente o
 que a regra mais importante deste agente proíbe.
 
 *A pergunta "o que ela ainda não respondeu" é uma consulta.* `unknown` é um
@@ -152,23 +160,35 @@ Um item vai para o Redis quando perdê-lo custa contexto; vai para o Postgres
 quando perdê-lo custa uma pergunta repetida ou dinheiro gasto duas vezes.
 
 A exceção que confirma a regra é a fala dela capturada pelos hooks
-(`chat:real:turns`): fica no Redis porque é conversa, e é lida pelo Postgres-side
-apenas para conferir uma citação no instante da gravação — depois disso, o que
+(`chat:real:turns`): fica no Redis porque é conversa, e o lado do Postgres só a
+consulta para conferir uma citação no instante da gravação. Depois disso, o que
 sobrevive é a capacidade, com as palavras dela copiadas na nota.
 
 | Tabela | Dono | Conteúdo |
 |---|---|---|
-| `recipes` | `recipes` | Toda receita já aberta, com fonte e cobertura |
+| `pantry_items` | `pantry` | A despensa semeada da planilha, com custos unitários |
+| `package_sizes` | `pantry` | Pesos descobertos para itens vendidos por peça |
+| `recipes` | `recipes`, e `kitchen` | Toda receita já aberta, com fonte e cobertura |
 | `recipe_requirements` | `recipes` | O que cada receita exige: equipamento e técnica |
-| `recipe_blocks` | `recipes` | Por que um prato saiu, e o que o traria de volta |
+| `recipe_blocks` | `recipes`, e `kitchen` | Por que um prato saiu, e o que o traria de volta |
 | `kitchen_capabilities` | `kitchen` | Capacidades em três estados, com as palavras dela |
 | `elicitation_items` | `kitchen` | Restrições acrescentadas durante a conversa |
 | `budget_entries` | `budget` | Compras fechadas; o saldo é derivado |
-| `package_sizes` | `pantry` | Pesos descobertos para itens vendidos por peça |
 | `dish_categories` | `dishes` | Categorias criadas durante a conversa |
 | `dish_feedback` | `menu` | O que ela achou de cada prato |
 | `menu_items` | `menu` | O cardápio de lançamento |
-| `answer_assessments` | `confidence` | Cada resposta avaliada: tipo de afirmação, notas, badge e impedimentos |
+| `answer_assessments` | o middleware | Cada resposta avaliada: tipo de afirmação, notas, badge e impedimentos |
+
+Os dois donos de `recipes` e `recipe_blocks` são deliberados e são a única
+exceção à posse única. Quando ela diz que não tem forno, é o `kitchen` que
+arquiva a lasanha ali mesmo, e é o `kitchen` que levanta o bloqueio quando ela
+diz que passou a ter um. Mandar o agente ir até `recipes` fazer isso depois é o
+tipo de instrução que este projeto já aprendeu que ele pula, e o custo de pular
+é a lasanha nunca voltar. A escrita passa pela mesma `RecipeCatalogue`, então a
+regra do bloqueio condicional continua num lugar só.
+
+`answer_assessments` não tem dono entre os servidores porque quem escreve é o
+middleware, depois de toda chamada de ferramenta, sem o agente pedir.
 
 ### O bloqueio que se desfaz sozinho
 
@@ -177,13 +197,37 @@ erDiagram
     recipes ||--o{ recipe_requirements : "exige"
     recipes ||--o{ recipe_blocks : "está fora por"
     kitchen_capabilities ||--o{ recipe_blocks : "blocking_item aponta para"
-    recipes { text slug PK, text dish, numeric pantry_coverage, bool accepted }
-    recipe_requirements { text kind, text item }
-    recipe_blocks { text reason, text blocking_item, bool conditional, timestamptz lifted_at }
-    kitchen_capabilities { text category, text item, text state, text note }
+
+    recipes {
+        text slug PK
+        text dish
+        text source_url
+        numeric pantry_coverage
+        boolean accepted
+    }
+    recipe_requirements {
+        text recipe_slug FK
+        text kind
+        text item
+    }
+    recipe_blocks {
+        bigint id PK
+        text recipe_slug FK
+        text reason
+        text blocking_item
+        boolean conditional
+        timestamptz lifted_at
+        text lifted_because
+    }
+    kitchen_capabilities {
+        text category PK
+        text item PK
+        text state
+        text note
+    }
 ```
 
-Um bloqueio nunca é apagado — é **liberado**, com data e motivo. Quando uma
+Um bloqueio nunca é apagado: é **liberado**, com data e motivo. Quando uma
 capacidade vira `confirmed_yes`, uma única instrução devolve os pratos que
 esperavam por ela:
 
@@ -194,7 +238,7 @@ UPDATE recipe_blocks
 RETURNING recipe_slug;
 ```
 
-Só bloqueio **condicional** se auto-libera — falta de equipamento, técnica ou
+Só bloqueio **condicional** se auto-libera, ou seja, falta de equipamento, técnica ou
 orçamento. Gosto não: ela pode simplesmente não querer cozinhar aquilo, e isso
 não é um problema esperando solução.
 
@@ -204,8 +248,8 @@ lenta conforme o histórico cresce.
 
 ### Avaliações de resposta
 
-A coluna `claim` guarda **o que a mensagem afirmava** — `pantry_fact`,
-`dish_suggestion`, `feasibility`, `cost` ou `price` —, porque a nota só faz
+A coluna `claim` guarda **o que a mensagem afirmava** (`pantry_fact`,
+`dish_suggestion`, `feasibility`, `cost` ou `price`), porque a nota só faz
 sentido em relação a isso. É o que permite a pergunta que interessa depois:
 
 ```sql
@@ -225,7 +269,7 @@ dela, porque o detalhe que depois importa costuma estar no jeito de falar.
 
 ### Saldo do orçamento
 
-Entradas apenas inseridas, em `NUMERIC` — dinheiro não acumula erro de
+Entradas apenas inseridas, em `NUMERIC`, porque dinheiro não acumula erro de
 arredondamento. O restante é derivado por `sum()`, nunca guardado, então não pode
 se descolar das entradas, e duas sessões simultâneas não conseguem gastar o mesmo
 dinheiro duas vezes.
@@ -248,8 +292,8 @@ flowchart LR
     AND --> S["sustentada"]
 ```
 
-Cinco categorias vêm embutidas — prato principal, entrada, acompanhamento,
-sobremesa, lanche — e outras podem ser criadas e persistidas. As embutidas não
+Cinco categorias vêm embutidas (prato principal, entrada, acompanhamento,
+sobremesa, lanche) e outras podem ser criadas e persistidas. As embutidas não
 podem ser substituídas.
 
 ---

@@ -22,6 +22,7 @@ C4Context
 
     Rel(maria, hermes, "conversa com")
     Rel(hermes, mcp, "MCP sobre HTTP")
+    Rel(hermes, mcp, "hooks de turno sobre HTTP")
     Rel(mcp, redis, "lê e escreve")
     Rel(mcp, pg, "lê e escreve")
     Rel(mcp, web, "consulta")
@@ -50,11 +51,19 @@ classDiagram
     class MCPServer {
         +Settings settings
         +PantryRepository repository
+        +ConfidenceObserver observer
         +FastMCP root
         +dict children
         -_mount()
         -_register_prompts()
+        -_install_middleware()
+        -_install_hooks()
         +run()
+    }
+    class HookRoutes {
+        +ConversationStore store
+        +ConfidenceObserver observer
+        +register()
     }
     BaseMCP <|-- PantryMCP
     BaseMCP <|-- DishMCP
@@ -68,6 +77,7 @@ classDiagram
     BaseMCP <|-- MenuMCP
     BaseMCP <|-- ConversationMCP
     MCPServer o-- BaseMCP : monta sob um prefixo
+    MCPServer o-- HookRoutes : rotas fora do MCP
 ```
 
 O `PantryRepository` é construído uma vez pela raiz de composição e injetado
@@ -78,13 +88,13 @@ processo e todos os servidores enxergam custos unitários idênticos.
 
 ```mermaid
 flowchart TB
-    subgraph T["Transporte — app/mcps"]
+    subgraph T["Transporte · app/mcps"]
         direction LR
         t1["Assinaturas das ferramentas"]
         t2["Descrições que o agente lê"]
         t3["Orientação de próximo passo"]
     end
-    subgraph D["Domínio — app/domain"]
+    subgraph D["Domínio · app/domain"]
         direction LR
         d1["Regras"]
         d2["Aritmética"]
@@ -122,7 +132,7 @@ pode ser, e mora do lado do agente:
 | Prompts | MCP | Os quatro procedimentos de várias etapas |
 
 A divisão não é estética. O Hermes trata texto vindo por MCP como dado não
-confiável — há um scanner de injeção sobre ele — e não injeta as `instructions`
+confiável, com um scanner de injeção sobre ele, e não injeta as `instructions`
 de um servidor no system prompt. O que precisa estar no system prompt antes da
 primeira ferramenta ser chamada, portanto, precisa ser um arquivo de contexto do
 agente. `SOUL.md` é lido automaticamente de `HERMES_HOME`, sem chave de
@@ -140,14 +150,29 @@ sequenceDiagram
     participant A as Agente
     participant M as MCP pantry
     participant R as PantryRepository
+    participant PG as Postgres
     participant X as Planilha
+
+    rect rgb(245, 245, 245)
+    note over R,X: uma vez, na subida do servidor
+    R->>PG: já existe pantry_items?
+    PG-->>R: vazio
+    R->>X: PantrySheet lê as duas abas
+    X-->>R: estoque e preços, unidades normalizadas
+    R->>PG: semeia 37 linhas
+    end
+
     A->>M: pantry_list_ingredients
     M->>R: sorted_items()
-    R->>X: lê as duas abas (só na primeira chamada)
-    X-->>R: linhas de estoque e de preço
+    R->>PG: SELECT
+    PG-->>R: linhas
     R-->>M: itens com custos unitários normalizados
     M-->>A: ingredientes, palavras-chave, pendências de unidade
 ```
+
+A planilha é semente, não fonte de leitura. Depois da primeira subida nada mais
+a abre: o que a aplicação lê é o Postgres, e é por isso que um peso de embalagem
+descoberto na conversa fica gravado em vez de se perder no próximo start.
 
 ### Um prato precificado
 
@@ -177,13 +202,13 @@ sequenceDiagram
 
 ## Posse do estado
 
-Cada armazenamento tem exatamente um dono, e nada é escrito por dois
-servidores.
+Cada tabela tem um dono, com **uma** exceção declarada abaixo.
 
 ```mermaid
 flowchart LR
     subgraph redis["Redis"]
         c["chat:{sessão}:turns<br/>chat:{sessão}:summary"]
+        cr["chat:real:turns<br/><i>fala capturada, source: hook</i>"]
         j["judgement:{ticket}<br/><i>TTL 1h</i>"]
     end
     subgraph pgdb["Postgres"]
@@ -193,26 +218,42 @@ flowchart LR
         dc["dish_categories"]
         rc["recipes<br/>recipe_requirements<br/>recipe_blocks"]
         fm["dish_feedback<br/>menu_items"]
+        aa["answer_assessments"]
     end
+    hooks["hooks de turno"] --> cr
     chatmcp["chat"] --> c
     confmcp["confidence"] --> j
+    mw["middleware"] --> aa
     recipesmcp["recipes"] --> rc
     menumcp["menu"] --> fm
     kitchenmcp["kitchen"] --> k
+    kitchenmcp -->|"arquiva e revive prato"| rc
     budgetmcp["budget"] --> b
     pantrymcp["pantry"] --> pk
     dishesmcp["dishes"] --> dc
     pricingmcp["pricing"] -. lê .-> b
     recipesmcp -. lê .-> k
+    kitchenmcp -. lê .-> cr
 ```
 
-Existem duas travessias de leitura, e são deliberadas: `pricing` lê o saldo do
-orçamento para que uma estimativa de custo reflita o dinheiro já gasto, e
-`recipes` lê o perfil da cozinha para poder ordenar o catálogo pelo que ela de
-fato consegue fazer.
+As travessias de **leitura** são deliberadas: `pricing` lê o saldo do orçamento
+para que uma estimativa de custo reflita o dinheiro já gasto, `recipes` lê o
+perfil da cozinha para ordenar o catálogo pelo que ela de fato consegue fazer, e
+`kitchen` lê a fala capturada dela para conferir uma citação antes de aceitar um
+`confirmed_yes`.
+
+A travessia de **escrita**, e é a única, é `kitchen` sobre o catálogo de
+receitas. Quando ela diz que não tem forno, é o `kitchen` que arquiva a lasanha
+como bloqueada por `forno` na mesma chamada, e é o `kitchen` que levanta o
+bloqueio quando ela diz que passou a ter um. Isso quebra a posse única de
+propósito: mandar o agente ir até `recipes` fazer o registro depois é
+exatamente o tipo de instrução que este projeto já aprendeu que ele pula, e o
+custo de pular é a lasanha nunca voltar. A escrita passa pela mesma
+`RecipeCatalogue` que `recipes` usa, então a regra do bloqueio condicional
+continua num lugar só.
 
 A divisão entre os dois armazenamentos é por tempo de vida. O Redis guarda o que
-é reescrito a todo turno e perde valor depois — a janela de conversa e os tickets
+é reescrito a todo turno e perde valor depois: a janela de conversa e os tickets
 de julgamento. O Postgres guarda o que a conversa decidiu, que sobrevive a
 qualquer sessão e responde perguntas relacionais: um bloqueio existe por causa de
 uma capacidade, e some quando ela muda.

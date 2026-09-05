@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-140-success)
+![Unitários](https://img.shields.io/badge/testes-189-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -57,19 +57,19 @@ ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 | `test_hooks.py` | 7 | As fronteiras do turno: fala capturada, veredito entregue |
 
 `test_hooks.py` fala com o servidor por HTTP puro, do jeito que os scripts de
-hook falam, em vez de por MCP — é o único caminho do sistema que o modelo não
+hook falam, em vez de por MCP: é o único caminho do sistema que o modelo não
 percorre, e testá-lo pela porta errada testaria um caminho que ninguém usa.
 
 Os dezoito testes que `test_mcp_server.py` ganhou desde a primeira versão são
 quase todos cicatriz: o teto de buscas, a recusa de chave livre em
 `record_capability`, o `conversation_state` viajando na resposta, e o bloco que
-cobre o prato morto — que as ferramentas de seguir em frente são recusadas
+cobre o prato morto: que as ferramentas de seguir em frente são recusadas
 enquanto ela não ouve o veredito, que um aceno educado não quita a dívida, que
 uma resposta que ela nunca deu é recusada, e que o prato volta quando ela diz
 que ganhou o forno.
 
 `test_verdict.py` não toca banco nem servidor: é trabalho de string, e por isso
-roda em toda mudança. É onde está o detalhe que só aparece quando se tenta —
+roda em toda mudança. É onde está o detalhe que só aparece quando se tenta:
 "lasanha ao forno" compartilha uma palavra com o que a bloqueia, então dizer
 apenas "forno" passaria por ter nomeado o prato dela. A palavra que bloqueia é
 descontada do nome antes da comparação.
@@ -111,7 +111,7 @@ pede acontece. **12 verificações, todas passando.**
 
 | Seção | Verificação |
 |---|---|
-| Dados | 37 ingredientes semeados no Postgres; re-semear é inócuo |
+| Dados | 37 ingredientes semeados no Postgres; semear de novo é inócuo |
 | Dados | Custo unitário do cruzamento das abas, com embalagem resolvida: R$ 41,00/kg |
 | §2.2 | O gate de um prato não é derrubado por pergunta sobre outro |
 | §2.2 | Compromisso sem gate aprovado é recusado, não desaconselhado |
@@ -132,11 +132,11 @@ mede o que a suíte não alcança: se a coisa **conversa**.
 ### O que foi bom
 
 **Ele pega as armadilhas da planilha sem ajuda.** Perguntado sobre alcaparras,
-respondeu `R$ 41,00/kg` — não `R$ 82,00 por balde`. A normalização de embalagem
+respondeu `R$ 41,00/kg`, e não `R$ 82,00 por balde`. A normalização de embalagem
 funciona no caminho completo, não só em teste.
 
 **Ele pergunta antes de deixar comprar.** Pedido "quero fazer lasanha", listou o
-que ela tem e então: *"você tem forno? E um ralador pra queijo?"* — antes de
+que ela tem e então: *"você tem forno? E um ralador pra queijo?"*, antes de
 qualquer lista de compras.
 
 **Ele não inventa preço.** Perguntado "consigo fazer bolo de cenoura e quanto
@@ -149,14 +149,14 @@ prato dela em vez de "não dá".
 ### O que a segunda rodada achou
 
 **Vinte descobertas num turno só.** As duas primeiras acharam pratos; as outras
-dezoito voltaram vazias e ele continuou tentando — cerca de cento e vinte buscas
+dezoito voltaram vazias e ele continuou tentando, cerca de cento e vinte buscas
 web, e o turno **terminou sem resposta nenhuma**. O `next_step` do resultado
 vazio convidava a tentar de novo, e ele aceitou o convite. Agora há teto de cinco
 buscas por conversa e o texto diz o contrário: categoria vazia não fica cheia na
 décima tentativa. Depois da correção: duas descobertas e uma resposta com três
 pratos.
 
-**Falou dela na terceira pessoa.** *"Ela tem despensa boa"* — narrando um
+**Falou dela na terceira pessoa.** *"Ela tem despensa boa"*, narrando um
 relatório com ela na sala.
 
 **O badge mentia para menos.** Dizia "sem preço de mercado" minutos depois de o
@@ -175,10 +175,10 @@ consultora, não um relatório. Corrigido com regra de voz e marcando os campos
 internos como internos.
 
 **Buscava de novo o que já tinha achado.** Escolhido o prato, foi ao browser em
-vez de abrir a URL que a descoberta já havia trazido — 25 segundos e uma página
+vez de abrir a URL que a descoberta já havia trazido, gastando 25 segundos e uma página
 pior. Corrigido expondo `sources_to_open`.
 
-**Perguntava o que a despensa responde.** *"Você tem azeitonas verdes?"* — sendo
+**Perguntava o que a despensa responde.** *"Você tem azeitonas verdes?"*, sendo
 que a lista é fechada e ele tem acesso. E conferia ingrediente por ingrediente
 em vez de a receita inteira de uma vez.
 
@@ -195,19 +195,19 @@ conserto, sempre o mesmo, foi mover a regra para onde existe uma verificação.
 
 ### A rodada que fechou o caso central
 
-Bancos zerados — Postgres, Redis e a transcrição do próprio Hermes — e a
+Bancos zerados (Postgres, Redis e a transcrição do próprio Hermes) e a
 conversa que o desafio pede: ela quer lasanha ao forno e não tem forno.
 
 **Primeiro achado, e o mais grave de todos.** O agente não perguntou nada.
 Gravou sozinho `forno=confirmed_yes`, `fogao=confirmed_yes`,
-`montar_camadas=confirmed_yes`, `gratinar_forno=confirmed_yes` — quatro
-respostas que ela nunca deu — e entregou, num único turno, o CMV, a faixa de
+`montar_camadas=confirmed_yes`, `gratinar_forno=confirmed_yes`, quatro
+respostas que ela nunca deu, e entregou, num único turno, o CMV, a faixa de
 mercado e três cenários de preço para uma lasanha assada numa cozinha sem forno.
 
 O portão funcionou perfeitamente. Ele confere o perfil, e o perfil dizia sim.
 O defeito estava um passo antes: o único registro do que ela tinha dito vivia no
 contexto do modelo, e o servidor não tinha como discordar. O Redis, que a
-documentação descreve como a memória da conversa, estava **vazio** — o agente
+documentação descreve como a memória da conversa, estava **vazio**: o agente
 nunca chamou `chat_save_turn` numa consultoria inteira.
 
 Corrigido tornando o registro da fala dela uma dependência do que o agente quer
@@ -216,7 +216,7 @@ guardadas. Sem conversa gravada, nada é confirmado. Detalhe da decisão em
 [decisoes.md](decisoes.md), item 32.
 
 **Segundo achado: o prato morria em silêncio.** Este já era conhecido e tinha
-resistido a três consertos por redação. Virou dívida da conversa — item 31.
+resistido a três consertos por redação. Virou dívida da conversa, item 31.
 
 Depois das duas correções, a mesma conversa, do zero:
 
@@ -246,7 +246,7 @@ Três defeitos apareceram no caminho, todos consertados nesta rodada.
 motivou exigir `her_words`. Mas a correção tinha um buraco: a transcrição
 conferida era escrita pelo próprio agente. Citação conferida contra transcrição
 escrita por quem cita não é conferência. Fechado com os hooks de fronteira de
-turno — [decisoes.md](decisoes.md), item 33.
+turno. Ver [decisoes.md](decisoes.md), item 33.
 
 **A frase do checador vazava para dentro da mensagem dela.** A recusa listava o
 que faltava como `o que decidiu isso (forno)`, e a resposta seguinte saiu
@@ -257,19 +257,19 @@ não. Os rótulos viraram instruções que ficam obviamente erradas se coladas.
 **O veredito era repetido.** Ela já tinha ouvido sobre o forno, aceitado a
 lasanha de panela e pedido a conta; ao mencionar que também não frita por
 imersão, ganhou o discurso do forno de novo. Um veredito passou a ser devido uma
-vez só — item 34.
+vez só, item 34.
 
 ### A rodada que deu errado de propósito
 
 A conversa do pudim, também no README. Ela responde `"meu forno acende mas não
-esquenta direito, às vezes queima embaixo"` — o caso que os três estados não
+esquenta direito, às vezes queima embaixo"`, que é o caso que os três estados não
 sabem representar.
 
 Na primeira execução isso virou `confirmed_yes` com o detalhe na nota, que é o
 único lugar que o portão não lê: dali em diante ele liberaria pratos de forno
 para uma cozinha cujo forno queima o fundo. Item 35.
 
-Na segunda, com a recusa de sim hesitante no lugar, apareceu outro defeito — e
+Na segunda, com a recusa de sim hesitante no lugar, apareceu outro defeito, e
 melhor, porque é o que o sistema faz quando o modelo erra. O agente escreveu a
 frase do veredito, passou por `kitchen_announce_verdict`, e então escreveu para
 ela *"já te falei o veredito e a saída"*. Chamar a ferramenta não é falar com
@@ -277,7 +277,7 @@ ela; o resto do sistema todo ensina que chamar ferramenta faz a coisa
 acontecer, e aqui não faz.
 
 O fim do turno pegou (`delivered: false`), reabriu a dívida, e o turno seguinte
-começou com tudo fechado — ela ouviu. Que é a garantia inteira, sem exagero:
+começou com tudo fechado, e ela ouviu. Que é a garantia inteira, sem exagero:
 não dá para desdizer um turno ruim, dá para recusar esquecê-lo.
 
 ---
@@ -294,12 +294,12 @@ manual e não roda em CI.
 **O hook, rodando de verdade.** `test_hooks.py` chama as rotas por HTTP, mas com
 o app em memória: o script de shell, o `curl` dentro do contêiner do agente e o
 registro do hook pelo Hermes são exercitados à mão. Foi assim que se descobriu
-que `user_message` chega aninhado em `extra` — um campo lido do lugar errado
+que `user_message` chega aninhado em `extra`: um campo lido do lugar errado
 devolve vazio e não reclama.
 
 **A rede.** Busca web e IBGE são exercitados contra o serviço real, à mão. Não há
 teste com resposta gravada, então a suíte não pega uma mudança de formato do
-lado deles — o código degrada para "não sei", que é o comportamento certo, mas
+lado deles. O código degrada para "não sei", que é o comportamento certo, mas
 ninguém é avisado.
 
 **Concorrência.** Duas conversas simultâneas não são testadas. O isolamento por
@@ -307,5 +307,5 @@ sessão existe no código mas cai em uma chave fixa quando o header de sessão n
 chega, o que é justamente o caso que precisaria de teste.
 
 **Postgres de verdade.** Os testes de domínio usam um banco falso. Migração,
-índice parcial e restrição `CHECK` são exercitados só pelo servidor subindo — se
+índice parcial e restrição `CHECK` são exercitados só pelo servidor subindo. Se
 uma migração quebrar, quem avisa é o healthcheck, não um teste.

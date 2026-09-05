@@ -6,23 +6,23 @@
 
 Onze servidores montados sob prefixo em um único endpoint HTTP. Toda ferramenta
 é chamada como `prefixo_nome`. Os resultados são JSON, e a maioria carrega um
-campo `next_step` nomeando o que deve vir em seguida — o procedimento viaja com
+campo `next_step` nomeando o que deve vir em seguida: o procedimento viaja com
 o dado.
 
 ## Índice
 
 
-- [`chat`](#chat) — 7 ferramentas · A transcrição, como janela de 20 turnos mais um resumo.
-- [`pantry`](#pantry) — 4 ferramentas · A planilha como custos unitários normalizados.
-- [`dishes`](#dishes) — 6 ferramentas · Categorias de prato e descoberta por concordância entre fontes.
-- [`recipes`](#recipes) — 10 ferramentas · Montagem de buscas, cobertura da despensa e o catálogo de receitas.
-- [`kitchen`](#kitchen) — 9 ferramentas · Elicitação de restrições e o gate de viabilidade.
-- [`market`](#market) — 1 ferramenta · Preços de delivery observados para pratos comparáveis.
-- [`economy`](#economy) — 2 ferramentas · Inflação regional, índice geral e alimentação no domicílio.
-- [`budget`](#budget) — 4 ferramentas · O orçamento de complementos como saldo gastável.
-- [`pricing`](#pricing) — 2 ferramentas · CMV e cenários de preço ancorados no mercado.
-- [`confidence`](#confidence) — 4 ferramentas · Quanto a evidência sustenta o que vai ser dito.
-- [`menu`](#menu) — 6 ferramentas · A opinião dela sobre cada prato e o cardápio de lançamento.
+- [`chat`](#chat), 7 ferramentas · A transcrição, como janela de 20 turnos mais um resumo.
+- [`pantry`](#pantry), 4 ferramentas · A planilha como custos unitários normalizados.
+- [`dishes`](#dishes), 6 ferramentas · Categorias de prato e descoberta por concordância entre fontes.
+- [`recipes`](#recipes), 10 ferramentas · Montagem de buscas, cobertura da despensa e o catálogo de receitas.
+- [`kitchen`](#kitchen), 10 ferramentas · Elicitação de restrições, o gate de viabilidade e o veredito que ela ouve.
+- [`market`](#market), 1 ferramenta · Preços de delivery observados para pratos comparáveis.
+- [`economy`](#economy), 2 ferramentas · Inflação regional, índice geral e alimentação no domicílio.
+- [`budget`](#budget), 4 ferramentas · O orçamento de complementos como saldo gastável.
+- [`pricing`](#pricing), 2 ferramentas · CMV e cenários de preço ancorados no mercado.
+- [`confidence`](#confidence), 4 ferramentas · Quanto a evidência sustenta o que vai ser dito.
+- [`menu`](#menu), 6 ferramentas · A opinião dela sobre cada prato e o cardápio de lançamento.
 
 - [Prompts](#prompts)
 - [Recursos](#recursos)
@@ -115,7 +115,7 @@ de turno do Hermes, em `hooks/`. Ver [decisoes.md](decisoes.md), item 33.
 | `POST /hooks/final-message` | `post_llm_call` | Vê a resposta como ela recebe. Quita a dívida do veredito se a frase chegou; reabre se não chegou |
 
 Ambas falham abertas: sem elas a consultoria segue, e o que se perde é a
-conferência — a gravação passa a dizer `her_words_verified: false`.
+conferência, e a gravação passa a dizer `her_words_verified: false`.
 | `kitchen_read_kitchen_profile` | Tudo que se sabe de equipamentos, técnicas e limites. | nenhum | Vazio significa não perguntado, não ausente. |
 | `kitchen_next_questions` | As coisas mais úteis ainda não perguntadas. | `limit` | Ordenadas por prioridade; itens de prioridade 1 barram recomendação. Também devolve `dish_now_ruled_out` se o prato em discussão já morreu. |
 | `kitchen_elicitation_coverage` | Quanto do catálogo ela já respondeu. | nenhum | Percentual e o que falta. |
@@ -177,7 +177,7 @@ conferência — a gravação passa a dizer `her_words_verified: false`.
 
 | Ferramenta | O que faz | Argumentos | Notas |
 |---|---|---|---|
-| `confidence_assess_answer` | Pontua o quanto a evidência sustenta o rascunho. | `dish`, `draft_answer`, `evidence`, `claim`, `mode` | `claim` diz o que a mensagem afirma — `pantry_fact`, `dish_suggestion`, `feasibility`, `cost` ou `price` — e só a evidência daquele tipo é pontuada. Nota determinística na hora; em híbrido e llm devolve também um ticket de julgamento. |
+| `confidence_assess_answer` | Pontua o quanto a evidência sustenta o rascunho. | `dish`, `draft_answer`, `evidence`, `claim`, `mode` | `claim` diz o que a mensagem afirma (`pantry_fact`, `dish_suggestion`, `feasibility`, `cost` ou `price`) e só a evidência daquele tipo é pontuada. Nota determinística na hora; em híbrido e llm devolve também um ticket de julgamento. |
 | `confidence_submit_judgement` | Devolve o veredito do julgamento e fecha o relatório. | `ticket`, `verdict`, `confidence`, `unsupported_claims`, `issues` | No híbrido a nota final é a menor das duas. Ticket é de uso único. |
 | `confidence_audit_figures` | Confere cada número da mensagem contra o que as ferramentas devolveram. | `message`, `evidence` | Sem modelo: uma cifra ou veio de uma ferramenta ou não veio. Pega o preço inventado. |
 | `confidence_recent_assessments` | Toda resposta que foi avaliada, mais recente primeiro. | `limit` | O rastro por trás dos badges: rascunho, as duas notas, banda e impedimentos. |
@@ -231,7 +231,7 @@ Além das ferramentas, um middleware no servidor pontua a trilha de evidências
 depois de cada chamada e escreve o resultado no log. Isso roda independentemente
 de o agente chamar `confidence_assess_answer`; veja `jacquinho confidence`.
 
-O tipo de afirmação em jogo é inferido da ferramenta que acabou de rodar — quem
+O tipo de afirmação em jogo é inferido da ferramenta que acabou de rodar. Quem
 leu a despensa vai falar da despensa, quem calculou cenário vai falar de preço:
 
 | Afirmação | Repousa sobre | Ferramentas que a colocam em jogo |
@@ -242,8 +242,8 @@ leu a despensa vai falar da despensa, quem calculou cenário vai falar de preço
 | `cost` | planilha, gate e CMV | `pricing_calculate_cmv` |
 | `price` | gate, CMV, mercado e inflação | `pricing_price_scenarios`, `market_*`, `economy_*` |
 
-Três ferramentas — `pricing_price_scenarios`, `menu_add_dish` e
-`budget_commit_purchase` — são **recusadas** pelo mesmo middleware enquanto o
+Três ferramentas (`pricing_price_scenarios`, `menu_add_dish` e
+`budget_commit_purchase`) são **recusadas** pelo mesmo middleware enquanto o
 gate não tiver aprovado nesta sessão.
 
 Um resultado vazio é uma resposta de verdade. As ferramentas que não acham nada

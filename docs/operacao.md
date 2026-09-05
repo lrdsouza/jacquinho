@@ -61,7 +61,7 @@ funciona de qualquer diretório.
 
 Todo start reconstrói a imagem do MCP. São cerca de cinco segundos com cache
 quente, e em troca uma edição em `app/` nunca fica rodando contra uma imagem
-antiga — uma falha que não dá nenhum sinal.
+antiga, que é uma falha sem nenhum sinal.
 
 O `reset` apaga três coisas:
 
@@ -71,7 +71,7 @@ O `reset` apaga três coisas:
 | Redis | Janela de conversa e resumo, fichas de julgamento |
 | `state.db` do Hermes | Sessões, mensagens e prompts de sistema, mais o cache de páginas web |
 
-A planilha não é tocada — ela é a origem da despensa, e depois de um `reset` o
+A planilha não é tocada: ela é a origem da despensa, e depois de um `reset` o
 Postgres é semeado de novo a partir dela, com as mesmas 37 linhas.
 
 O **`auth.json` do agente sobrevive**, e é por isso que o `reset` mexe nas
@@ -164,7 +164,7 @@ O comando sobe os serviços e imprime uma caixa com um link:
 
 Os escopos pedidos são `user:profile`, `user:inference` e `org:create_api_key`.
 O token fica em `.anthropic_oauth.json` dentro do volume `hermes-data`, não no
-arquivo de ambiente — nada de longa duração é escrito em `.env`.
+arquivo de ambiente, e nada de longa duração é escrito em `.env`.
 
 #### Por que `--no-browser`
 
@@ -182,10 +182,9 @@ jacquinho                       # abre o chat
 ```
 
 Vale rodar `jacquinho hermes model` **antes** da primeira conversa. O modelo
-padrão no `hermes-config.yaml` é `claude-haiku-4-5`, escolhido pensando em chave
-de API, onde toda a família está disponível. O conjunto que uma assinatura libera
-pode ser diferente; se o Haiku não estiver lá, troque a linha `default:` pelo que
-aparecer — `claude-sonnet-5` é o candidato mais provável. Nada mais muda: os onze
+padrão no `hermes-config.yaml` é `claude-sonnet-5`. O conjunto que uma assinatura
+libera pode ser diferente do que uma chave de API alcança; se ele não estiver
+lá, troque a linha `default:` pelo que aparecer. Nada mais muda: os onze
 servidores MCP e as 56 ferramentas se comportam de forma idêntica por baixo.
 
 ### Modelo local
@@ -201,15 +200,17 @@ model:
 ```
 
 Duas ressalvas honestas. Sem GPU dedicada a inferência roda na CPU, e cada turno
-passa a levar dezenas de segundos — uma consultoria com muitas chamadas de
+passa a levar dezenas de segundos, e uma consultoria com muitas chamadas de
 ferramenta fica longa. E modelos pequenos variam muito em uso de ferramenta:
 escolha um treinado para *function calling* e teste com `jacquinho tools` antes
 de contar com ele numa demonstração.
 
 O modelo e o provedor estão fixados em `dockerfile/hermes-config.yaml`, que traz
-um bloco pronto para cada caminho. O padrão é **Claude Haiku 4.5**: o agente faz
-muitas chamadas de ferramenta por turno e quase nenhuma pede raciocínio profundo,
-então o mais barato da família é a escolha certa.
+um bloco pronto para cada caminho. O padrão é **Claude Sonnet 5**. O agente faz
+muitas chamadas de ferramenta por turno e quase nenhuma pede raciocínio
+profundo, mas são 56 ferramentas e cadeias de vários passos, e é condução, não
+profundidade, que separa um turno bom de um turno perdido. `claude-haiku-4-5`
+continua sendo uma linha, se custo pesar mais.
 
 O servidor MCP não precisa de credencial de modelo nenhuma. Ele pode ser
 iniciado, exercitado e depurado sem nenhuma presente.
@@ -228,11 +229,11 @@ jacquinho confidence
 ```
 após pantry_list_ingredients       1.00  〔o que ela tem: confiança alta · lido da planilha dela〕
 após dishes_discover_dishes        1.00  〔sugestão de prato: confiança alta · consenso forte entre fontes〕
-após kitchen_check_feasibility     0.30  〔se ela consegue fazer: confiança baixa — 1 impedimento(s)〕
+após kitchen_check_feasibility     0.30  〔se ela consegue fazer: confiança baixa, 1 impedimento(s)〕
      ! O gate de viabilidade não aprovou: não apresente o prato como decidido.
      kitchen_read_kitchen_profile       0.30
-após pricing_calculate_cmv         0.64  〔custo: confiança média — 1 impedimento(s)〕
-após pricing_price_scenarios       0.00  〔preço: confiança baixa — 3 impedimento(s)〕
+após pricing_calculate_cmv         0.64  〔custo: confiança média, 1 impedimento(s)〕
+após pricing_price_scenarios       0.00  〔preço: confiança baixa, 3 impedimento(s)〕
      ! Sem preço de mercado observado: só o preço mínimo pode ser dito.
 ```
 
@@ -247,8 +248,8 @@ propósito: um observador mudo enquanto o agente trabalha parece quebrado.
 A nota vai de 0 a 1: banda alta a partir de 0,75, média a partir de 0,50.
 
 Isso não depende de o agente chamar nada. O middleware está no caminho de toda
-ferramenta, e as que carregam evidência — o gate, o CMV, o consenso, o mercado e
-a inflação — alimentam a nota. As linhas cruas saem em `jacquinho logs
+ferramenta, e as que carregam evidência (o gate, o CMV, o consenso, o mercado e
+a inflação) alimentam a nota. As linhas cruas saem em `jacquinho logs
 jacquinho-mcp` com o prefixo `jacquinho.confidence`, em JSON.
 
 ---
@@ -286,7 +287,7 @@ docker exec jacquinho-postgres psql -U jacquinho -d jacquinho -c "
 ```
 
 Por que um prato saiu, o que o trouxe de volta, quanto do orçamento foi para
-quê — tudo com data e motivo.
+quê, tudo com data e motivo.
 
 ### Configuração do agente
 
