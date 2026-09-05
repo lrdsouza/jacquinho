@@ -209,6 +209,12 @@ class ConfidenceObserver:
         trail = self.trails.get((session, name))
         return bool(trail and (trail.feasibility or {}).get('verdict') == 'approved')
 
+    def cmv_ready(self, session: str, dish: str | None = None) -> bool:
+        '''Was a complete CMV calculated for this dish?'''
+        name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
+        trail = self.trails.get((session, name))
+        return bool(trail and (trail.cmv or {}).get('calculation_complete'))
+
     def assessed(self, session: str, dish: str | None = None) -> bool:
         '''Has a confidence assessment been made for this dish?'''
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
@@ -222,6 +228,50 @@ class ConfidenceObserver:
         trail.claim = claim
         trail.claim_declared = True
         trail.assessed = True
+
+    def state_of(self, session: str, dish: str | None = None) -> dict:
+        '''A compact reminder of where the conversation is.
+
+        Attached to every tool result. The agent kept losing the thread and
+        going back to re-offer what she had already chosen - not from bad
+        intent, but because nothing in front of it said where things stood.
+        Telling it once, in a prompt it may not re-read, is not the same as
+        telling it on every single call.
+        '''
+        name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
+        trail = self.trails.get((session, name))
+        if trail is None:
+            return {
+                'dish_in_play': None,
+                'next_action': 'Nada em andamento. Se ela já pediu sugestões, '
+                               'chame dishes_survey_categories.',
+            }
+
+        gate = (trail.feasibility or {}).get('verdict')
+        if gate != 'approved':
+            nxt = ('kitchen_check_feasibility com o prato nomeado, ou '
+                   'kitchen_analyse_recipe_requirements com o texto da receita')
+        elif trail.cmv is None:
+            nxt = 'pricing_calculate_cmv'
+        elif trail.market is None:
+            nxt = 'market_research_dish_prices'
+        elif not trail.assessed:
+            nxt = 'pricing_price_scenarios, depois confidence_assess_answer'
+        else:
+            nxt = 'mostre os cenários e deixe ela escolher; então menu_add_dish'
+
+        return {
+            'dish_in_play': None if name == self.NO_DISH else name,
+            'gate': gate or 'não rodou',
+            'cmv_calculado': trail.cmv is not None,
+            'mercado_pesquisado': trail.market is not None,
+            'avaliado': trail.assessed,
+            'next_action': nxt,
+            'reminder': (
+                'Continue daqui. Não volte a perguntar o que ela já respondeu, '
+                'e não reofereça procurar se ela já mandou procurar.'
+            ),
+        }
 
     def current(self, session: str, dish: str | None = None) -> dict | None:
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)

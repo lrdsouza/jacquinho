@@ -85,6 +85,22 @@ class PhraseExtractor:
             'esse', 'essa', 'este', 'esta', 'isso', 'aqui', 'agora', 'ainda',
         }
     )
+    # A dish name says how the thing is made or what shape it takes. Without
+    # one of these the phrase is a pile of ingredients: 'brigadeiro com bacon'
+    # got offered as a lunchbox because nothing asked it to look like a dish.
+    PREPARATION = frozenset({
+        'assado', 'assada', 'frito', 'frita', 'refogado', 'refogada', 'grelhado',
+        'grelhada', 'cozido', 'cozida', 'empanado', 'empanada', 'gratinado',
+        'gratinada', 'recheado', 'recheada', 'ensopado', 'ensopada', 'moqueca',
+        'estrogonofe', 'parmegiana', 'milanesa', 'escondidinho', 'lasanha',
+        'panqueca', 'risoto', 'torta', 'bolinho', 'bolinhos', 'croquete',
+        'coxinha', 'empada', 'quibe', 'almondega', 'almondegas', 'nhoque',
+        'suflê', 'sufle', 'farofa', 'salada', 'sopa', 'caldo', 'creme',
+        'purê', 'pure', 'frigideira', 'panela', 'forno', 'churrasco',
+        'strogonoff', 'feijoada', 'virado', 'cuscuz', 'omelete', 'fricasse',
+        'soltinho', 'desfiado', 'desfiada', 'picadinho', 'bolo', 'pudim',
+        'mousse', 'brigadeiro', 'pave', 'pavê', 'sanduiche', 'wrap', 'marmita',
+    })
     MIN_WORDS = 2
     MAX_WORDS = 4
     SPLITTERS = re.compile(r'[|\-–—:•/(),.!?]')
@@ -168,6 +184,10 @@ class ConsensusEngine:
                 # tokens is an ingredient ('arroz branco', 'carne moida'),
                 # which is not a dish she can put on a menu.
                 if not matched or not (words - self.pantry_tokens):
+                    continue
+                # And it has to name a way of cooking or a form. Without this,
+                # any two words that happen to co-occur become a dish.
+                if not (words & PhraseExtractor.PREPARATION):
                     continue
                 candidate = by_phrase[phrase]
                 candidate.phrase = phrase

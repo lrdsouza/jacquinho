@@ -12,6 +12,7 @@ from psycopg.types.json import Json
 
 from ..domain.database import DatabaseUnavailable
 from ..domain.memory import RedisBackend
+from ..domain.audit import MessageAudit
 from ..domain.confidence import (
     Claim,
     ConfidenceBadge,
@@ -258,3 +259,20 @@ class ConfidenceMCP(BaseMCP):
                     for r in rows
                 ],
             }
+
+        @self.mcp.tool
+        def audit_figures(
+            message: Annotated[str, Field(description='Exactly what you are about to send her.')],
+            evidence: Annotated[EvidenceBundle, Field(description='The tool outputs behind it.')],
+        ) -> dict:
+            """Check every number in the message against what the tools produced.
+
+            The observer scores the evidence and never reads the sentence; the
+            judge reads it but has to be invoked. This sits between them and
+            needs neither: a figure in the message is either one a tool returned
+            or it is not, and that is decidable.
+
+            It does not catch every kind of wrong. It catches the one this
+            system exists to prevent - a price nobody calculated.
+            """
+            return MessageAudit.check(message, evidence.model_dump())

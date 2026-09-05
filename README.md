@@ -184,13 +184,14 @@ Outros caminhos, cada um com um bloco pronto em `dockerfile/hermes-config.yaml`:
 chave de API em `dockerfile/.env`, camada gratuita do Google AI Studio ou do
 OpenRouter, ou Ollama local sem conta nenhuma.
 
-O modelo padrão é o **Claude Haiku 4.5**, fixado em
-`dockerfile/hermes-config.yaml`. É o mais barato da família, e é a escolha certa
-para este agente: ele faz muitas chamadas de ferramenta por turno e quase
-nenhuma pede raciocínio profundo — a aritmética está em Python e as regras são
-portões. Subir para `claude-sonnet-5` ou `claude-opus-5` é uma linha.
+O modelo padrão é o **Claude Sonnet 5**, fixado em
+`dockerfile/hermes-config.yaml`. A aritmética está em Python e as regras são
+portões, então o agente não precisa de raciocínio profundo — mas precisa segurar
+o fio de uma conversa longa com mais de cinquenta ferramentas, e é aí que o
+modelo mais barato mostrou fraqueza. Condução é a parte difícil aqui, não
+pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais.
 
-O agente roda em qualquer provedor que você apontar e alcança as 51 ferramentas
+O agente roda em qualquer provedor que você apontar e alcança as 54 ferramentas
 de qualquer jeito. O que ele exige de verdade não é inteligência bruta e sim
 **chamada de ferramenta confiável**: são 51 ferramentas e cadeias de vários
 passos. Cada caminho — assinatura, chave, camada gratuita, Ollama local — tem um
@@ -445,6 +446,41 @@ das duas** — uma resposta vale o que diz o revisor menos convencido.
 
 Impedimentos são absolutos: gate aberto, CMV incompleto ou faixa de mercado
 ausente barram a resposta independentemente da nota.
+
+### O agente não perde o fio
+
+Toda resposta de ferramenta carrega onde a conversa está:
+
+```json
+"conversation_state": {
+  "dish_in_play": "frango a parmegiana",
+  "gate": "approved",
+  "cmv_calculado": true,
+  "next_action": "market_research_dish_prices",
+  "reminder": "Não volte a perguntar o que ela já respondeu."
+}
+```
+
+Dizer uma vez, num texto que o modelo pode não reler, não é o mesmo que dizer em
+toda chamada.
+
+### As ferramentas exigem umas às outras
+
+Preço exige portão aprovado **e** CMV daquele prato. Cardápio exige, além disso,
+uma avaliação. O caminho certo é o único caminho, em vez do mais trabalhoso — foi
+por ser mais trabalhoso que o agente o pulava.
+
+### Os números da mensagem são conferidos sem modelo
+
+`confidence_audit_figures` extrai cada cifra e cada percentual do que vai ser
+dito e verifica se apareceu em alguma resposta de ferramenta:
+
+```
+"Eu cobraria uns R$ 24,50"  →  unsupported_figures: [24.50]
+```
+
+Não pega todo tipo de erro. Pega o que este sistema existe para impedir: um
+preço que ninguém calculou.
 
 ### A confiança se calcula sozinha
 

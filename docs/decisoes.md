@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-23-6E56CF)
+![Registros](https://img.shields.io/badge/registros-27-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Haiku%204.5-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -655,3 +655,75 @@ cada falha, não como lista de desejos mas como limite conhecido do que a nota
 mede.
 
 ---
+
+---
+
+## 24. O estado da conversa viaja em toda resposta de ferramenta
+
+**Decisão.** Todo resultado de ferramenta carrega um bloco `conversation_state`:
+que prato está em jogo, se o portão passou, se o CMV foi calculado, se o mercado
+foi pesquisado, e qual é a próxima ação.
+
+**Motivo.** Nove turnos de conversa real mostraram o defeito dominante: o agente
+perde o fio e volta a oferecer o que ela já escolheu. Não por má vontade — nada
+à frente dele dizia onde as coisas estavam. Dizer uma vez, num texto que ele
+pode não reler, não é o mesmo que dizer em toda chamada.
+
+**Consequência.** É a mesma regra do projeto inteiro aplicada à condução: o que
+pode ser conferido não fica como pedido. O middleware já mantinha a trilha por
+prato; anexá-la ao resultado custou nada e ataca o defeito onde ele acontece.
+
+**Observabilidade.** A injeção fica **fora** do bloco que engole exceções do
+observador. Se o estado não puder ser anexado o agente perde o fio, e uma falha
+silenciada aí é exatamente como isso passa despercebido.
+
+---
+
+## 25. As ferramentas exigem umas às outras
+
+**Decisão.** Uma cadeia de pré-condições verificadas pelo middleware: preço exige
+portão aprovado **e** CMV completo para aquele prato; cardápio exige, além
+disso, que uma avaliação tenha ocorrido.
+
+**Motivo.** Metade das ferramentas nunca era chamada numa conversa real — CMV,
+mercado, feedback, memória. Instruir não bastou. A alavanca que já havia
+funcionado para o portão foi estendida: cada exigência transforma uma sugestão
+numa garantia, e só nas ferramentas que custam dinheiro ou vão para um cardápio.
+
+**Consequência.** O caminho certo passou a ser o único caminho, em vez do mais
+trabalhoso. Foi isso que fez o agente pular o portão antes: ler o perfil dava
+resposta e rodar o portão dava trabalho.
+
+---
+
+## 26. Os números da mensagem são conferidos sem modelo
+
+**Decisão.** `confidence_audit_figures` extrai toda cifra e todo percentual da
+mensagem e verifica se cada um aparece no que as ferramentas devolveram.
+
+**Motivo.** O observador pontua a evidência e nunca lê a frase; o juiz lê a
+frase mas precisa ser invocado. Entre os dois havia algo que nenhum fazia e que
+não precisa de modelo nenhum: uma cifra na mensagem ou é um número que uma
+ferramenta produziu, ou não é — e isso é decidível.
+
+Não substitui o juiz: uma mensagem pode errar de formas que número nenhum
+revela. Mas a falha específica que este sistema existe para impedir — um preço
+que ninguém calculou — é pega aqui, deterministicamente e de graça.
+
+**Consequência.** A busca é recursiva sobre o payload inteiro, não por campo
+nomeado: um verificador que precisa ser avisado de cada campo novo fica obsoleto
+no dia em que uma ferramenta ganha um.
+
+---
+
+## 27. A configuração do agente é montada somente para leitura
+
+**Decisão.** `hermes-config.yaml` é montado `:ro`.
+
+**Motivo.** O Hermes reescreve esse arquivo ao registrar coisas como flags de
+onboarding, e a reescrita **apaga todos os comentários e reverte qualquer edição
+feita no repositório**. Foi descoberto ao trocar o modelo: a mudança parecia
+aplicada e não estava.
+
+**Consequência.** O repositório volta a ser a única fonte de verdade da fiação.
+O resto do estado do Hermes continua no volume, que segue gravável.

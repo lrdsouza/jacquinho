@@ -128,7 +128,9 @@ services:
       # Hermes-side customisation. config.yaml wires up the MCP server; SOUL.md
       # carries voice and who-speaks-first, which cannot travel over MCP because
       # Hermes treats MCP text as untrusted data rather than as instructions.
-      - ./hermes-config.yaml:/opt/data/config.yaml
+      # Read-only: Hermes rewrites this file to record onboarding flags, and a
+      # rewrite strips the comments and reverts edits made in the repository.
+      - ./hermes-config.yaml:/opt/data/config.yaml:ro
       - ../hermes/SOUL.md:/opt/data/SOUL.md:ro
       - ../data:/data:ro
     # No `command:` — the image entrypoint falls through to the interactive TUI.

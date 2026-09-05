@@ -38,6 +38,14 @@ class ConfidenceMiddleware(Middleware):
     # requires that an assessment happened for that dish. It does not make the
     # observer read the message; it makes the thing that does read it
     # unavoidable at the moment it matters.
+    # Cost before price, for the same reason: a price is only meaningful over a
+    # cost that was calculated for THIS dish.
+    NEEDS_CMV = {
+        'pricing_price_scenarios': (
+            'nenhum preço sai antes de pricing_calculate_cmv para este prato'
+        ),
+    }
+
     NEEDS_ASSESSMENT = {
         'menu_add_dish': (
             'nenhum prato entra no cardápio sem passar por '
@@ -59,6 +67,20 @@ class ConfidenceMiddleware(Middleware):
             inner = data.get('result')
             return inner if isinstance(inner, dict) else data
         return None
+
+    def _attach_state(self, result, session: str, dish: str | None) -> None:
+        '''Put where-we-are into the result the agent is about to read.
+
+        A rule stated once in a prompt is a rule the model can drift away from.
+        A field in every tool result is one it cannot miss.
+        '''
+        payload = getattr(result, 'structured_content', None)
+        if not isinstance(payload, dict):
+            return
+        state = self.observer.state_of(session, dish)
+        inner = payload.get('result')
+        target = inner if isinstance(inner, dict) else payload
+        target['conversation_state'] = state
 
     def _persist(self, tool: str, report: dict) -> None:
         if self.db is None:
@@ -124,6 +146,14 @@ class ConfidenceMiddleware(Middleware):
                 'da cozinha não conta: ler não é verificar.'
             )
 
+        needs_cost = self.NEEDS_CMV.get(name)
+        if needs_cost and not self.observer.cmv_ready(session, dish):
+            raise ToolError(
+                f'Recusado: {needs_cost}. Rode pricing_calculate_cmv com as linhas '
+                'da receita, nomeando o prato, e volte com o cmv_per_portion que '
+                'ele devolver.'
+            )
+
         needs_judgement = self.NEEDS_ASSESSMENT.get(name)
         if needs_judgement and not self.observer.assessed(session, dish):
             raise ToolError(f'Recusado: {needs_judgement}')
@@ -144,5 +174,13 @@ class ConfidenceMiddleware(Middleware):
                 self._persist(name, report)
         except Exception as error:
             # Observation must never break the call it is observing.
-            logger.debug('confidence observer skipped %s: %s', context, error)
+            logger.debug('confidence observer skipped %s: %s', name, error)
+
+        # Deliberately outside the block above. If the state cannot be attached
+        # the agent loses the thread of the conversation, and a failure swallowed
+        # here is exactly how that goes unnoticed.
+        try:
+            self._attach_state(result, session, dish)
+        except Exception as error:
+            logger.warning('conversation state not attached: %s', error)
         return result

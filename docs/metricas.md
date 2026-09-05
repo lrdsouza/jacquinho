@@ -224,13 +224,17 @@ impecável e depois escreve um número diferente do calculado recebe nota alta.
 **Por que não dá para resolver de todo:** o middleware fica na fronteira do MCP.
 Ele vê chamadas de ferramenta; a frase final nunca passa por ali.
 
-**O que foi feito:** o único ato irreversível — `menu_add_dish` — passou a exigir
-que uma avaliação tenha ocorrido para aquele prato. Não faz o observador ler a
-mensagem; torna inevitável, no momento que importa, quem lê. O juiz continua
-sendo a única coisa que confronta texto com evidência.
+**O que foi feito:** duas coisas. O único ato irreversível — `menu_add_dish` —
+passou a exigir que uma avaliação tenha ocorrido para aquele prato. E
+`confidence_audit_figures` passou a conferir, **sem modelo nenhum**, se cada
+cifra e cada percentual da mensagem aparece no que as ferramentas devolveram.
 
-**Residual:** uma frase errada dita no meio da conversa, sem virar cardápio,
-ainda passa.
+O segundo é o que mais fecha a falha: o preço inventado, que é a coisa exata que
+este sistema existe para impedir, agora é pego deterministicamente.
+
+**Residual:** o que não é número. Uma frase que afirma que ela consegue assar
+sem que o portão tenha aprovado continua dependendo do juiz, que continua
+dependendo de ser chamado.
 
 ### 2. A afirmação era inferida, não declarada — *corrigida*
 

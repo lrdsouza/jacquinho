@@ -1,12 +1,54 @@
+# Hermes configuration for Sabor da Maria.
+# Mounted read-only at /opt/data/config.yaml (HERMES_HOME=/opt/data).
+#
+# Read-only on purpose. Hermes rewrites this file when it records things like
+# onboarding flags, and a rewrite strips every comment and quietly reverts any
+# edit made here - so an intentional change to the model would look applied and
+# not be. Read-only keeps the repository the single source of truth; Hermes
+# keeps the rest of its state in the volume, which stays writable.
+#
+# This file is the wiring, not a skill: without it Hermes never learns the MCP
+# server exists. There are no skills. The procedure ships inside the MCP server
+# as tool descriptions and next_step; the voice ships in SOUL.md, because Hermes
+# treats text arriving over MCP as untrusted data rather than as instructions.
+
+# Schema version this file is written against. Without it Hermes reads the
+# config as version 1, warns that it 'predates version 12', and refuses to
+# migrate - which would silently leave mcp_servers unapplied.
 _config_version: 40
+
+# ---------------------------------------------------------------------------
+# Which model runs the conversation.
+#
+# Only ONE model is ever in the loop: the confidence layer's judging turn is
+# this same model under a stricter rubric, not a second provider.
+#
+# Sonnet 5. The arithmetic is in Python and the rules are gates, so this agent
+# does not need deep reasoning - but it does need to hold a thread across a long
+# conversation with fifty-odd tools, and that is where the cheaper model showed
+# strain: it kept losing where it was and re-offering what she had already
+# chosen. Conduction is the hard part here, not thinking.
+#
+#   claude-haiku-4-5   cheapest; try it if cost matters more than conduction
+#   claude-opus-5      most capable, most expensive
+#
+# The id is bare, with no vendor prefix: a 'vendor/model' slug belongs to
+# aggregators, and the direct Anthropic provider rejects it.
 model:
-  default: claude-haiku-4-5
-  provider: anthropic
+  default: 'claude-sonnet-5'
+  provider: 'anthropic'
+
+# Credentials come from OAuth against a Claude subscription (`jacquinho login`)
+# or from a provider key in .env. To run on something else, change `provider`
+# here and set the matching credential; `jacquinho hermes doctor` checks both.
+# ---------------------------------------------------------------------------
+
 mcp_servers:
+  # The key names the server inside Hermes and prefixes its tools there.
   jacquinho:
+    # HTTP transport: the server lives in the `jacquinho-mcp` container, resolved
+    # by compose network DNS. A stdio server would have to be spawned inside the
+    # Hermes container instead.
     url: http://jacquinho-mcp:8000/mcp
     timeout: 90
     connect_timeout: 30
-onboarding:
-  seen:
-    tool_progress_prompt: true

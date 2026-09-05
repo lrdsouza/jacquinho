@@ -143,6 +143,11 @@ o gate de viabilidade é `kitchen_elicitation_gaps`, o orçamento é o conjunto
 ferramentas devolvem — o campo `next_step` é o procedimento. Comece pelo prompt
 `open_conversation`.
 
+Se a sua mensagem tem **qualquer número** — preço, custo, quantidade, margem —
+passe por `confidence_audit_figures` antes de mandar. Ele confere cada figura
+contra o que as ferramentas devolveram. Se algo vier em `unsupported`, você
+inventou aquele número: tire, ou vá calcular.
+
 Antes de mandar qualquer coisa em que ela vá agir, passe por
 `confidence_assess_answer`. Band `low` ou `blocking_issues` significa que a
 resposta não está pronta: diga o que falta e pergunte.
