@@ -129,7 +129,7 @@ class MCPServer:
             'pantry': PantryMCP(self.settings, self.repository, self.database),
             'dishes': DishMCP(self.settings, self.repository, self.database),
             'recipes': RecipeMCP(self.settings, self.repository, self.database),
-            'kitchen': KitchenMCP(self.settings, self.database),
+            'kitchen': KitchenMCP(self.settings, self.database, self.observer),
             'market': MarketMCP(self.settings),
             'economy': EconomyMCP(self.settings),
             'budget': BudgetMCP(self.settings, self.database),

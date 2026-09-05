@@ -29,9 +29,49 @@ class KitchenMCP(BaseMCP):
         "is not consent: 'unknown' is a question, never a yes."
     )
 
-    def __init__(self, settings, db):
+    def __init__(self, settings, db, observer=None):
         self.db = db
+        self.observer = observer
         super().__init__(settings)
+
+    def _recheck_dish_in_play(self, state: str) -> dict | None:
+        '''Re-run the gate after an answer, but only if the answer was a no.'''
+        if state != 'confirmed_no':
+            return None
+        return self._blocked_dish_in_play()
+
+    def _blocked_dish_in_play(self) -> dict | None:
+        '''Re-run the gate for the dish under discussion, right here.
+
+        Telling the agent to go and re-check was not enough: it recorded the
+        answer that ruled the dish out and then carried on as if nothing had
+        happened. So the recording does the re-check itself and hands back the
+        verdict as data, not as advice.
+        '''
+        if self.observer is None:
+            return None
+        from .middleware import ConfidenceMiddleware
+
+        session = ConfidenceMiddleware.SESSION_FALLBACK
+        dish = self.observer.dish_in_play(session)
+        requirements = self.observer.requirements_of(session)
+        if not dish or not requirements:
+            return None
+
+        gaps = self._planner().gaps_for_dish(requirements)
+        blockers = [entry['item'] for entry in gaps['known_blockers']]
+        if not blockers:
+            return None
+        return {
+            'dish': dish,
+            'verdict': 'rejected',
+            'blocked_by': blockers,
+            'say_now': (
+                f'A cozinha dela não faz {dish}: falta {blockers}. Diga isso a ela '
+                'com todas as letras AGORA, e ofereça uma versão do prato DELA que '
+                'caiba no que ela tem. Não mude de assunto sem fechar este.'
+            ),
+        }
 
     def _profile(self) -> KitchenProfile:
         return KitchenProfile(self.db)
@@ -102,7 +142,9 @@ class KitchenMCP(BaseMCP):
             item = resolved.key
             planner = self._planner()
             coverage = planner.coverage()
+            ruled_out = self._recheck_dish_in_play(state)
             return {
+                'dish_now_ruled_out': ruled_out,
                 'already_answered': [
                     row['item'] for row in coverage['answered_items']
                 ],
@@ -118,7 +160,20 @@ class KitchenMCP(BaseMCP):
                     'in already_answered is settled - asking about any of it again '
                     'tells her you were not listening.'
                     if state == 'confirmed_yes'
-                    else 'Recorded.'
+                    else (
+                        # A 'no' that leaves the dish unresolved is the worst
+                        # outcome: she told you the thing that rules it out and
+                        # heard nothing back about the dish she asked for.
+                        f"She cannot do this. If a dish was on the table, close "
+                        f"it now: run kitchen_check_feasibility for it, tell her "
+                        f"plainly that it is out because of '{item}', and offer a "
+                        'version of HER dish that fits the kitchen she has - '
+                        'lasanha de panela instead of lasanha ao forno - before '
+                        'suggesting anything else. Do not go back to asking what '
+                        'she wants: she already told you.'
+                        if state == 'confirmed_no'
+                        else 'Recorded.'
+                    )
                 ),
             }
 
@@ -150,7 +205,11 @@ class KitchenMCP(BaseMCP):
             """
             planner = self._planner()
             coverage = planner.coverage()
+            # Asking for the next question is the moment the agent is about to
+            # move on. If the dish on the table is already dead, say so instead.
+            ruled_out = self._blocked_dish_in_play()
             return {
+                'dish_now_ruled_out': ruled_out,
                 'questions': planner.next_questions(limit),
                 'coverage_percent': coverage['coverage_percent'],
                 'ready_to_recommend': coverage['ready_to_recommend'],

@@ -114,6 +114,26 @@ case "${1:-chat}" in
         "${COMPOSE[@]}" run --rm --no-deps -T jacquinho-mcp \
             python -m pytest tests/ "$@"
         ;;
+    tools)
+        # Straight from the running server, so this cannot drift from the docs.
+        services_up skip-credentials
+        "${COMPOSE[@]}" run --rm --no-deps -T jacquinho-mcp python -c '
+from app.mcps.server import MCPServer
+from app.config import Settings
+import asyncio
+
+async def main():
+    from fastmcp import Client
+    async with Client(MCPServer(Settings.from_env()).root) as client:
+        tools = await client.list_tools()
+    for tool in sorted(tools, key=lambda t: t.name):
+        head = (tool.description or "").strip().splitlines()[0]
+        print(f"  {tool.name:<38} {head}")
+    print(f"\n  {len(tools)} ferramentas")
+
+asyncio.run(main())
+'
+        ;;
     logs)
         "${COMPOSE[@]}" logs -f "${2:-}"
         ;;
@@ -142,7 +162,22 @@ case "${1:-chat}" in
         for volume in jacquinho_postgres-data jacquinho_redis-data; do
             docker volume rm "$volume" >/dev/null 2>&1 || true
         done
-        bold 'Her data is gone. Your login is not.'
+        # Hermes keeps its own transcript, next to the token, in the volume we
+        # are deliberately not deleting. Emptying the stores and leaving that
+        # behind gives a reset that still opens on the old conversation, which
+        # is the confusing half-state. Delete the rows; keep auth.json.
+        docker run --rm -v jacquinho_hermes-data:/d alpine sh -c '
+            apk add -q sqlite 2>/dev/null || exit 0
+            [ -f /d/state.db ] || exit 0
+            sqlite3 /d/state.db "delete from messages;
+                                 delete from session_model_usage;
+                                 delete from session_turn_leases;
+                                 delete from sessions;
+                                 delete from system_prompts;
+                                 VACUUM;"
+            rm -rf /d/cache/web/*
+        ' >/dev/null 2>&1 || warn 'Hermes transcript left in place.'
+        bold 'Her data is gone, and so is the transcript. Your login is not.'
         ;;
     login)
         services_up skip-credentials

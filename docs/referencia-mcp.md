@@ -71,7 +71,7 @@ o dado.
 | `dishes_delete_category` | Remove uma categoria criada antes. | `key` | As embutidas não podem ser removidas. |
 | `dishes_survey_categories` | Confere todas as categorias contra a despensa de uma vez. | nenhum | Use cedo: diz que tipos de prato estão sequer na mesa. |
 | `dishes_assess_category` | Percorre a despensa ingrediente por ingrediente para uma categoria. | `category` | Mostra qual ingrediente satisfaz qual exigência, com estoque e custo. |
-| `dishes_discover_dishes` | Acha pratos em que várias fontes recentes concordam. | `category`, `constraints`, `min_sources`, `freshness`, `queries` | Janela padrão de cinco anos. `source_count` 1 é pista, não achado. |
+| `dishes_discover_dishes` | Acha pratos em que várias fontes recentes concordam. | `category`, `constraints`, `min_sources`, `freshness`, `queries` | Janela padrão de cinco anos. `source_count` 1 é pista, não achado. Teto de cinco chamadas por sessão. |
 
 ---
 
@@ -101,9 +101,9 @@ o dado.
 | Ferramenta | O que faz | Argumentos | Notas |
 |---|---|---|---|
 | `kitchen_check_feasibility` | Confere se ela consegue produzir o prato. | `equipment_needed`, `techniques_needed` | Veredito `approved`, `needs_answers` ou `rejected`. |
-| `kitchen_record_capability` | Guarda o que ela respondeu sobre a cozinha. | `category`, `item`, `state`, `note` | Ao virar `confirmed_yes`, aponta para `recipes_revisit_blocks`. |
+| `kitchen_record_capability` | Guarda o que ela respondeu sobre a cozinha. | `category`, `item`, `state`, `note` | Recusa chave fora do catálogo. Ao virar `confirmed_yes`, aponta para `recipes_revisit_blocks`; ao virar `confirmed_no`, roda o portão do prato em discussão e devolve `dish_now_ruled_out`. |
 | `kitchen_read_kitchen_profile` | Tudo que se sabe de equipamentos, técnicas e limites. | nenhum | Vazio significa não perguntado, não ausente. |
-| `kitchen_next_questions` | As coisas mais úteis ainda não perguntadas. | `limit` | Ordenadas por prioridade; itens de prioridade 1 barram recomendação. |
+| `kitchen_next_questions` | As coisas mais úteis ainda não perguntadas. | `limit` | Ordenadas por prioridade; itens de prioridade 1 barram recomendação. Também devolve `dish_now_ruled_out` se o prato em discussão já morreu. |
 | `kitchen_elicitation_coverage` | Quanto do catálogo ela já respondeu. | nenhum | Percentual e o que falta. |
 | `kitchen_elicitation_gaps` | Confere exigências de um prato contra as respostas dela. | `requirements` | `safe_to_shop` falso significa que nada é comprado ainda. |
 | `kitchen_elicitation_catalogue` | O catálogo completo de restrições. | nenhum | 26 itens embutidos mais os registrados. |

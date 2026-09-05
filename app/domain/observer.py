@@ -45,6 +45,9 @@ class EvidenceTrail:
     consensus: dict | None = None
     market: dict | None = None
     economy: dict | None = None
+    # What the dish demands, kept so a later answer can be re-checked against
+    # it without anyone re-reading the recipe.
+    requirements: list[str] = field(default_factory=list)
     claim: str = Claim.PANTRY
     # A claim the agent stated beats one guessed from the last tool call.
     claim_declared: bool = False
@@ -164,6 +167,12 @@ class ConfidenceObserver:
 
         if slot is not None and isinstance(payload, dict):
             value = self._normalise(tool, payload)
+            if tool == 'kitchen_analyse_recipe_requirements':
+                detected = (payload.get('from_the_recipe') or {}).get(
+                    'detected_requirements', []
+                )
+                trail.requirements = [entry['item'] for entry in detected]
+
             if slot == 'pantry':
                 # Dish-independent within a session: remember it and give it to
                 # every trail belonging to that session.
@@ -220,6 +229,16 @@ class ConfidenceObserver:
     def searches_done(self, session: str) -> int:
         return self.searches.get(session, 0)
 
+    def requirements_of(self, session: str, dish: str | None = None) -> list[str]:
+        '''What the dish in play demands, as detected from its recipe.'''
+        name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
+        trail = self.trails.get((session, name))
+        return list(trail.requirements) if trail else []
+
+    def dish_in_play(self, session: str) -> str | None:
+        name = self.active_dish.get(session, self.NO_DISH)
+        return None if name == self.NO_DISH else name
+
     def cmv_ready(self, session: str, dish: str | None = None) -> bool:
         '''Was a complete CMV calculated for this dish?'''
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
@@ -259,7 +278,15 @@ class ConfidenceObserver:
             }
 
         gate = (trail.feasibility or {}).get('verdict')
-        if gate != 'approved':
+        if gate == 'rejected':
+            travas = [b.get('item') for b in (trail.feasibility or {}).get('blockers', [])]
+            nxt = (
+                f'A cozinha dela NÃO faz este prato ({travas}). Diga isso a ela '
+                'agora, com todas as letras, e ofereça uma versão do prato DELA '
+                'que caiba - lasanha de panela no lugar de lasanha ao forno. Só '
+                'depois disso proponha outra coisa.'
+            )
+        elif gate != 'approved':
             nxt = ('kitchen_check_feasibility com o prato nomeado, ou '
                    'kitchen_analyse_recipe_requirements com o texto da receita')
         elif trail.cmv is None:

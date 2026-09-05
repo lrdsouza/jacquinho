@@ -166,9 +166,12 @@ async def test_the_agent_can_ask_what_it_has_not_asked(server):
     async with Client(server) as client:
         coverage = await client.call_tool('kitchen_elicitation_coverage', {})
         questions = await client.call_tool('kitchen_next_questions', {'limit': 3})
+    # Order-independent: other tests answer items in this shared database, so
+    # assert the shape of the answer rather than which items are still pending.
     assert coverage.data['still_unknown']
-    assert coverage.data['ready_to_recommend'] is False
-    assert questions.data['questions'][0]['priority'] == 1
+    assert 0 <= coverage.data['coverage_percent'] < 100
+    asked = questions.data['questions']
+    assert asked and asked == sorted(asked, key=lambda q: q['priority'])
 
 
 @pytest.mark.asyncio
@@ -272,3 +275,62 @@ async def test_market_and_inflation_inform_but_do_not_block_acceptance(server):
         c['check'] for c in result.data['checks'] if not c['blocks_acceptance']
     }
     assert optional == {'preço de mercado', 'inflação atual'}
+
+
+@pytest.mark.asyncio
+async def test_a_no_tells_the_agent_to_close_the_dish(server):
+    """She told the agent the thing that rules the dish out and heard nothing
+    back about the dish she had asked for."""
+    async with Client(server) as client:
+        result = await client.call_tool(
+            'kitchen_record_capability',
+            {'category': 'equipment', 'item': 'forno',
+             'state': 'confirmed_no', 'note': 'so cooktop'},
+        )
+    guidance = result.data['next_step']
+    assert 'check_feasibility' in guidance
+    assert 'version of HER dish' in guidance
+
+
+@pytest.mark.asyncio
+async def test_a_blocking_answer_rules_the_dish_out_on_the_spot(server):
+    """Telling the agent to go and re-check was not enough: it recorded the
+    answer that ruled the dish out and carried on as if nothing had happened."""
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_analyse_recipe_requirements',
+            {'dish': 'Lasanha ao forno',
+             'recipe_text': 'Monte em uma travessa e leve ao forno preaquecido '
+                            'ate gratinar.'},
+        )
+        result = await client.call_tool(
+            'kitchen_record_capability',
+            {'category': 'equipment', 'item': 'forno',
+             'state': 'confirmed_no', 'note': 'so cooktop de 4 bocas'},
+        )
+    ruled = result.data['dish_now_ruled_out']
+    assert ruled is not None
+    assert ruled['verdict'] == 'rejected'
+    assert 'forno' in ruled['blocked_by']
+    assert 'lasanha ao forno' in ruled['dish']
+
+
+@pytest.mark.asyncio
+async def test_asking_for_the_next_question_also_closes_the_dead_dish(server):
+    """Reaching for the next question is the moment the agent moves on. If the
+    dish on the table is already dead, moving on is the bug."""
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_analyse_recipe_requirements',
+            {'dish': 'Lasanha ao forno',
+             'recipe_text': 'Leve ao forno preaquecido ate gratinar.'},
+        )
+        await client.call_tool(
+            'kitchen_record_capability',
+            {'category': 'equipment', 'item': 'forno',
+             'state': 'confirmed_no', 'note': 'so cooktop'},
+        )
+        questions = await client.call_tool('kitchen_next_questions', {'limit': 3})
+    ruled = questions.data['dish_now_ruled_out']
+    assert ruled is not None
+    assert 'forno' in ruled['blocked_by']

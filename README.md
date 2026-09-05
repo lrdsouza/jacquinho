@@ -22,8 +22,68 @@ chamada de ferramenta, nunca da memória do modelo**.
 
 ---
 
+## O caso que prova o requisito central
+
+A Dona Maria quer um prato que exige forno. Ela não tem forno. O agente
+descobre isso **antes** de ela gastar um centavo do orçamento.
+
+Transcrição real, banco zerado, gravada com `jacquinho`:
+
+```
+Dona Maria ▸ oi! quero fazer lasanha ao forno pra vender de marmita
+
+Jacquinho  ▸ Boa! Lasanha à bolonhesa costuma vender muito bem em marmita.
+             Antes de fechar essa receita, preciso saber um pouco da sua
+             cozinha — vou te fazer umas perguntas rápidas, uma de cada vez.
+             Primeira: seu forno funciona bem e assa por igual?
+
+Dona Maria ▸ nao tenho forno nao, so um cooktop de 4 bocas
+
+Jacquinho  ▸ Anotado aqui: sem forno, só o cooktop de 4 bocas — vou levar
+             isso em conta em tudo que eu sugerir pra você. [...]
+             Quer que eu já procure pratos que dão pra fazer com isso e
+             sem forno?
+```
+
+O que aconteceu por baixo, em ordem:
+
+```
+pantry_list_ingredients               1.00
+recipes_search_recipes                0.50
+kitchen_analyse_recipe_requirements   0.30  lasanha a bolonhesa  feasibility
+                                      └─ leu 'leve ao forno' na receita e travou
+kitchen_record_capability             1.00  forno = confirmed_no
+```
+
+E o estado depois da conversa:
+
+```
+orçamento restante ... R$ 80.00 de R$ 80.00
+compras feitas ...... 0
+cardápio ............ 0 pratos
+perfil gravado ...... forno, fogao
+gate da lasanha ..... safe_to_shop=False | bloqueado por ['forno']
+```
+
+Nenhum centavo saiu. A exigência de forno não veio do modelo lembrar que lasanha
+vai ao forno: veio de `kitchen_analyse_recipe_requirements` ler as palavras
+`leve ao forno` no texto da receita que ele mesmo buscou. E o bloqueio persiste
+no banco — se ela comprar um forno amanhã, `recipes_revisit_blocks('forno')`
+traz a lasanha de volta sozinha.
+
+**Uma aresta, dita com franqueza.** Nesta transcrição o agente registra a
+restrição e passa a respeitá-la, mas não diz em voz alta *"a lasanha ao forno
+está fora, mas dá pra fazer de panela"*. A ferramenta devolve exatamente essa
+frase pronta em `dish_now_ruled_out.say_now`, e o modelo não a usa de forma
+confiável. O portão segura — que é o que protege o dinheiro dela — mas o
+fechamento conversacional ainda depende do modelo. Está em
+[docs/testes.md](docs/testes.md) junto com o resto do que a simulação achou.
+
+---
+
 ## Índice
 
+- [O caso que prova o requisito central](#o-caso-que-prova-o-requisito-central)
 - [O que ele faz](#o-que-ele-faz)
 - [Arquitetura](#arquitetura)
 - [Começando](#começando)
@@ -33,6 +93,7 @@ chamada de ferramenta, nunca da memória do modelo**.
 - [Garantias](#garantias)
 - [Configuração](#configuração)
 - [Estrutura do projeto](#estrutura-do-projeto)
+- [O que eu não fiz, e por quê](#o-que-eu-não-fiz-e-por-quê)
 - [Documentação](#documentação)
 
 ---
@@ -193,7 +254,7 @@ pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais.
 
 O agente roda em qualquer provedor que você apontar e alcança as 56 ferramentas
 de qualquer jeito. O que ele exige de verdade não é inteligência bruta e sim
-**chamada de ferramenta confiável**: são 51 ferramentas e cadeias de vários
+**chamada de ferramenta confiável**: são 55 ferramentas e cadeias de vários
 passos. Cada caminho — assinatura, chave, camada gratuita, Ollama local — tem um
 bloco pronto em `dockerfile/hermes-config.yaml`.
 
@@ -210,7 +271,7 @@ separado e restrito desse mesmo modelo.
 | `jacquinho confidence` | Acompanha a confiança do que o agente vai dizer |
 | `jacquinho test` | Roda a suíte de testes |
 | `jacquinho down` | Para tudo |
-| `jacquinho reset` | Para e apaga todo o estado guardado |
+| `jacquinho reset` | Zera a consultoria: Postgres, Redis e a transcrição do Hermes. Preserva o login e a planilha |
 | `jacquinho login` | Autoriza com a conta Anthropic Pro, uma vez só |
 | `jacquinho hermes …` | Repassa um comando direto para o CLI do agente |
 | `jacquinho install` | Cria o link em `~/.local/bin` |
@@ -703,13 +764,69 @@ precisam mudar.
 
 ---
 
+## O que eu não fiz, e por quê
+
+Escopo cortado de propósito. Cada item abaixo foi considerado e recusado por um
+motivo, e o motivo importa mais que o item.
+
+**Não usei modelo para calcular nada.** CMV, preço mínimo, lucro, saldo e
+projeção de inflação são Python. Um modelo a quem se pede para multiplicar
+preços devolve um número plausível, e plausível é indistinguível de correto até
+alguém gastar dinheiro em cima. O custo disso é que cada cálculo precisa de uma
+ferramenta com esquema e caminho de erro, em vez de um parágrafo.
+
+**Não persisti a conversa entre sessões, só o que ela decidiu.** A janela de
+conversa vive no Redis e é resumida; o que sobrevive é o registro — perfil da
+cozinha, receitas com seus bloqueios, orçamento, cardápio. Reconstituir o
+diálogo inteiro de semanas atrás não ajuda ninguém; saber que ela não tem forno,
+sim.
+
+**Não construí memória vetorial nem RAG.** A despensa tem 37 linhas e o catálogo
+de restrições 26 itens. Busca semântica sobre isso é infraestrutura para um
+problema que `SELECT` resolve, e traz uma classe de erro nova: recuperar o
+ingrediente parecido em vez do certo — exatamente o que o casamento de nomes
+recusa fazer.
+
+**Não usei skills do Hermes.** O procedimento vive nas descrições das
+ferramentas e no `next_step` dos resultados, onde há verificação. Uma skill é
+instrução: texto que o modelo lê e, se tudo correr bem, segue. Onde havia o que
+conferir, virou ferramenta. Onde não havia — voz, quem fala primeiro —, ficou
+texto, no `SOUL.md`.
+
+**Não coloquei um segundo modelo como juiz.** Um avaliador independente pegaria
+mais coisa, mas o enunciado pede um agente, e dois provedores no circuito é uma
+dependência e uma conta a mais. O juiz é um turno do mesmo modelo com rubrica
+estrita, e a parte que dá para conferir sem modelo nenhum —
+`confidence_audit_figures` — não usa modelo.
+
+**Não calibrei os limiares de confiança.** Quatro fontes valendo 1,00 e três
+valendo 0,80 veio de julgamento, não de medição. Calibrar exige registrar
+desfecho — o prato foi aceito? o preço se sustentou? — e ainda não há esse dado.
+Preferi deixar escrito que a nota **ordena** e não mede, a fingir precisão.
+
+**Não isolei sessões simultâneas de verdade.** A trilha é chaveada por sessão e
+prato, mas o identificador de conexão não chega ao middleware nesta versão do
+FastMCP e cai numa chave fixa. Correto para uma consultoria por vez, que é o
+caso de uso; insuficiente para várias pessoas ao mesmo tempo, e isso está dito
+em [docs/metricas.md](docs/metricas.md) em vez de escondido.
+
+**Não fiz teste automatizado de diálogo.** Cada execução custa uma chamada de
+modelo e o julgamento do resultado é humano. A simulação existe, é manual, e o
+que ela achou está em [docs/testes.md](docs/testes.md) — inclusive o que
+continua torto.
+
+As decisões completas, com motivo e consequência de cada uma, estão em
+**[docs/decisoes.md](docs/decisoes.md)**.
+
+---
+
 ## Documentação
 
 | Documento | Conteúdo |
 |---|---|
 | [docs/arquitetura.md](docs/arquitetura.md) | Componentes, camadas, caminhos de requisição, composição |
 | [docs/decisoes.md](docs/decisoes.md) | Cada decisão de arquitetura e sua justificativa |
-| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 45 ferramentas, prompts e recursos |
+| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 55 ferramentas, prompts e recursos |
 | [docs/modelo-de-dados.md](docs/modelo-de-dados.md) | Normalização de unidades, chaves do Redis, arquivos de estado |
 | [docs/metricas.md](docs/metricas.md) | Como a confiança é calculada, suas falhas e como melhorá-la |
 | [docs/testes.md](docs/testes.md) | A suíte automatizada e a simulação de usuário |

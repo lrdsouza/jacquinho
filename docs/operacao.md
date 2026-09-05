@@ -63,14 +63,37 @@ Todo start reconstrói a imagem do MCP. São cerca de cinco segundos com cache
 quente, e em troca uma edição em `app/` nunca fica rodando contra uma imagem
 antiga — uma falha que não dá nenhum sinal.
 
-O `reset` apaga o Redis e o Postgres: transcrição, perfil da cozinha, catálogo
-de receitas com seus bloqueios, saldo do orçamento e cardápio. A planilha não é
-tocada, e **o volume do agente também não** — ele guarda o token de OAuth e a
-memória do próprio Hermes. Zerar uma consultoria não deveria custar um novo
-login no navegador.
+O `reset` apaga três coisas:
+
+| Onde | O que sai |
+|---|---|
+| Postgres | Perfil da cozinha, catálogo de receitas com seus bloqueios, exigências, aceites e avaliações, lançamentos do orçamento, cardápio, feedback |
+| Redis | Janela de conversa e resumo, fichas de julgamento |
+| `state.db` do Hermes | Sessões, mensagens e prompts de sistema, mais o cache de páginas web |
+
+A planilha não é tocada — ela é a origem da despensa, e depois de um `reset` o
+Postgres é semeado de novo a partir dela, com as mesmas 37 linhas.
+
+O **`auth.json` do agente sobrevive**, e é por isso que o `reset` mexe nas
+linhas do `state.db` em vez de apagar o volume inteiro: o token de OAuth mora ao
+lado da transcrição. Zerar uma consultoria não deveria custar um novo login no
+navegador. Por outro lado, apagar só o Redis e o Postgres deixava o Hermes
+reabrindo a conversa antiga em cima de bancos vazios, que é o pior dos dois
+mundos: o agente lembra do que ela disse, e o registro não.
 
 Para apagar tudo mesmo, incluindo a credencial:
 `docker compose -f dockerfile/docker-compose.yaml down -v`.
+
+Para conferir que o zero é zero:
+
+```bash
+docker compose -f dockerfile/docker-compose.yaml exec -T redis redis-cli DBSIZE
+docker compose -f dockerfile/docker-compose.yaml exec -T postgres \
+    psql -U jacquinho -d jacquinho \
+    -c 'select relname, n_live_tup from pg_stat_user_tables order by relname'
+```
+
+Tudo em zero, menos `pantry_items` em 37.
 
 ---
 
@@ -81,7 +104,7 @@ muda mais nada: os servidores MCP, as ferramentas e todas as regras se comportam
 de forma idêntica por baixo.
 
 O eixo que importa aqui não é inteligência bruta, e sim **confiabilidade de
-chamada de ferramenta**. São 51 ferramentas e cadeias de vários passos; um
+chamada de ferramenta**. São 55 ferramentas e cadeias de vários passos; um
 modelo que não segura um esquema de ferramenta falha aqui independentemente do
 tamanho.
 
@@ -154,7 +177,7 @@ O `jacquinho login` já passa a opção.
 ```bash
 jacquinho hermes auth status    # a credencial ficou gravada?
 jacquinho hermes model          # que modelos a assinatura oferece
-jacquinho tools                 # as 51 ferramentas respondem?
+jacquinho tools                 # as 55 ferramentas respondem?
 jacquinho                       # abre o chat
 ```
 
@@ -163,7 +186,7 @@ padrão no `hermes-config.yaml` é `claude-haiku-4-5`, escolhido pensando em cha
 de API, onde toda a família está disponível. O conjunto que uma assinatura libera
 pode ser diferente; se o Haiku não estiver lá, troque a linha `default:` pelo que
 aparecer — `claude-sonnet-5` é o candidato mais provável. Nada mais muda: os onze
-servidores MCP e as 51 ferramentas se comportam de forma idêntica por baixo.
+servidores MCP e as 55 ferramentas se comportam de forma idêntica por baixo.
 
 ### Modelo local
 

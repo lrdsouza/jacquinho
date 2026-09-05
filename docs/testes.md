@@ -38,19 +38,27 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**140 testes, 9 suítes, ~1,5 s.**
+**163 testes, 10 suítes, ~9 s** (o tempo é quase todo subida de contêiner).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
-| `test_units.py` | 15 | Unidade e embalagem: `balde 2kg` são dois quilos |
-| `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
-| `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
+| `test_mcp_server.py` | 23 | O servidor sobe, monta, recusa e fecha o prato morto |
+| `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
+| `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
+| `test_units.py` | 15 | Unidade e embalagem: `balde 2kg` são dois quilos |
 | `test_search_and_consensus.py` | 15 | Recência, domínios distintos, extração de preço |
 | `test_pricing.py` | 13 | A aritmética do desafio |
 | `test_observer.py` | 13 | Trilha por sessão e por prato |
-| `test_mcp_server.py` | 11 | O servidor sobe, monta e recusa direito |
+| `test_audit.py` | 11 | Todo R$ e todo % da mensagem sai de uma ferramenta |
 | `test_budget_and_catalogue.py` | 7 | Bloqueio condicional contra bloqueio por gosto |
+
+Os doze testes que `test_mcp_server.py` ganhou desde a primeira versão são quase
+todos cicatriz: o teto de buscas, a recusa de chave livre em `record_capability`,
+o `conversation_state` viajando na resposta, e os dois que cobrem o prato morto —
+gravar o "não tenho forno" devolve o veredito da lasanha na mesma resposta, e
+pedir a próxima pergunta também o devolve, porque pedir a próxima pergunta é
+exatamente o instante em que o agente ia mudar de assunto.
 
 O domínio é testável sem banco porque a única coisa que ele precisa de Postgres
 são linhas; um `FakeDatabase` de vinte linhas devolve exatamente o que a

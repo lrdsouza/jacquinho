@@ -558,7 +558,7 @@ de chamadas.
 
 **Consequência.** Subir é uma linha. `claude-sonnet-5` para julgamento mais forte
 mantendo bom uso de ferramentas, `claude-opus-5` quando capacidade importar mais
-que custo. Nada mais muda: os onze servidores MCP e as 51 ferramentas se
+que custo. Nada mais muda: os onze servidores MCP e as 55 ferramentas se
 comportam de forma idêntica por baixo.
 
 **Custo e latência.** Modelo menor também responde mais rápido, o que importa numa
@@ -755,3 +755,57 @@ como perguntar sobre air fryer.
 **Observabilidade.** É a mesma informação que o middleware usa para recusar,
 exposta antes da recusa. A ferramenta e o portão não podem discordar: leem a
 mesma trilha.
+
+---
+
+## 29. A busca tem um teto por sessão
+
+**Decisão.** `dishes_discover_dishes` aceita cinco chamadas por sessão. A sexta
+é recusada pelo middleware, não desencorajada pela descrição.
+
+**Motivo.** Numa conversa gravada o agente chamou a busca vinte vezes seguidas e
+não respondeu nada à Dona Maria. Não foi capricho do modelo: o `next_step` da
+ferramenta convidava a tentar de novo quando o consenso vinha fraco, e consenso
+fraco é o caso comum. Cada chamada tornava a próxima mais atraente, e a única
+saída do laço era o modelo decidir sozinho que já bastava.
+
+Um teto resolve isso de um jeito que nenhuma redação resolve. A recusa carrega o
+que fazer em seguida — usar o que já foi achado, ou perguntar a ela — em vez de
+um erro seco.
+
+**Consequência.** Cinco buscas cobrem com folga o que a conversa precisa; se um
+dia não cobrirem, o número está numa constante e não espalhado por descrições. O
+custo é que uma sessão muito longa pode encostar no teto legitimamente. Preferi
+isso a uma sessão que trava.
+
+**Observabilidade.** `jacquinho confidence` mostra a trilha inteira; as buscas
+aparecem contadas, e o teto aparece como recusa, não como silêncio.
+
+---
+
+## 30. O prato morto é fechado pela ferramenta, não pelo lembrete
+
+**Decisão.** Gravar um `confirmed_no` roda o portão do prato em discussão ali
+mesmo e devolve o veredito como dado: `dish_now_ruled_out`, com o item que
+bloqueia e a frase pronta. Pedir a próxima pergunta faz o mesmo.
+
+**Motivo.** É o pior desfecho possível da conversa e aconteceu de verdade: a
+Dona Maria diz "não tenho forno", o agente grava, e segue perguntando outra
+coisa. Ela entregou exatamente a informação que mata a lasanha e não ouviu nada
+sobre a lasanha.
+
+O `next_step` já mandava fechar o prato, com todas as letras. Não bastou —
+instrução que o modelo pode pular não é garantia, que é a lição que se repete
+neste documento inteiro. Então a gravação passou a fazer a checagem ela mesma.
+`next_questions` ganhou a mesma verificação porque pedir a próxima pergunta é
+precisamente o instante em que o agente ia mudar de assunto.
+
+**Consequência.** O veredito chega como estrutura, não como conselho: prato,
+`verdict: rejected`, `blocked_by`, e a frase a dizer. Dois testes cobrem os dois
+caminhos. Honestamente: isso melhorou muito o comportamento e ainda não o tornou
+certo — o modelo às vezes registra, respeita o bloqueio dali em diante e mesmo
+assim não anuncia em voz alta que a lasanha ao forno saiu. Está anotado assim no
+README e em [testes.md](testes.md), porque é o que os testes de diálogo mostram.
+
+**Observabilidade.** O campo aparece na resposta da ferramenta e vai para o log;
+dá para ver, depois da conversa, se a frase foi entregue e o agente a ignorou.
