@@ -20,10 +20,15 @@ class MenuMCP(BaseMCP):
         'want to cook it, and does she see a problem with it. A dish she dislikes '
         'is dead however good the numbers look. Only add_dish once the gate '
         'passed, the CMV is complete, the price is market-grounded and she chose '
-        'it. build_launch_menu is the deliverable the whole conversation is for.'
+        'it. Before offering to accept anything, call acceptance_check: it lists '
+        'every check still standing between this dish and the menu, including '
+        'the questions she has not been asked. build_launch_menu is the '
+        'deliverable the whole conversation is for.'
     )
 
-    def __init__(self, settings, db):
+    def __init__(self, settings, db, observer=None):
+        self.db = db
+        self.observer = observer
         self.feedback = DishFeedbackStore(db)
         self.menu = LaunchMenuStore(db)
         super().__init__(settings)
@@ -124,3 +129,69 @@ class MenuMCP(BaseMCP):
                 return {'available': True, **self.menu.summary()}
             except MemoryUnavailable as error:
                 return {'available': False, 'error': str(error)}
+
+        @self.mcp.tool
+        def acceptance_check(
+            dish: Annotated[str, Field(description='The dish you are thinking of accepting.')],
+            requirements: Annotated[list[str], Field(description="What the dish demands, e.g. ['assar no forno']. Leave empty to check only the flow.")] = [],
+        ) -> dict:
+            """What still stands between this dish and the menu.
+
+            Every check with its state, plus the questions she has not been
+            asked yet. The checks existed in five different places and nobody
+            consulted all five; this is the one place that answers the question
+            the agent actually has, which is whether it may go ahead.
+
+            ``ready`` false means do not offer to accept. Ask what is listed.
+            """
+            from ..domain.elicitation import ElicitationCatalogue, ElicitationPlanner
+            from ..domain.kitchen import KitchenProfile
+            from ..mcps.middleware import ConfidenceMiddleware
+
+            if self.observer is None:
+                return {'available': False, 'error': 'observer not wired'}
+
+            session = ConfidenceMiddleware.SESSION_FALLBACK
+            checks = self.observer.acceptance_checks(session, dish)
+
+            unanswered: list[dict] = []
+            blockers: list[dict] = []
+            if requirements:
+                ElicitationCatalogue.load_custom(self.db)
+                planner = ElicitationPlanner(KitchenProfile(self.db))
+                gaps = planner.gaps_for_dish(requirements)
+                unanswered = [
+                    {'item': entry['item'], 'question': entry['question']}
+                    for entry in gaps['must_ask_before_buying']
+                ] + [
+                    {'item': entry['requirement'], 'question': entry['question']}
+                    for entry in gaps['unrecognised_requirements']
+                ]
+                blockers = gaps['known_blockers']
+
+            missing = [c['check'] for c in checks if c['blocks_acceptance'] and not c['passed']]
+            ready = not missing and not unanswered and not blockers
+
+            return {
+                'dish': dish,
+                'ready_to_accept': ready,
+                'checks': checks,
+                'blocking': missing,
+                'questions_she_has_not_been_asked': unanswered,
+                'kitchen_blockers': blockers,
+                'next_step': (
+                    'Tudo conferido. Mostre os cenários, deixe ELA escolher o preço, '
+                    'e só então chame add_dish.'
+                    if ready
+                    else (
+                        'Pergunte primeiro, uma coisa por vez: '
+                        + '; '.join(q['question'] for q in unanswered[:3])
+                        if unanswered
+                        else f'Faltam estas checagens: {missing}. '
+                        'Rode-as antes de oferecer o prato como fechado.'
+                        if missing
+                        else f'A cozinha dela barra este prato: '
+                        f'{[b["item"] for b in blockers]}. Ofereça outra versão.'
+                    )
+                ),
+            }

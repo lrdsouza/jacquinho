@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-27-6E56CF)
+![Registros](https://img.shields.io/badge/registros-28-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Haiku%204.5-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -727,3 +727,31 @@ aplicada e não estava.
 
 **Consequência.** O repositório volta a ser a única fonte de verdade da fiação.
 O resto do estado do Hermes continua no volume, que segue gravável.
+
+---
+
+## 28. O rastreamento de restrições tem estado, e um lugar para consultá-lo
+
+**Decisão.** `menu_acceptance_check` devolve, para um prato, cada checagem que
+separa ele do cardápio, com o estado de cada uma e as perguntas que ela ainda
+não ouviu — já escritas.
+
+**Motivo.** As checagens existiam e funcionavam. O portão sabia da sua parte, o
+observador sabia do custo e do mercado, o middleware sabia o que recusaria, o
+catálogo sabia o que não tinha sido perguntado. Cinco lugares, e nenhum
+respondia a pergunta que o agente de fato tem antes de agir: *posso seguir?*
+
+Estado espalhado é estado que ninguém consulta. Na prática o agente descobria o
+que faltava sendo recusado, o que é aprender por tropeço.
+
+**Consequência.** Duas distinções ficaram explícitas ao reunir tudo. Checagens
+que **travam** o aceite — viabilidade, custo, avaliação — contra as que apenas
+**informam** — mercado e inflação: um prato pode entrar no cardápio sem preço de
+mercado, mas um preço não pode ser dito sem ele, e antes isso estava implícito
+em dois conjuntos diferentes do middleware. E as lacunas voltam como a pergunta
+pronta, não como o nome do item, porque o agente não deveria precisar inventar
+como perguntar sobre air fryer.
+
+**Observabilidade.** É a mesma informação que o middleware usa para recusar,
+exposta antes da recusa. A ferramenta e o portão não podem discordar: leem a
+mesma trilha.

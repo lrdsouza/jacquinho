@@ -135,7 +135,7 @@ class MCPServer:
             'budget': BudgetMCP(self.settings, self.database),
             'pricing': PricingMCP(self.settings, self.repository, self.database),
             'confidence': ConfidenceMCP(self.settings, self.database, self.observer),
-            'menu': MenuMCP(self.settings, self.database),
+            'menu': MenuMCP(self.settings, self.database, self.observer),
         }
         self._mount()
         self._register_prompts()

@@ -284,6 +284,58 @@ class ConfidenceObserver:
             ),
         }
 
+    def acceptance_checks(self, session: str, dish: str | None = None) -> list[dict]:
+        '''Every check standing between this dish and the menu, with its state.
+
+        The information existed - the gate knew its part, the observer knew the
+        cost and the market, the middleware knew what it would refuse - but no
+        single place answered 'what is still missing before she can accept this
+        one'. Scattered state is state nobody consults.
+        '''
+        name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
+        trail = self.trails.get((session, name))
+        gate = (trail.feasibility or {}).get('verdict') if trail else None
+
+        return [
+            {
+                'check': 'viabilidade',
+                'passed': gate == 'approved',
+                'state': gate or 'não rodou',
+                'how': 'kitchen_check_feasibility ou kitchen_analyse_recipe_requirements',
+                'blocks_acceptance': True,
+            },
+            {
+                'check': 'custo',
+                'passed': bool(trail and (trail.cmv or {}).get('calculation_complete')),
+                'state': 'completo' if trail and (trail.cmv or {}).get(
+                    'calculation_complete') else 'não calculado',
+                'how': 'pricing_calculate_cmv',
+                'blocks_acceptance': True,
+            },
+            {
+                'check': 'preço de mercado',
+                'passed': bool(trail and (trail.market or {}).get('sample_size')),
+                'state': 'observado' if trail and (trail.market or {}).get(
+                    'sample_size') else 'não pesquisado',
+                'how': 'market_research_dish_prices',
+                'blocks_acceptance': False,
+            },
+            {
+                'check': 'inflação atual',
+                'passed': bool(trail and trail.economy),
+                'state': 'lida' if trail and trail.economy else 'não consultada',
+                'how': 'economy_current_indicators',
+                'blocks_acceptance': False,
+            },
+            {
+                'check': 'avaliação de confiança',
+                'passed': bool(trail and trail.assessed),
+                'state': 'feita' if trail and trail.assessed else 'não feita',
+                'how': 'confidence_assess_answer',
+                'blocks_acceptance': True,
+            },
+        ]
+
     def current(self, session: str, dish: str | None = None) -> dict | None:
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
         trail = self.trails.get((session, name))

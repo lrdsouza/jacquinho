@@ -1,6 +1,6 @@
 # Referência MCP
 
-![Ferramentas](https://img.shields.io/badge/ferramentas-54-success)
+![Ferramentas](https://img.shields.io/badge/ferramentas-56-success)
 ![Prompts](https://img.shields.io/badge/prompts-4-6E56CF)
 ![Recursos](https://img.shields.io/badge/recursos-1-0A7EA4)
 
@@ -22,7 +22,7 @@ o dado.
 - [`budget`](#budget) — 4 ferramentas · O orçamento de complementos como saldo gastável.
 - [`pricing`](#pricing) — 2 ferramentas · CMV e cenários de preço ancorados no mercado.
 - [`confidence`](#confidence) — 4 ferramentas · Quanto a evidência sustenta o que vai ser dito.
-- [`menu`](#menu) — 5 ferramentas · A opinião dela sobre cada prato e o cardápio de lançamento.
+- [`menu`](#menu) — 6 ferramentas · A opinião dela sobre cada prato e o cardápio de lançamento.
 
 - [Prompts](#prompts)
 - [Recursos](#recursos)
@@ -178,6 +178,7 @@ o dado.
 |---|---|---|---|
 | `menu_record_feedback` | Registra o que ela achou de um prato. | `dish`, `likes_cooking`, `comment`, `impediments` | Um "não gosto" encerra o assunto e aponta para o bloqueio e a próxima opção. |
 | `menu_list_feedback` | Tudo que ela já disse sobre pratos. | nenhum | Separado em aprovados e recusados. |
+| `menu_acceptance_check` | O que ainda falta para este prato entrar no cardápio. | `dish`, `requirements` | Reúne as cinco checagens num lugar só e devolve as perguntas que ela ainda não ouviu, prontas. |
 | `menu_add_dish` | Coloca um prato aceito no cardápio. | `dish`, `category`, `cmv`, `price`, `confidence_band`, `notes` | Só depois do gate, do CMV completo, do preço ancorado e da escolha dela. |
 | `menu_remove_dish` | Tira um prato do cardápio. | `dish` |  |
 | `menu_build_launch_menu` | O cardápio: cada prato com custo, preço e lucro. | nenhum | Marca os que entraram com evidência fraca. |

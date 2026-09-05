@@ -191,7 +191,7 @@ o fio de uma conversa longa com mais de cinquenta ferramentas, e é aí que o
 modelo mais barato mostrou fraqueza. Condução é a parte difícil aqui, não
 pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais.
 
-O agente roda em qualquer provedor que você apontar e alcança as 54 ferramentas
+O agente roda em qualquer provedor que você apontar e alcança as 56 ferramentas
 de qualquer jeito. O que ele exige de verdade não é inteligência bruta e sim
 **chamada de ferramenta confiável**: são 51 ferramentas e cadeias de vários
 passos. Cada caminho — assinatura, chave, camada gratuita, Ollama local — tem um
@@ -337,7 +337,7 @@ stateDiagram-v2
 | `budget` | 4 | O orçamento de complementos como saldo gastável |
 | `pricing` | 2 | CMV e cenários de preço ancorados no mercado |
 | `confidence` | 2 | Quanto a evidência sustenta a resposta |
-| `menu` | 5 | A opinião dela sobre cada prato e o cardápio de lançamento |
+| `menu` | 6 | Prontidão para aceite, a opinião dela sobre cada prato, e o cardápio |
 
 Mais quatro prompts — `open_conversation`, `check_specific_dish`,
 `suggest_from_pantry` e `evaluate_dish` — que carregam o procedimento, e um
@@ -387,6 +387,38 @@ ao catálogo para o próximo prato não redescobri-la. O catálogo já vem com 2
 itens entre equipamentos, técnicas e restrições operacionais, e o que é gravado
 é sempre uma chave dele — `forno de 45l` vira `forno`, com o detalhe na nota.
 Chave livre seria um portão que não encontra o que ele mesmo gravou.
+
+#### O rastreamento é com estado, e uma pergunta responde tudo
+
+As checagens moravam em cinco lugares — o portão sabia da sua parte, o
+observador sabia do custo e do mercado, o middleware sabia o que recusaria — e
+ninguém consultava as cinco. Estado espalhado é estado que não se consulta.
+
+`menu_acceptance_check` responde a pergunta que o agente de fato tem, que é se
+ele pode seguir:
+
+```
+prato: Lasanha  |  pronto para aceitar: False
+
+  FALTA viabilidade            não rodou        (trava)
+  FALTA custo                  não calculado    (trava)
+  FALTA preço de mercado       não pesquisado   (informa)
+  FALTA inflação atual         não consultada   (informa)
+  FALTA avaliação de confiança não feita        (trava)
+
+  perguntas que ela ainda não ouviu:
+    - Tem air fryer? De quantos litros?
+    - Você já fez massa fresca em casa? Se sente segura fazendo?
+```
+
+Duas coisas que a saída deixa explícitas. A distinção entre **travar** e
+**informar**: um prato pode entrar no cardápio sem preço de mercado, mas um
+preço não pode ser dito sem ele — são coisas diferentes. E as lacunas voltam
+como **a pergunta pronta**, não como o nome do item: o agente não precisa
+inventar como perguntar sobre air fryer.
+
+O estado é por prato e sobrevive à conversa: aprovar a parmegiana e depois
+perguntar sobre lasanha não desfaz nada da parmegiana.
 
 #### O aceite é bloqueado por checagem, não por bom senso
 

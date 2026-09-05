@@ -222,3 +222,53 @@ async def test_an_ambiguous_unit_becomes_a_question_not_an_estimate(server):
         )
     assert result.data['cmv_per_portion'] is None
     assert result.data['open_questions']
+
+
+@pytest.mark.asyncio
+async def test_acceptance_check_lists_what_is_still_missing(server):
+    """The checks lived in five places and nobody consulted all five."""
+    async with Client(server) as client:
+        result = await client.call_tool(
+            'menu_acceptance_check',
+            {'dish': 'Prato Novo', 'requirements': ['massa fresca']},
+        )
+    data = result.data
+    assert data['ready_to_accept'] is False
+    assert 'viabilidade' in data['blocking']
+    assert 'custo' in data['blocking']
+    # And it hands over the actual question, not just the gap.
+    assert data['questions_she_has_not_been_asked'][0]['question']
+
+
+@pytest.mark.asyncio
+async def test_acceptance_check_clears_once_every_check_passes(server):
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': 'Pronto', 'equipment_needed': [], 'techniques_needed': []},
+        )
+        await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': 'Pronto',
+             'lines': [{'ingredient': 'Peito de frango', 'quantity': 100, 'unit': 'g'}]},
+        )
+        await client.call_tool(
+            'confidence_assess_answer',
+            {'dish': 'Pronto', 'draft_answer': 'x', 'claim': 'cost',
+             'mode': 'deterministic', 'evidence': {}},
+        )
+        result = await client.call_tool('menu_acceptance_check', {'dish': 'Pronto'})
+    assert result.data['ready_to_accept'] is True
+    assert result.data['blocking'] == []
+
+
+@pytest.mark.asyncio
+async def test_market_and_inflation_inform_but_do_not_block_acceptance(server):
+    """A dish can go on the menu without a market price; a price cannot be
+    quoted without one. Different things."""
+    async with Client(server) as client:
+        result = await client.call_tool('menu_acceptance_check', {'dish': 'Pronto'})
+    optional = {
+        c['check'] for c in result.data['checks'] if not c['blocks_acceptance']
+    }
+    assert optional == {'preço de mercado', 'inflação atual'}
