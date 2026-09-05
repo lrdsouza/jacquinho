@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-212-success)
+![Unitários](https://img.shields.io/badge/testes-229-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,7 +38,7 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**212 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**229 testes, 13 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
@@ -51,6 +51,7 @@ ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 | `test_search_and_consensus.py` | 15 | Recência, domínios distintos, extração de preço |
 | `test_pricing.py` | 23 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
 | `test_observer.py` | 15 | Trilha por sessão e por prato |
+| `test_claims.py` | 17 | Decompor a mensagem, o que é conferível, o que contradiz o turno anterior |
 | `test_verdict.py` | 12 | A frase que ela lê nomeia o prato e o motivo; um sim com "mas" não é sim |
 | `test_audit.py` | 11 | Todo R$ e todo % da mensagem sai de uma ferramenta |
 | `test_budget_and_catalogue.py` | 7 | Bloqueio condicional contra bloqueio por gosto |
@@ -418,6 +419,36 @@ correção no fechamento. Ver [decisoes.md](decisoes.md), item 42.
 Vale dizer o que isso **não** é: uma recusa. É uma instrução devolvida na
 resposta, e o modelo pode ignorar. Foi suficiente na simulação; o dado já está
 na fronteira do turno se um dia precisar virar recusa.
+
+---
+
+### O pipeline de afirmações
+
+`test_claims.py` roda sem banco e sem servidor, porque é aritmética sobre
+strings, e é por isso que a checagem pode rodar em toda mensagem sem conversa
+de orçamento. Cobre os quatro passos e as armadilhas de cada um.
+
+Da decomposição: a pista mais próxima decide o tipo do número, e uma janela
+larga o bastante para pegar "vendendo a" também pega o "custa" da frase
+anterior, fazendo todo número do parágrafo herdar o sentido do primeiro. Uma
+cifra dentro de pergunta não afirma nada.
+
+Do compromisso: um valor só vira promessa quando **chega até ela**, então um CMV
+calculado três vezes dentro de um turno não compromete nada; o mesmo valor dito
+de novo não é contradição; um valor diferente para a mesma coisa é; e mudança
+que ela pediu passa como revisão, porque punir o agente por corrigir na frente
+dela ensinaria a esconder.
+
+E a armadilha que só apareceu construindo: preço de mercado **não** é
+compromisso. Duas referências de mercado são uma faixa; dois custos são uma
+contradição.
+
+**Um defeito de observabilidade achado aqui.** As linhas do fim de turno
+(`jacquinho.verdict`, `jacquinho.figures`, `jacquinho.claims`) saem no logger
+`jacquinho.hooks`, que não estava registrado em `configure_logging`. Só as de
+`warning` apareciam, por propagação. Ou seja: o `grep jacquinho.verdict` que a
+documentação de operação manda rodar encontrava as falhas e nunca uma entrega
+bem-sucedida. Registrado agora.
 
 ---
 

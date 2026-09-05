@@ -308,7 +308,12 @@ def configure_logging() -> None:
     '''Confidence and tool calls go to stdout, where docker logs will find them.'''
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(name)s %(message)s'))
-    for name in ('jacquinho.confidence',):
+    # jacquinho.hooks carries the turn-boundary lines: the verdict she was
+    # owed, figures with no tool behind them, and the per-message claim
+    # judgement. Leaving it off this list meant the INFO half of those was
+    # silent, which made the documented `grep jacquinho.verdict` find only
+    # failures and never a delivery.
+    for name in ('jacquinho.confidence', 'jacquinho.hooks'):
         log = logging.getLogger(name)
         log.setLevel(logging.INFO)
         log.addHandler(handler)

@@ -260,6 +260,7 @@ agente pedir.
 | Prefixo | Quando aparece | O que dizer sobre ela |
 |---|---|---|
 | `jacquinho.confidence` | Toda chamada de ferramenta | Uma por chamada; a nota e a banda do que está prestes a ser dito |
+| `jacquinho.claims` | Fim de turno, se a mensagem afirma algo conferível | A nota da mensagem, quantas afirmações foram conferidas, e quantas contradizem o que ela já ouviu |
 | `jacquinho.verdict` | Fim de turno, se um prato morreu ou voltou | `delivered: false` significa que ela **não** foi informada e o próximo turno começa fechado |
 | `jacquinho.figures` | Fim de turno, só se houver cifra sem lastro | Um R$ na mensagem que nenhuma ferramenta produziu, com o trecho onde aparece |
 

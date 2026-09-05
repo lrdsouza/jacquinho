@@ -27,7 +27,7 @@ chamada de ferramenta, nunca da memória do modelo**.
 > deixa em aberto (modelo, context files, tools/MCP, estrutura de memória e
 > skills) estão respondidas em
 > [uma tabela](#as-cinco-escolhas-que-o-enunciado-deixou-em-aberto), cada uma
-> com link para a justificativa completa. As quarenta e quatro decisões inteiras,
+> com link para a justificativa completa. As quarenta e cinco decisões inteiras,
 > com motivo e consequência, estão em
 > [docs/decisoes.md](docs/decisoes.md); as conversas que causaram boa parte
 > delas, em [docs/dialogos.md](docs/dialogos.md).
@@ -1122,6 +1122,54 @@ Uma cifra que nenhuma ferramenta produziu vira uma linha `jacquinho.figures` no
 log, com o trecho onde ela aparece. Como tudo que mora na fronteira do turno,
 isso não desfaz a mensagem; impede que o erro passe despercebido.
 
+### A mensagem é conferida afirmação por afirmação
+
+Duas checagens já existiam e havia um buraco entre elas. O observador pontuava a
+**trilha de evidências** e nunca via a frase; a auditoria de cifras via a frase e
+fazia uma pergunta só de cada número, se alguma ferramenta o produziu.
+
+As duas passaram na conversa em que o custo do mesmo prato saiu como R$ 9,90,
+depois R$ 8,18, depois R$ 7,15. Os três vieram de ferramenta. Ninguém perguntava
+se a mensagem **contradizia o que ela já tinha ouvido**.
+
+Agora toda mensagem entregue passa por quatro passos, na fronteira do turno:
+
+```mermaid
+flowchart LR
+    M["a mensagem que ela recebeu"] --> D["decompor em<br/>afirmações atômicas"]
+    D --> F{"é conferível?"}
+    F -->|"pergunta, conselho"| N["fora da conta<br/><i>não pode estar errado</i>"]
+    F -->|"afirma um número"| G{"alguma ferramenta<br/>produziu?"}
+    G -->|não| U["sem lastro<br/><i>baixa a nota</i>"]
+    G -->|sim| C{"bate com o que<br/>ela já ouviu?"}
+    C -->|sim| OK["confere"]
+    C -->|"ela pediu a mudança"| R["revisado<br/><i>confere</i>"]
+    C -->|não| X["<b>contradiz</b><br/><i>zera a mensagem</i>"]
+```
+
+O desenho segue o que a literatura de verificação de fatos convergiu: decompor e
+verificar uma afirmação por vez (FActScore, SAFE), filtrar para as
+**verificáveis** porque conselho e pergunta não podem estar errados (VeriScore),
+e comparar contra turnos anteriores, onde o detector mais confiável é a
+discordância numérica direta.
+
+A adaptação que muda tudo: nesses trabalhos a evidência é a web aberta, então a
+extração precisa de um modelo e a verificação precisa de busca. Aqui a evidência
+são os resultados das próprias ferramentas desta sessão. **Por isso o pipeline é
+determinístico e roda em toda mensagem, sem custar uma chamada de modelo.**
+
+Uma contradição **zera** a mensagem, sem média: ouvir dois custos diferentes para
+o mesmo prato não é oitenta por cento certo. E mudança que ela pediu não é
+contradição, senão o sistema puniria o agente por fazer a coisa certa e ele
+aprenderia a esconder a mudança.
+
+O tipo de cada afirmação vem de **quem produziu o valor**, não das palavras ao
+redor. Classificar pela frase parecia razoável e não era: *"sobram R$ 63,91 dos
+seus R$ 80"* é o orçamento, e todas as pistas que o fariam virar lucro estão
+ali. Tipo errado é pior que nenhum, porque inventa contradição entre dois
+números que nunca falaram da mesma coisa. Decisão completa em
+[docs/decisoes.md, item 45](docs/decisoes.md#45-a-confiança-de-uma-mensagem-é-a-soma-das-afirmações-dela).
+
 ### A confiança se calcula sozinha
 
 Avaliar a própria resposta era uma ferramenta que o agente devia chamar antes de
@@ -1238,6 +1286,7 @@ precisam mudar.
 │   │   ├── economy.py        inflação regional
 │   │   ├── budget.py         o saldo gastável
 │   │   ├── confidence.py     pontuação determinística e julgamento
+│   │   ├── claims.py         afirmações atômicas, lastro e contradição
 │   │   ├── observer.py       trilha de evidência por sessão e por prato
 │   │   ├── audit.py          confere cifras da mensagem contra as ferramentas
 │   │   ├── catalogue.py      receitas e bloqueios que se desfazem
@@ -1280,7 +1329,7 @@ entrega do veredito eram promessas que o servidor não podia verificar
 
 ### O resto
 
-Quarenta e quatro decisões de arquitetura, cada uma com motivo, consequência e o
+Quarenta e cinco decisões de arquitetura, cada uma com motivo, consequência e o
 que ela custou. O documento completo é **[docs/decisoes.md](docs/decisoes.md)**;
 esta página é uma seleção, agrupada pelo problema que cada decisão resolve, e
 cada número abaixo abre direto na decisão. As que não estão aqui aparecem em
@@ -1318,6 +1367,7 @@ de entender no lugar onde o assunto aparece.
 | [30](docs/decisoes.md#30-o-prato-morto-é-fechado-pela-ferramenta-não-pelo-lembrete) | O prato morto é fechado pela ferramenta | Gravar o "não tenho forno" roda o portão e arquiva o prato ali mesmo |
 | [31](docs/decisoes.md#31-o-veredito-é-uma-dívida-da-conversa-não-um-lembrete) | O veredito é uma dívida da conversa | Seguir em frente é recusado até ela ouvir; o fim do turno confere |
 | [37](docs/decisoes.md#37-as-cifras-da-mensagem-são-conferidas-sozinhas-no-fim-do-turno) | As cifras são conferidas sozinhas | Todo R$ da mensagem contra todo R$ que uma ferramenta produziu |
+| [45](docs/decisoes.md#45-a-confiança-de-uma-mensagem-é-a-soma-das-afirmações-dela) | Confiança por afirmação atômica | Decompor, descartar o não conferível, conferir contra as ferramentas, comparar com o que ela já ouviu |
 | [42](docs/decisoes.md#42-uma-promessa-é-o-que-ela-ouviu-não-o-que-a-ferramenta-calculou) | Promessa é o que ela ouviu | Um custo calculado e não dito não é promessa; comparar com o histórico da ferramenta fez o agente inventar uma lembrança |
 | [43](docs/decisoes.md#43-a-receita-de-um-prato-fecha-uma-vez) | A receita de um prato fecha uma vez | O custo andava sozinho porque os insumos andavam; a receita agora é um fato do prato |
 | [34](docs/decisoes.md#34-um-veredito-não-é-devido-duas-vezes) | Um veredito não é devido duas vezes | Repetir o que ela já ouviu é o mesmo defeito de nunca ter dito |

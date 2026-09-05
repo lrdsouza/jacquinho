@@ -223,6 +223,17 @@ class ConfidenceMiddleware(Middleware):
             # Every figure, not just the six evidence slots: the numbers she
             # acts on come out of pricing and the menu, which feed no slot.
             self.observer.remember_numbers(session, payload)
+            if name == 'menu_add_dish' and isinstance(payload, dict):
+                self.observer.note_menu(session, dish, payload)
+            if name == 'pricing_reopen_recipe' and payload and payload.get('reopened'):
+                from ..domain.claims import ClaimKind
+
+                ledger = self.observer.commitments(session)
+                for kind in (ClaimKind.COST, ClaimKind.PRICE, ClaimKind.PROFIT,
+                             ClaimKind.RECEIPT):
+                    ledger.authorise_revision(
+                        self.observer.key_for(payload.get('dish')) or '', kind
+                    )
             report = self.observer.record(session, name, payload, dish)
             # Every call gets a log line, so a watcher never looks dead; only a
             # call that actually changed the picture earns an audit row.

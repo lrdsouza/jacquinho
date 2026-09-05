@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-44-6E56CF)
+![Registros](https://img.shields.io/badge/registros-45-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -1284,3 +1284,67 @@ Pydantic recusa entrada malformada, `RecipeLock` recusa insumo trocado, e
 `Claim` decide quais sinais uma frase precisa ter para valer. Nenhuma delas
 cobre o buraco das outras duas, e é por isso que as três existem.
 
+
+---
+
+## 45. A confiança de uma mensagem é a soma das afirmações dela
+
+**Decisão.** Toda mensagem entregue passa por um pipeline determinístico de
+quatro passos, na fronteira do turno: decompor em afirmações atômicas, descartar
+as que não são conferíveis, conferir cada uma contra as ferramentas da sessão, e
+compará-las com o que ela já ouviu. O resultado é uma nota por mensagem, com as
+afirmações listadas. Os tipos são modelos Pydantic.
+
+**Motivo.** Havia duas meias-medidas e um buraco entre elas. O observador
+pontuava a **trilha de evidências** e nunca olhava a frase. A auditoria de
+cifras olhava a frase e fazia uma pergunta só de cada número: alguma ferramenta
+produziu isto?
+
+As duas passaram na conversa em que o custo saiu como R$ 9,90, depois R$ 8,18,
+depois R$ 7,15. Todos os três vieram de ferramenta, todos "com lastro". Ninguém
+estava perguntando se a mensagem **contradizia o que ela já tinha ouvido**.
+
+**O desenho segue o que a literatura de verificação de fatos convergiu**, com uma
+adaptação que muda tudo. Decompor a resposta em afirmações atômicas e verificar
+uma a uma é o método do FActScore e do SAFE. Filtrar para as **verificáveis** é a
+correção que o VeriScore fez em cima disso: conselho, sugestão e pergunta não
+podem estar certos ou errados, e pontuá-los mede o avaliador, não a mensagem.
+Comparar contra turnos anteriores é o que os avaliadores multi-turno chamam de
+*commitment*, e o detector mais confiável deles é justamente o de discordância
+numérica, porque compara valores simbólicos em vez de similaridade de texto.
+
+A adaptação: nesses trabalhos a evidência é a web aberta, então a extração
+precisa de um modelo e a verificação precisa de busca. Aqui a evidência são os
+resultados das próprias ferramentas desta sessão. Um preço saiu de
+`pricing_price_scenarios` ou não saiu, e isso é decidível com aritmética. Por
+isso o pipeline inteiro é determinístico, roda em toda mensagem, e não custa
+nenhuma chamada de modelo.
+
+**A identidade da afirmação vem da ferramenta, não da frase.** Essa foi a
+correção mais importante durante a construção. Classificar o tipo pelas palavras
+ao redor do número parecia razoável e não era: *"sobram R$ 63,91 dos seus
+R$ 80"* é o orçamento, e todas as pistas que o classificariam como lucro estão
+presentes. Um tipo errado é pior que nenhum, porque inventa uma contradição
+entre um lucro e um saldo que nunca falaram da mesma coisa. Hoje o tipo vem de
+quem produziu o valor: o CMV é o que `calculate_cmv` devolveu, o preço é o que
+foi para o cardápio. A leitura da frase serve para saber **quais** desses
+valores ela de fato ouviu.
+
+**Consequência.** Uma contradição zera a mensagem, sem média ponderada: ouvir
+dois custos diferentes para o mesmo prato não é oitenta por cento certo. Uma
+cifra sem lastro baixa a nota proporcionalmente. Uma mensagem sem nada
+conferível vale 1,00, porque uma pergunta não pode estar errada.
+
+Mudança que **ela** pediu não é contradição. `pricing_reopen_recipe` autoriza a
+revisão daquele prato, e o valor novo passa como `revised`. Sem isso o sistema
+puniria o agente por fazer a coisa certa, e o que ele aprenderia é a esconder a
+mudança.
+
+**Consequência de escopo.** O ledger é por sessão, em memória. O que sobrevive
+entre sessões é o registro em Postgres, que é a fonte real; reconstruir o ledger
+a partir dele na abertura da conversa é um passo pequeno e ainda não foi dado.
+
+**Observabilidade.** `jacquinho.claims`, uma linha por mensagem que afirme algo:
+nota, quantas afirmações foram conferidas, quantas contradizem. Contradição sai
+em `warning` com o texto da divergência. Mensagem sem nada a conferir não gera
+linha.

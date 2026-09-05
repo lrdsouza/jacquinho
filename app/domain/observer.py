@@ -47,6 +47,8 @@ class EvidenceTrail:
     # turn and only one number is ever spoken; treating the tool history as
     # what she heard makes it apologise for a price she was never told.
     cmv_told: float | None = None
+    # Price, net and profit, once a dish is accepted onto the menu.
+    menu: dict | None = None
     consensus: dict | None = None
     market: dict | None = None
     economy: dict | None = None
@@ -123,6 +125,11 @@ class ConfidenceObserver:
         # acts on. Bounded: a long consultation is thousands of values, not
         # millions.
         self.numbers: dict[str, set[float]] = {}
+        # What she has been told, per session, and therefore what the next
+        # message owes consistency to.
+        from .claims import CommitmentLedger
+
+        self.ledger: dict[str, CommitmentLedger] = {}
 
     def _trail(self, key: tuple[str, str]) -> EvidenceTrail:
         trail = self.trails.get(key)
@@ -389,6 +396,51 @@ class ConfidenceObserver:
             if isinstance(entry, dict)
         }
 
+    def commitments(self, session: str):
+        from .claims import CommitmentLedger
+
+        return self.ledger.setdefault(session, CommitmentLedger())
+
+    def facts_for(self, session: str, dish: str | None = None) -> list:
+        '''What the tools established for the dish in play, as typed atoms.
+
+        The identity of each value comes from the tool that produced it, which
+        is the whole point: reading the kind off the prose put the leftover
+        budget and the profit in the same bucket.
+        '''
+        from .claims import ClaimKind, ToolFact
+
+        name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
+        trail = self.trails.get((session, name))
+        if trail is None or name == self.NO_DISH:
+            return []
+        out = []
+        cmv = (trail.cmv or {})
+        if cmv.get('calculation_complete') and isinstance(
+            cmv.get('cmv_per_portion'), (int, float)
+        ):
+            out.append(ToolFact(subject=name, kind=ClaimKind.COST,
+                                value=float(cmv['cmv_per_portion'])))
+        for field, kind in (
+            ('price', ClaimKind.PRICE),
+            ('she_receives', ClaimKind.RECEIPT),
+            ('profit', ClaimKind.PROFIT),
+        ):
+            value = (trail.menu or {}).get(field)
+            if isinstance(value, (int, float)):
+                out.append(ToolFact(subject=name, kind=kind, value=float(value)))
+        return out
+
+    def note_menu(self, session: str, dish: str | None, payload: dict) -> None:
+        '''Remember the accepted price of a dish, which is a commitment too.'''
+        name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
+        trail = self._trail((session, name))
+        trail.menu = {
+            key: payload.get(key)
+            for key in ('price', 'she_receives', 'profit')
+            if isinstance(payload.get(key), (int, float))
+        }
+
     def mark_costs_told(self, session: str, reply: str) -> list[float]:
         '''Record which costs actually appeared in the message she received.
 
@@ -564,6 +616,7 @@ class ConfidenceObserver:
             self.pending.clear()
             self.announced.clear()
             self.numbers.clear()
+            self.ledger.clear()
         elif dish is None:
             for key in [k for k in self.trails if k[0] == session]:
                 self.trails.pop(key)

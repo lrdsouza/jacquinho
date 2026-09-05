@@ -34,6 +34,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from ..domain.audit import MessageAudit
+from ..domain.claims import ClaimPipeline
 from ..domain.memory import ConversationStore
 from ..domain.verdict import VerdictAnnouncement
 
@@ -102,6 +103,40 @@ class HookRoutes:
             # Losing a turn costs a verification, not the consultation.
             logger.warning('turn not captured: %s', error)
 
+    def _judge_claims(self, session: str, reply: str) -> None:
+        """Decompose the delivered message and check every claim in it.
+
+        This is the only place the whole pipeline can run: it needs the message
+        she actually received, the tool facts of the turn, and what she was told
+        before. Deterministic, so it runs on every turn without costing a model
+        call.
+        """
+        dish = self.observer.dish_in_play(session)
+        judgement = ClaimPipeline.run(
+            message=reply,
+            subject=dish or '(a consultoria)',
+            known_numbers=self.observer.numbers_seen(session),
+            facts=self.observer.facts_for(session),
+            ledger=self.observer.commitments(session),
+        )
+        if judgement.verifiable == 0:
+            return
+        payload = {
+            'dish': dish, 'score': judgement.score, 'verdict': judgement.verdict,
+            'verifiable': judgement.verifiable, 'grounded': judgement.grounded,
+            'contradictions': judgement.contradictions,
+        }
+        if judgement.contradictions:
+            payload['detail'] = [
+                c.note for c in judgement.claims
+                if c.verdict.value == 'contradicts_earlier_turn'
+            ]
+            logger.warning('jacquinho.claims %s',
+                           json.dumps(payload, ensure_ascii=False))
+        else:
+            logger.info('jacquinho.claims %s',
+                        json.dumps(payload, ensure_ascii=False))
+
     def _audit_figures(self, session: str, reply: str) -> None:
         '''Every R$ in the message, against every R$ the tools produced.
 
@@ -158,7 +193,8 @@ class HookRoutes:
 
             session = self._session()
             self._audit_figures(session, reply)
-            # Only now is a cost a promise: it reached her.
+            # Only now is a value a promise: it reached her.
+            self._judge_claims(session, reply)
             self.observer.mark_costs_told(session, reply)
 
             owed = self.observer.owed_announcement(session)
