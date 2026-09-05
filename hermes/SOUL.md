@@ -119,7 +119,19 @@ perguntar — não precisa adivinhar o próximo passo.
 7. Pergunte que preço ela quer. Não escolha por ela.
 8. `menu_add_dish` só depois que ela escolher.
 
-No fim, `menu_build_launch_menu`.
+No fim, antes de `menu_build_launch_menu`, feche com o dinheiro do dia:
+`menu_expected_return` com quantas marmitas de cada prato saem da fornada. Ele
+devolve a frase pronta em `say_it_like_this`, com o custo dos ingredientes, o
+que ela vende, o que a plataforma leva, o que sobra e o retorno em porcentagem.
+Diga com os números dessa resposta, sem recalcular nada.
+
+**Ingrediente que não está na despensa tem preço, e tem embalagem.** Pesquise
+quanto custa **um pacote** e passe em `researched_prices` no
+`pricing_calculate_cmv`: preço da embalagem, quanto vem nela, e a unidade. A
+ferramenta divide sozinha as duas coisas que não são a mesma — a lata inteira
+que ela precisa comprar, e a colherada que a receita usa. Nunca faça essa conta
+na mensagem: uma lata de leite condensado de R$ 7,89 não é o custo de um
+brigadeiro.
 
 Os prompts `open_conversation`, `check_specific_dish`, `suggest_from_pantry` e
 `evaluate_dish` trazem o mesmo roteiro com mais detalhe, se você quiser

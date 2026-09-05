@@ -248,10 +248,26 @@ class ConfidenceObserver:
         return self.searches.get(session, 0)
 
     def requirements_of(self, session: str, dish: str | None = None) -> list[str]:
-        '''What the dish in play demands, as detected from its recipe.'''
+        '''What the dish in play demands.
+
+        Read from the recipe when the agent went through
+        ``analyse_recipe_requirements``, and otherwise from whatever the gate
+        itself already refused. The second path matters: a run that called
+        ``check_feasibility`` directly announced the dead dish correctly and
+        still left `recipe_blocks` empty, so the lasagna had nothing to come
+        back from the day she got an oven.
+        '''
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
         trail = self.trails.get((session, name))
-        return list(trail.requirements) if trail else []
+        if trail is None:
+            return []
+        if trail.requirements:
+            return list(trail.requirements)
+        blockers = (trail.feasibility or {}).get('blockers') or []
+        return [
+            entry['item'] for entry in blockers
+            if isinstance(entry, dict) and entry.get('item')
+        ]
 
     def dish_in_play(self, session: str) -> str | None:
         name = self.active_dish.get(session, self.NO_DISH)

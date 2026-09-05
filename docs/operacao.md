@@ -104,7 +104,7 @@ muda mais nada: os servidores MCP, as ferramentas e todas as regras se comportam
 de forma idêntica por baixo.
 
 O eixo que importa aqui não é inteligência bruta, e sim **confiabilidade de
-chamada de ferramenta**. São 56 ferramentas e cadeias de vários passos; um
+chamada de ferramenta**. São 57 ferramentas e cadeias de vários passos; um
 modelo que não segura um esquema de ferramenta falha aqui independentemente do
 tamanho.
 
@@ -177,7 +177,7 @@ O `jacquinho login` já passa a opção.
 ```bash
 jacquinho hermes auth status    # a credencial ficou gravada?
 jacquinho hermes model          # que modelos a assinatura oferece
-jacquinho tools                 # as 56 ferramentas respondem?
+jacquinho tools                 # as 57 ferramentas respondem?
 jacquinho                       # abre o chat
 ```
 
@@ -185,7 +185,7 @@ Vale rodar `jacquinho hermes model` **antes** da primeira conversa. O modelo
 padrão no `hermes-config.yaml` é `claude-sonnet-5`. O conjunto que uma assinatura
 libera pode ser diferente do que uma chave de API alcança; se ele não estiver
 lá, troque a linha `default:` pelo que aparecer. Nada mais muda: os onze
-servidores MCP e as 56 ferramentas se comportam de forma idêntica por baixo.
+servidores MCP e as 57 ferramentas se comportam de forma idêntica por baixo.
 
 ### Modelo local
 
@@ -208,7 +208,7 @@ de contar com ele numa demonstração.
 O modelo e o provedor estão fixados em `dockerfile/hermes-config.yaml`, que traz
 um bloco pronto para cada caminho. O padrão é **Claude Sonnet 5**. O agente faz
 muitas chamadas de ferramenta por turno e quase nenhuma pede raciocínio
-profundo, mas são 56 ferramentas e cadeias de vários passos, e é condução, não
+profundo, mas são 57 ferramentas e cadeias de vários passos, e é condução, não
 profundidade, que separa um turno bom de um turno perdido. `claude-haiku-4-5`
 continua sendo uma linha, se custo pesar mais.
 

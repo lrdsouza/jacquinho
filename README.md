@@ -9,7 +9,7 @@
 ![Postgres](https://img.shields.io/badge/postgres-17-4169E1?logo=postgresql&logoColor=white)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 ![Servidores MCP](https://img.shields.io/badge/servidores%20MCP-11-success)
-![Ferramentas](https://img.shields.io/badge/ferramentas-56-success)
+![Ferramentas](https://img.shields.io/badge/ferramentas-57-success)
 
 Uma consultora de cardápio e precificação para a **Dona Maria**, cozinheira que
 está abrindo o primeiro delivery dela. Ela sabe cozinhar. O que ela não sabe é
@@ -22,7 +22,7 @@ chamada de ferramenta, nunca da memória do modelo**.
 
 ---
 
-## Uma consultoria inteira, do "oi" ao cardápio fechado
+## Uma consultoria inteira, do "oi" ao resultado da fornada
 
 Transcrição real, bancos zerados, gravada com `jacquinho`, copiada palavra por
 palavra (é a única parte deste README que ainda usa travessão, porque é fala
@@ -33,119 +33,98 @@ um centavo.
 ```
 Dona Maria ▸ oi! quero fazer lasanha ao forno pra vender de marmita
 
-Jacquinho  ▸ Oi! Dei uma olhada na sua despensa: você tem carne moída,
-             mussarela, parmesão, leite, manteiga, farinha, tomate, cebola,
-             alho — dá pra fazer uma lasanha de carne bem gostosa.
-             Só que antes de eu montar qualquer conta de custo, preciso saber
-             uma coisa: você tem forno em casa? Funciona bem, assa por igual?
+Jacquinho  ▸ Oi! Que ótimo — lasanha ao forno é um baita prato pra marmita.
+             Deixa eu ver o que a receita pede e conferir com sua despensa
+             antes de fecharmos qualquer coisa. Mas antes preciso saber uma
+             coisa importante: você tem forno em casa? Ele funciona bem, assa
+             por igual?
 
 Dona Maria ▸ nao tenho forno nao, so um cooktop de 4 bocas
 
-Jacquinho  ▸ Entendido! Sem forno, a lasanha ao forno tradicional não dá — é o
-             forno que assa por cima e derrete a mussarela igual, e sem ele não
-             fecha. Mas dá pra fazer uma lasanha de panela, toda no seu
-             cooktop: você monta as camadas de massa, molho de carne e queijo
-             direto na panela, no fogo baixo, com tampa, até o queijo derreter
-             e a massa cozinhar. Fica cremosa e gostosa do mesmo jeito, só que
-             sem passar pelo forno.
-             O que acha, topa fazer assim? Vê algum problema nessa versão?
+Jacquinho  ▸ A lasanha ao forno não vai dar, porque você não tem forno, só o
+             cooktop de 4 bocas. Mas dá pra fazer uma lasanha de panela, no
+             fogão mesmo, que fica igualmente gostosa — você monta as camadas
+             direto na panela e deixa cozinhar em fogo baixo até derreter tudo.
+             Você topa fazer assim? E me conta: você já tem prática com esse
+             jeito de montar, ou seria a primeira vez?
 
-Dona Maria ▸ topo sim, quero a de panela. tenho uma cacarola grande e funda,
-             e so refogo, nao frito por imersao
+Dona Maria ▸ topo sim, ja fiz de panela antes. tenho cacarola grande e funda,
+             so refogo, nao frito por imersao, e faco molho branco de olho.
+             rende 8 marmitas
 
-Jacquinho  ▸ Perfeito, lasanha de panela então, na sua caçarola grande e funda.
-             Já vi que dá pra fazer com o que você tem — sua despensa cobre os
-             ingredientes dessa receita.
-             Só uma coisa antes de eu calcular o custo: essa receita leva um
-             molho branco (aquele de manteiga com farinha e leite, mexendo até
-             engrossar). Você já faz esse molho, se sente segura com ele?
+Dona Maria ▸ pode calcular e me dizer por quanto vendo
 
-Dona Maria ▸ tiro 8 marmitas dessa panela. por quanto eu vendo?
+Jacquinho  ▸ Fechei a conta da lasanha de panela! Rende 8 marmitas por fornada.
+             Pra fazer, só falta uma coisa na sua despensa: a massa de lasanha.
+             O resto (carne moída, tomate, cebola, alho, queijo, leite, farinha,
+             manteiga) você já tem.
+             Um pacote de massa de lasanha de 500g sai por uns R$ 10,79 — isso
+             deixaria R$ 69,21 dos seus R$ 80 reservados pra próxima fornada,
+             se você topar comprar.
+             Com isso, cada marmita custa R$ 8,51 pra você fazer. A plataforma
+             fica com 10% do que você cobrar.
+             Marmita parecida por aí tá saindo entre R$ 14,98 e R$ 28,00, com a
+             maioria rodando perto de R$ 23,50 — mas atenção, olhei poucos
+             anúncios, então essa faixa é só uma referência, não uma verdade
+             fechada.
+             Três jeitos de precificar:
+             - Entrada, R$ 15,90: sobra R$ 5,80 no seu bolso por marmita.
+             - Meio da faixa, R$ 23,90: sobra R$ 13,00 por marmita.
+             - Mais caro, R$ 28,90: sobra R$ 17,50 por marmita.
+             Qual desses valores você quer cobrar? E você topa comprar o pacote
+             de massa de lasanha por R$ 10,79?
 
-Jacquinho  ▸ Antes de eu te passar um preço, falta só uma resposta: você já faz
-             molho branco? Se sente segura com ele, ou costuma empelotar?
-             Assim que você me disser isso eu fecho a conta do custo, olho o
-             preço de mercado e te trago as opções de venda pras suas 8
-             marmitas.
+Dona Maria ▸ vou de 23,90 e pode comprar a massa sim. fecha no cardapio e me
+             diz o resultado da fornada
 
-Dona Maria ▸ faco sim, molho branco eu faco de olho
-
-Jacquinho  ▸ Show, molho branco de olho segura! Bora fechar sua lasanha de
-             panela.
-             Já confiro que dá pra fazer com o que você tem, e o custo por
-             marmita fica em R$ 10,07 — nada pra comprar, tudo já na sua
-             despensa.
-             Marmita parecida está saindo entre R$ 14,98 e R$ 17,35 por aí
-             (amostra pequena, só 2 fontes, então vale como referência, não
-             como preço exato).
-             Com a taxa da plataforma de 10% já descontada, duas opções:
-             Entrada, R$ 15,90 a marmita: sobra R$ 4,24 no seu bolso.
-             Mercado, R$ 17,90 a marmita: sobra R$ 6,04 no seu bolso.
-             Qual das duas você quer usar pra vender as 8 marmitas?
-             〔preço: confiança média · sem preço de mercado · inflação antiga
-              · cozinha confere〕
-
-Dona Maria ▸ vou de 17,90. fecha no meu cardapio
+Jacquinho  ▸ Fechado! Lasanha de panela entrou no cardápio a R$ 23,90.
+             A massa de lasanha sai por uns R$ 10,79 o pacote — isso deixa
+             R$ 69,21 dos seus R$ 80 pra próxima fornada.
+             Cada marmita custa R$ 7,80 pra você fazer. Vendendo a R$ 23,90,
+             você recebe R$ 21,51 (a plataforma fica com 10%), e sobra
+             R$ 13,71 de lucro por marmita.
+             Resultado da fornada toda (8 marmitas):
+             Você vende R$ 191,20 no total. A plataforma fica com R$ 19,12. Os
+             ingredientes usados custam R$ 62,40. Sobram R$ 109,68 no seu bolso
+             — ou seja, 57 centavos de cada real vendido. Você desembolsa
+             R$ 10,79 de compra pra essa fornada, e o resto do que você usar já
+             é da sua despensa.
 ```
 
-O prato entra no cardápio. Ela pede uma sobremesa junto, e aí aparece a outra
-metade do trabalho: **o que ela vai precisar comprar**.
+### O fechamento é uma conta, não uma impressão
 
-```
-Dona Maria ▸ quero por um brigadeiro de sobremesa junto. da pra fazer?
+A última mensagem responde a pergunta que ela de fato faz, que não é quanto
+sobra numa marmita e sim se o dia valeu a pena. Cada cifra sai de
+`menu_expected_return`, e todas conferem: `8 x 23,90 = 191,20`, taxa `19,12`,
+custo `8 x 7,80 = 62,40`, lucro `8 x 13,71 = 109,68`, margem
+`109,68 / 191,20 = 57%`.
 
-Jacquinho  ▸ Dá sim! Brigadeiro de panela é tranquilo no seu cooktop, não
-             precisa de forno nem fritura.
-             Vi que na sua despensa não tem leite condensado, chocolate em pó
-             nem granulado — são os três itens que você precisaria comprar (a
-             manteiga você já tem).
-             Antes de eu fechar essa conta, me conta uma coisa: você tem
-             prática em decorar doce, fazer aquele acabamento bonitinho pra
-             enrolar em bolinhas e passar no granulado?
+A porcentagem é **margem sobre a venda**, e essa escolha importou. A primeira
+versão liderava com retorno sobre o custo de produção e imprimiu *"um retorno de
+1556%"* para um brigadeiro: aritmeticamente verdadeiro e inútil, porque a base é
+a colherada que a fornada consome, não o que ela paga no caixa. Margem sobre
+venda não passa de 100 e por isso continua acreditável.
 
-Dona Maria ▸ tenho pratica sim, enrolo brigadeiro desde nova. quanto fica pra
-             comprar isso?
-
-Jacquinho  ▸ Boa, prática confirmada!
-             Faltam três itens pra fazer: leite condensado, chocolate em pó e
-             chocolate granulado, pra enrolar.
-             Achei uma referência rápida de mercado pra esses três: uma lata de
-             leite condensado (395g) por uns R$ 7,89, o chocolate em pó (200g)
-             por uns R$ 16,98, e o granulado (150g) por uns R$ 4,99 — no total
-             ficaria por volta de R$ 29,86. Mas é só uma referência que
-             encontrei, não é o preço exato do seu mercado.
-             Antes de eu fechar o custo certinho por unidade: você tem noção de
-             quanto costuma pagar nesses três aí no mercado que você compra?
-             〔custo: confiança baixa, cálculo ainda incompleto〕
-
-Dona Maria ▸ nao sei de cabeca, usa essa referencia mesmo. pode reservar que eu
-             compro amanha
-
-Jacquinho  ▸ Fechado! Deixei reservado no seu orçamento R$ 29,86 pra você
-             comprar amanhã: a lata de leite condensado, o chocolate em pó e o
-             granulado. Isso deixa R$ 50,14 dos seus R$ 80 pra próxima fornada.
-             Só uma coisa: o preço que usei pra reservar é uma referência que
-             encontrei, não é o preço do seu mercado. Assim que você comprar
-             amanhã, me conta quanto pagou de verdade em cada item que eu fecho
-             o custo certinho por brigadeiro.
-```
+E os dois custos ficam separados de propósito: **R$ 62,40** de ingrediente usado
+contra **R$ 10,79** de desembolso agora. Somar os dois contaria duas vezes a
+despensa que ela já pagou.
 
 ### Quem compra é ela
 
-Repare em como ele fala de dinheiro: *"ficaria por volta de R$ 29,86"*,
-*"reservado pra você comprar amanhã"*, *"isso deixa R$ 50,14"*. Nunca "comprei".
+Repare em como ele fala de dinheiro: *"sai por uns R$ 10,79"*, *"se você topar
+comprar"*, *"você desembolsa"*. Nunca "comprei".
 
 **Este agente não compra nada.** Não tem carteira, não tem cartão, não vai ao
-mercado. Ele estima o custo, diz quanto sobraria, e pergunta. Uma versão
-anterior dizia à Dona Maria *"já comprei a massa e os temperos por R$ 30,85"*,
-sobre dinheiro que ele não pode gastar, e a causa não era a redação: a
-ferramenta se chamava `commit_purchase` e não pedia nada dela. Hoje se chama
-`reserve_purchase` e **exige as palavras dela concordando**, conferidas na
-transcrição capturada, do mesmo jeito que uma capacidade da cozinha.
+mercado. Uma versão anterior dizia à Dona Maria *"já comprei a massa e os
+temperos por R$ 30,85"*, sobre dinheiro que ele não pode gastar, e a causa não
+era a redação: a ferramenta se chamava `commit_purchase` e não pedia nada dela.
+Hoje se chama `reserve_purchase` e **exige as palavras dela concordando**,
+conferidas na transcrição capturada, do mesmo jeito que uma capacidade da
+cozinha.
 
-O que a reserva significa: o orçamento é o que ela decidiu gastar, não um
-extrato. Serve para que o prato seguinte seja calculado sobre o que sobrou de
-verdade, em vez de sobre os oitenta reais uma segunda vez.
+Um ingrediente que a despensa não tem também tem **dois** custos, e a ferramenta
+separa os dois: a embalagem inteira que ela compra e a fração que a receita
+consome. Uma lata de leite condensado de R$ 7,89 não é o custo de um brigadeiro.
 
 ### O que ficou nos bancos
 
@@ -154,24 +133,18 @@ subir modelo nenhum.
 
 ```
 menu_items
-  Lasanha de panela | cmv 10.07 | preço 17.90 | ela recebe 16.11 | lucro 6.04
+  lasanha de panela | cmv 7.80 | preço 23.90 | ela recebe 21.51 | lucro 13.71
 
 budget_entries
-  brigadeiro de panela | 1 lata de leite condensado (395g), 1 pacote de
-                         chocolate em pó (200g), 1 pacote de granulado (150g)
-                       | R$ 29.86   → restam R$ 50,14 de R$ 80, para ela comprar
+  pacote de massa de lasanha 500g | R$ 10.79   → restam R$ 69,21 de R$ 80
 
 kitchen_capabilities
-  forno              confirmed_no   ela: "nao tenho forno nao, so um cooktop"
-  fogao              confirmed_yes  ela: "nao tenho forno nao, so um cooktop"
-  fritura            confirmed_no   ela: "so refogo, nao frito por imersao"
-  utensilios_basicos confirmed_yes  ela: "tenho uma cacarola grande e funda"
-  molho_bechamel     confirmed_yes  ela: "faco sim, molho branco eu faco de olho"
-  confeitar          confirmed_yes  ela: "enrolo brigadeiro desde nova"
-  panela_de_pressao  unknown        (nunca perguntado, e o registro sabe disso)
+  forno           confirmed_no   ela: "nao tenho forno nao, so um cooktop"
+  fogao           confirmed_yes  ela: "so refogo, nao frito por imersao"
+  molho_bechamel  confirmed_yes  ela: "faco molho branco de olho"
 
 recipe_blocks
-  lasanha ao forno  | forno | ativo   ← volta sozinha no dia em que ela tiver um
+  lasanha ao forno | forno | ativo   ← volta sozinha no dia em que ela tiver um
 ```
 
 Cada capacidade carrega **as palavras dela**, copiadas da mensagem que o
@@ -182,15 +155,20 @@ beco sem saída, é um prato esperando.
 
 | O desafio pede | Onde acontece, nesta conversa |
 |---|---|
-| Ler a despensa | Turno 1, e de novo no brigadeiro, para dizer o que falta |
+| Ler a despensa | Turno 3: o que ela tem, e a única coisa que falta |
 | Descobrir a restrição antes da compra | Turno 1 pergunta, turno 2 fecha o prato |
-| Não inferir o que ela não disse | O forno virou pergunta; a panela de pressão continua `unknown` |
+| Não inferir o que ela não disse | O forno virou pergunta, não suposição |
 | Sugerir receita compatível | Lasanha de panela, a versão do prato **dela** |
-| Calcular CMV | R$ 10,07 por marmita, aritmética em Python, sem modelo |
-| Preço com mercado e margem | Dois cenários sobre a faixa observada, taxa de 10% descontada |
-| Respeitar o orçamento | R$ 29,86 reservados de R$ 80,00, com ela decidindo |
+| Calcular CMV | R$ 7,80 por marmita, aritmética em Python, sem modelo |
+| Custo do que falta comprar | R$ 10,79, e se cabe no orçamento restante |
+| Preço com mercado e margem | Três cenários sobre a faixa observada, taxa descontada |
+| Respeitar o orçamento | R$ 10,79 de R$ 80,00, reservados com ela decidindo |
 | Fechar o cardápio | `menu_items`, com custo, preço, lucro e banda de confiança |
 | Dizer o quanto confia | O badge, na mensagem, e a trilha em `jacquinho confidence` |
+
+Outras quatro conversas que deram certo e outras quatro que deram errado, com o
+diagnóstico de cada falha, estão em
+**[docs/dialogos.md](docs/dialogos.md)**.
 
 ---
 
@@ -274,7 +252,7 @@ a mais, um falso negativo custa os ingredientes dela. Está em
 
 ## Índice
 
-- [Uma consultoria inteira, do "oi" ao cardápio fechado](#uma-consultoria-inteira-do-oi-ao-cardápio-fechado)
+- [Uma consultoria inteira, do "oi" ao resultado da fornada](#uma-consultoria-inteira-do-oi-ao-resultado-da-fornada)
 - [Uma conversa que deu errado, e por quê](#uma-conversa-que-deu-errado-e-por-quê)
 - [O que ele faz](#o-que-ele-faz)
 - [Arquitetura](#arquitetura)
@@ -529,9 +507,9 @@ o fio de uma conversa longa com mais de cinquenta ferramentas, e é aí que o
 modelo mais barato mostrou fraqueza. Condução é a parte difícil aqui, não
 pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais.
 
-O agente roda em qualquer provedor que você apontar e alcança as 56 ferramentas
+O agente roda em qualquer provedor que você apontar e alcança as 57 ferramentas
 de qualquer jeito. O que ele exige de verdade não é inteligência bruta e sim
-**chamada de ferramenta confiável**: são 56 ferramentas e cadeias de vários
+**chamada de ferramenta confiável**: são 57 ferramentas e cadeias de vários
 passos. Cada caminho (assinatura, chave, camada gratuita, Ollama local) tem um
 bloco pronto em `dockerfile/hermes-config.yaml`.
 
@@ -675,7 +653,7 @@ stateDiagram-v2
 | `budget` | 4 | O orçamento de complementos como saldo gastável |
 | `pricing` | 2 | CMV e cenários de preço ancorados no mercado |
 | `confidence` | 4 | Quanto a evidência sustenta a resposta |
-| `menu` | 6 | Prontidão para aceite, a opinião dela sobre cada prato, e o cardápio |
+| `menu` | 7 | Prontidão para aceite, a opinião dela sobre cada prato, o cardápio e o resultado da fornada |
 
 Mais quatro prompts (`open_conversation`, `check_specific_dish`,
 `suggest_from_pantry` e `evaluate_dish`) que carregam o procedimento, e um
@@ -1225,8 +1203,9 @@ As decisões completas, com motivo e consequência de cada uma, estão em
 |---|---|
 | [docs/arquitetura.md](docs/arquitetura.md) | Componentes, camadas, caminhos de requisição, composição |
 | [docs/decisoes.md](docs/decisoes.md) | Cada decisão de arquitetura e sua justificativa |
-| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 56 ferramentas, prompts e recursos |
+| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 57 ferramentas, prompts e recursos |
 | [docs/modelo-de-dados.md](docs/modelo-de-dados.md) | Normalização de unidades, chaves do Redis, arquivos de estado |
 | [docs/metricas.md](docs/metricas.md) | Como a confiança é calculada, suas falhas e como melhorá-la |
 | [docs/testes.md](docs/testes.md) | A suíte automatizada e a simulação de usuário |
+| [docs/dialogos.md](docs/dialogos.md) | Oito conversas reais: quatro que deram certo, quatro que deram errado |
 | [docs/operacao.md](docs/operacao.md) | Execução, depuração, modos de falha |

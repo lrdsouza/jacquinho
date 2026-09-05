@@ -22,6 +22,22 @@ class RecipeLine(BaseModel):
     unit: Annotated[str, Field(description='Recipe unit: kg, g, L, ml or un.')]
 
 
+class PurchasedItem(BaseModel):
+    """A price researched for something the pantry does not have.
+
+    The package is the point. She cannot buy 40 g of condensed milk: she buys a
+    can. So the shopping list has to carry whole packages, and the CMV has to
+    carry only the part the recipe eats. Two different numbers from one price,
+    and doing that split in prose is how a batch once got charged three entire
+    packages and a profit appeared that no tool had calculated.
+    """
+
+    ingredient: Annotated[str, Field(description='Name as the recipe writes it.')]
+    package_price: Annotated[float, Field(gt=0, description='R$ for ONE package, as researched.')]
+    package_quantity: Annotated[float, Field(gt=0, description='How much comes in one package, e.g. 395 for a 395g can.')]
+    package_unit: Annotated[str, Field(description='Unit of the package: kg, g, L, ml or un.')]
+
+
 class MarketReference(BaseModel):
     '''The observed price band, straight from market_research_dish_prices.'''
 
@@ -38,12 +54,91 @@ class PricingMCP(BaseMCP):
     name = 'pricing'
     instructions = (
         'Cost and price authority. Never compute CMV or a selling price in prose: '
-        'call calculate_cmv then price_scenarios. When calculate_cmv returns '
-        'open_questions, take them back to the conversation instead of guessing. '
+        'call calculate_cmv then price_scenarios. An ingredient the pantry does '
+        'not have still has a cost: look up what one package costs and pass it in '
+        'researched_prices, and the tool splits the whole package she must buy '
+        'from the fraction the recipe eats. Those are different numbers and doing '
+        'that split in prose is how a can of condensed milk becomes the cost of '
+        'one brigadeiro. When calculate_cmv returns open_questions, take them back '
+        'to the conversation instead of guessing. '
         'price_scenarios only produces sellable prices when it is given a market '
         'reference from market_research_dish_prices: cost tells you the floor, '
         'the market tells you the price.'
     )
+
+    @staticmethod
+    def _cost_a_purchase(line, priced, portions: int, to_buy: list) -> tuple:
+        """Split a researched package price into a CMV share and a shopping line.
+
+        She buys whole packages and the recipe eats a fraction of one. Charging
+        the batch for the whole package overstates the cost of every dish that
+        leaves leftovers, which is most of them; charging only the fraction and
+        then shopping for the fraction sends her to buy 40 g of condensed milk.
+        Both numbers are needed and they are not the same number.
+        """
+        import math
+
+        try:
+            recipe_pack = UnitConverter.parse(line.unit)
+            bought_pack = UnitConverter.parse(priced.package_unit)
+        except UnknownUnitError:
+            return None, {
+                'ingredient': line.ingredient,
+                'question': (
+                    f'Nao entendi a unidade {line.unit!r} ou '
+                    f'{priced.package_unit!r}. E em kg, g, L, ml ou un?'
+                ),
+            }
+        if recipe_pack.dimension != bought_pack.dimension:
+            return None, {
+                'ingredient': line.ingredient,
+                'question': (
+                    f'A receita pede {line.quantity:g} {line.unit}, e o preço que '
+                    f'você achou é de {priced.package_quantity:g} '
+                    f'{priced.package_unit}. Quanto rende uma embalagem, na '
+                    'unidade da receita?'
+                ),
+            }
+
+        package_size = priced.package_quantity * bought_pack.factor
+        if package_size <= 0:
+            return None, {
+                'ingredient': line.ingredient,
+                'question': f'Qual o tamanho da embalagem de {line.ingredient}?',
+            }
+
+        unit_cost = priced.package_price / package_size
+        per_portion = line.quantity * recipe_pack.factor
+        cost = per_portion * unit_cost
+
+        batch_need = per_portion * portions
+        packages = max(1, math.ceil(batch_need / package_size - 1e-9))
+        to_buy.append({
+            'ingredient': line.ingredient,
+            'buy': f'{packages} x {priced.package_quantity:g} {priced.package_unit}',
+            'estimated_cost': round(packages * priced.package_price, 2),
+            'basis': 'researched package price',
+            'used_by_the_batch': f'{batch_need:g} {bought_pack.base_unit}',
+            # With the unit: a bare 0.39 next to a 395 g package reads as
+            # grams and is kilos.
+            'left_over': (
+                f'{round(packages * package_size - batch_need, 4):g} '
+                f'{bought_pack.base_unit}'
+            ),
+        })
+
+        return {
+            'ingredient': line.ingredient,
+            'amount': f'{per_portion:g} {bought_pack.base_unit}',
+            'unit_cost': f'R$ {unit_cost:.4f}/{bought_pack.base_unit}',
+            'cost': round(cost, 2),
+            'arithmetic': (
+                f'{priced.package_price:.2f} / {package_size:g} = {unit_cost:.4f} '
+                f'por {bought_pack.base_unit}; {per_portion:g} x {unit_cost:.4f} '
+                f'= {cost:.2f}'
+            ),
+            'from': 'compra, não da despensa',
+        }, cost
 
     def __init__(self, settings, repository: PantryRepository, db):
         self.repository = repository
@@ -106,29 +201,51 @@ class PricingMCP(BaseMCP):
             dish: Annotated[str, Field(description='Dish name.')],
             lines: Annotated[list[RecipeLine], Field(description='Ingredients for ONE portion.')],
             portions: Annotated[int, Field(ge=1, description='Portions produced per batch.')] = 1,
+            researched_prices: Annotated[list[PurchasedItem], Field(description='Prices you looked up for ingredients the pantry does not have, one per ingredient, as a package.')] = [],
         ) -> dict:
             '''Cost one portion, splitting what she has from what she must buy.
+
+            Something the pantry does not have still has a cost, and it has two:
+            the whole package she has to buy, and the fraction the recipe eats.
+            Pass the researched package price and this splits them. Without it
+            the ingredient comes back under ``not_found`` and the CMV stays
+            incomplete, because a cost computed in prose is exactly the number
+            nobody can check.
 
             Returns ``open_questions`` rather than guessing when a recipe unit
             does not match how the ingredient was bought.
             '''
             used, to_buy, unknown, questions = [], [], [], []
             cmv = 0.0
+            bought = {
+                UnitConverter.normalise_text(entry.ingredient): entry
+                for entry in researched_prices
+            }
 
             for line in lines:
                 item = self.repository.find(line.ingredient)
                 if item is None:
-                    unknown.append(
-                        {
-                            'ingredient': line.ingredient,
-                            'amount': f'{line.quantity:g} {line.unit}',
-                            'pantry_suggestions': self.repository.suggest(line.ingredient),
-                            'action': (
-                                'Not in the pantry: it has to go on the shopping list '
-                                'with a researched price, or be substituted.'
-                            ),
-                        }
-                    )
+                    priced = bought.get(UnitConverter.normalise_text(line.ingredient))
+                    if priced is None:
+                        unknown.append(
+                            {
+                                'ingredient': line.ingredient,
+                                'amount': f'{line.quantity:g} {line.unit}',
+                                'pantry_suggestions': self.repository.suggest(line.ingredient),
+                                'action': (
+                                    'Not in the pantry. Look up what a package costs '
+                                    'and pass it in researched_prices, or substitute '
+                                    'it. Do not price the dish without this.'
+                                ),
+                            }
+                        )
+                        continue
+                    entry, cost = self._cost_a_purchase(line, priced, portions, to_buy)
+                    if entry is None:
+                        questions.append(cost)
+                        continue
+                    cmv += cost
+                    used.append(entry)
                     continue
 
                 try:

@@ -250,14 +250,18 @@ async def test_an_ambiguous_unit_becomes_a_question_not_an_estimate(server):
             'kitchen_check_feasibility',
             {'dish': 'Brownie', 'equipment_needed': [], 'techniques_needed': []},
         )
+        # 'Ovos' is bought by the piece with no weight anywhere, and unlike
+        # 'Cobertura de chocolate' nothing can have recorded a package size for
+        # it: a real conversation may well have answered that one, and this
+        # database outlives the suite.
         result = await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': 'Brownie',
-             'lines': [{'ingredient': 'Cobertura de chocolate',
-                        'quantity': 200, 'unit': 'g'}]},
+             'lines': [{'ingredient': 'Ovos', 'quantity': 200, 'unit': 'g'}]},
         )
     assert result.data['cmv_per_portion'] is None
     assert result.data['open_questions']
+    assert 'resolve_with' in result.data['open_questions'][0]
 
 
 @pytest.mark.asyncio

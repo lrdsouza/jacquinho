@@ -110,3 +110,29 @@ def test_a_coverage_check_is_not_overwritten_by_a_plain_list_read(observer):
                     {'coverage_ratio': 0.6, 'not_in_pantry': [{'ingredient': 'x'}]})
     observer.record('s', 'pantry_list_ingredients', {'total_ingredients': 37})
     assert observer.current('s')['score'] == pytest.approx(0.6)
+
+
+def test_the_gate_verdict_is_enough_to_park_the_dish():
+    """A run that called check_feasibility directly announced the dead dish
+    correctly and left recipe_blocks empty: the lasagna had nothing to come back
+    from the day she got an oven."""
+    from app.domain.observer import ConfidenceObserver
+
+    observer = ConfidenceObserver()
+    observer.record('s', 'kitchen_check_feasibility', {
+        'verdict': 'rejected',
+        'blockers': [{'category': 'equipment', 'item': 'forno'}],
+    }, dish='Lasanha ao forno')
+    assert observer.requirements_of('s') == ['forno']
+
+
+def test_the_recipe_reading_still_wins_when_there_is_one():
+    from app.domain.observer import ConfidenceObserver
+
+    observer = ConfidenceObserver()
+    observer.record('s', 'kitchen_analyse_recipe_requirements', {
+        'from_the_recipe': {'detected_requirements': [{'item': 'forno'},
+                                                      {'item': 'molho_bechamel'}]},
+        'gate': {'safe_to_shop': False, 'known_blockers': []},
+    }, dish='Lasanha ao forno')
+    assert observer.requirements_of('s') == ['forno', 'molho_bechamel']

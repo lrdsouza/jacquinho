@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-38-6E56CF)
+![Registros](https://img.shields.io/badge/registros-41-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -562,14 +562,14 @@ português claro. Nada disso pede raciocínio profundo, e uma consultoria inteir
 gasta dezenas de chamadas.
 
 O que a simulação mostrou é que o gargalo não é profundidade, é **condução**.
-São 56 ferramentas e cadeias de vários passos, e o modelo mais barato perdia o
+São 57 ferramentas e cadeias de vários passos, e o modelo mais barato perdia o
 fio: chamava a ferramenta certa com o prato errado, esquecia de nomear o `dish`,
 repetia busca. Cada tropeço desses custa mais chamadas do que o modelo mais caro
 teria custado.
 
 **Consequência.** Trocar é uma linha. `claude-haiku-4-5` se custo pesar mais que
 condução, `claude-opus-5` quando capacidade importar mais que custo. Nada mais
-muda: os onze servidores MCP e as 56 ferramentas se comportam de forma idêntica
+muda: os onze servidores MCP e as 57 ferramentas se comportam de forma idêntica
 por baixo, porque o comportamento não mora no modelo.
 
 **Custo e latência.** O único turno caro do fluxo é o do juiz, e é por isso que a
@@ -1087,3 +1087,86 @@ Quando ela recusa um prato que ninguém propôs, nada obriga o registro. Fechar
 esse caso pediria ler intenção na mensagem dela, que é julgamento de modelo e
 não checagem, e por isso está escrito em [testes.md](testes.md) em vez de
 resolvido pela metade.
+
+---
+
+## 39. Um ingrediente de fora tem dois custos, e a ferramenta separa os dois
+
+**Decisão.** `pricing_calculate_cmv` aceita `researched_prices`: para cada
+ingrediente que a despensa não tem, o preço de **uma embalagem**, quanto vem
+nela e a unidade. A ferramenta divide em dois números que não são o mesmo: a
+fração que a receita consome, que entra no CMV, e as embalagens inteiras que ela
+precisa comprar, que entram na lista de compras.
+
+**Motivo.** Antes, um ingrediente fora da despensa caía em `not_found` e ficava
+**fora do CMV**, com o cálculo marcado incompleto. Não havia caminho de volta:
+nenhum argumento aceitava um preço pesquisado. Então o modelo fazia a conta na
+mensagem, e o resultado apareceu numa consultoria gravada: uma lata de leite
+condensado, um pacote de chocolate em pó e um de granulado somaram R$ 29,86, e
+esse número foi tratado como o custo do lote. Não é. É o que ela paga no caixa;
+o brigadeiro come uma colherada de cada um.
+
+A mesma conta feita direito dá R$ 0,98 por brigadeiro. A diferença entre os dois
+números é a diferença entre um preço de venda que fecha e um que não fecha.
+
+**Consequência.** As duas pontas ficam certas ao mesmo tempo. A lista de compras
+arredonda para cima, porque ela não compra 40 g de leite condensado, compra uma
+lata: 400 g de necessidade sobre latas de 395 g dão **duas** latas, e a sobra
+vem dita, com unidade. O CMV carrega só o que a fornada consome.
+
+Sem `researched_prices` o comportamento antigo continua: o ingrediente volta em
+`not_found`, o CMV fica incompleto e nada é precificado. Preferi manter isso a
+deixar a ferramenta estimar, porque um preço inventado é exatamente o que este
+sistema existe para não produzir.
+
+**Observabilidade.** Cada linha carrega a divisão escrita:
+`7,89 / 0,395 = 19,9747 por kg; 0,015 x 19,9747 = 0,30`.
+
+---
+
+## 40. O fechamento fala do dia, não da marmita
+
+**Decisão.** `menu_expected_return` recebe quantas porções de cada prato saem da
+fornada e devolve receita, taxa da plataforma, custo dos ingredientes, lucro e
+percentual, mais a frase pronta em `say_it_like_this`.
+
+**Motivo.** O cardápio respondia "quanto sobra numa marmita". A pergunta que ela
+faz é se o dia valeu a pena, e essa precisa da quantidade, que é dela.
+
+**Consequência.** Três percentuais, e a escolha de qual vai na frase importa
+mais que o cálculo. A primeira versão liderava com **retorno sobre o custo de
+produção** e imprimiu *"um retorno de 1556%"* para um brigadeiro. É
+aritmeticamente verdadeiro e inútil: a base é a colherada que a fornada
+consome, não o que ela paga no caixa.
+
+A frase passou a liderar com **margem sobre a venda**, que não pode passar de
+100 e por isso continua acreditável e comparável entre pratos: *"57 centavos de
+cada real vendido"*. Retorno sobre custo e retorno sobre desembolso continuam na
+resposta, rotulados, com um campo `careful_with` dizendo por que não citá-los.
+
+Os dois custos ficam separados de propósito: o que a comida custa, incluindo o
+que ela já tinha, e o que ainda precisa sair do bolso dela. Somar os dois conta
+duas vezes a despensa que ela já pagou.
+
+**Observabilidade.** Percentual sobre base inexistente volta `None`, não zero:
+uma porcentagem sobre nada não é infinito, é uma pergunta sobre dado faltando.
+
+---
+
+## 41. O portão sozinho basta para arquivar o prato
+
+**Decisão.** Quando não há exigências lidas de uma receita, o arquivamento do
+prato morto usa os impedimentos que o próprio `check_feasibility` devolveu.
+
+**Motivo.** O arquivamento dependia de o agente ter passado por
+`kitchen_analyse_recipe_requirements`. Numa gravação ele foi direto ao
+`check_feasibility`: anunciou a lasanha morta corretamente, e `recipe_blocks`
+ficou **vazio**. A frase saiu certa e a garantia não existiu. No dia em que ela
+ganhasse um forno, não havia o que voltar.
+
+É a diferença entre uma garantia e um caminho feliz: dependia de qual das duas
+ferramentas o modelo escolheu, e as duas são legítimas.
+
+**Consequência.** O veredito do portão e a leitura da receita passam a alimentar
+o mesmo arquivamento, com a leitura da receita ganhando quando existe, porque é
+mais específica. Dois testes de domínio cobrem os dois caminhos.

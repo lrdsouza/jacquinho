@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-195-success)
+![Unitários](https://img.shields.io/badge/testes-207-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,7 +38,7 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**195 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**207 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
@@ -49,8 +49,8 @@ ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 | `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
 | `test_units.py` | 15 | Unidade e embalagem: `balde 2kg` são dois quilos |
 | `test_search_and_consensus.py` | 15 | Recência, domínios distintos, extração de preço |
-| `test_pricing.py` | 13 | A aritmética do desafio |
-| `test_observer.py` | 13 | Trilha por sessão e por prato |
+| `test_pricing.py` | 23 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
+| `test_observer.py` | 15 | Trilha por sessão e por prato |
 | `test_verdict.py` | 12 | A frase que ela lê nomeia o prato e o motivo; um sim com "mas" não é sim |
 | `test_audit.py` | 11 | Todo R$ e todo % da mensagem sai de uma ferramenta |
 | `test_budget_and_catalogue.py` | 7 | Bloqueio condicional contra bloqueio por gosto |
@@ -360,6 +360,43 @@ ordem certa é perguntar antes. E a recusa de gosto só é gravada se o agente
 chamar `menu_record_feedback`; quando ela recusa um prato que ninguém propôs,
 como aconteceu aqui, nada obriga o registro. Fechar isso pediria ler intenção na
 mensagem dela, que é julgamento de modelo e não checagem.
+
+---
+
+### A rodada do dinheiro: a embalagem, a base e o arquivamento
+
+Quatro achados, três deles sobre a mesma coisa: números que pareciam certos e
+tinham a base errada.
+
+**Uma lata inteira virou o custo do lote.** Ela ia comprar leite condensado,
+chocolate em pó e granulado, R$ 29,86 no total, e esse número foi tratado como o
+que a fornada custa. Não é: é o que ela paga no caixa, e o brigadeiro come uma
+colherada de cada um. A causa era estrutural, não de redação: um ingrediente
+fora da despensa caía em `not_found` e ficava **fora** do CMV, e nenhum
+argumento aceitava um preço pesquisado de volta. Então o modelo fazia a divisão
+em prosa. Agora `researched_prices` recebe o preço de uma **embalagem** e a
+ferramenta separa as duas pontas, arredondando a compra para cima porque ela não
+compra 40 g de leite condensado. Ver [decisoes.md](decisoes.md), item 39. Depois
+da correção, o mesmo brigadeiro: R$ 0,98 de custo, R$ 17,97 de compra.
+
+**O retorno de 1556%.** O fechamento novo da fornada saiu com essa manchete, e
+está aritmeticamente certo: lucro sobre o custo dos ingredientes consumidos. É
+inútil, porque a base é a colherada e não o desembolso. A frase passou a liderar
+com margem sobre a venda, que não pode passar de 100. Item 40.
+
+**O prato morto não foi arquivado.** Uma gravação em que o agente foi direto ao
+`check_feasibility`, sem passar por `analyse_recipe_requirements`, anunciou a
+lasanha morta com todas as letras e deixou `recipe_blocks` vazio. A frase saiu
+certa e a garantia não existiu: no dia em que ela ganhasse um forno, não havia o
+que voltar. Dependia de qual das duas ferramentas o modelo escolheu, e as duas
+são legítimas. Item 41.
+
+**Uma chamada de ferramenta inválida.** Num turno o Hermes registrou
+`Model generated invalid tool call` e a mensagem saiu vazia. Não é defeito deste
+servidor e não se repetiu, mas está anotado porque uma conversa real perde um
+turno quando acontece.
+
+As transcrições completas estão em [dialogos.md](dialogos.md).
 
 ---
 

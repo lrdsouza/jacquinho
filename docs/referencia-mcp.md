@@ -1,6 +1,6 @@
 # Referência MCP
 
-![Ferramentas](https://img.shields.io/badge/ferramentas-56-success)
+![Ferramentas](https://img.shields.io/badge/ferramentas-57-success)
 ![Prompts](https://img.shields.io/badge/prompts-4-6E56CF)
 ![Recursos](https://img.shields.io/badge/recursos-1-0A7EA4)
 
@@ -22,7 +22,7 @@ o dado.
 - [`budget`](#budget), 4 ferramentas · O orçamento de complementos como saldo gastável.
 - [`pricing`](#pricing), 2 ferramentas · CMV e cenários de preço ancorados no mercado.
 - [`confidence`](#confidence), 4 ferramentas · Quanto a evidência sustenta o que vai ser dito.
-- [`menu`](#menu), 6 ferramentas · A opinião dela sobre cada prato e o cardápio de lançamento.
+- [`menu`](#menu), 7 ferramentas · A opinião dela sobre cada prato, o cardápio de lançamento e o resultado da fornada.
 
 - [Prompts](#prompts)
 - [Recursos](#recursos)
@@ -166,7 +166,7 @@ conferência, e a gravação passa a dizer `her_words_verified: false`.
 
 | Ferramenta | O que faz | Argumentos | Notas |
 |---|---|---|---|
-| `pricing_calculate_cmv` | Custeia uma porção, separando o que ela tem do que falta. | `dish`, `lines`, `portions` | Devolve `open_questions` em vez de chutar quando a unidade da receita não bate com a da compra. |
+| `pricing_calculate_cmv` | Custeia uma porção, separando o que ela tem do que falta. | `dish`, `lines`, `portions`, `researched_prices` | Devolve `open_questions` em vez de chutar quando a unidade da receita não bate com a da compra. Um ingrediente fora da despensa entra por `researched_prices` como **embalagem**, e a ferramenta divide a fração que a receita consome (vai para o CMV) das embalagens inteiras que ela precisa comprar (vão para a lista). Sem o preço pesquisado, o ingrediente volta em `not_found` e nada é precificado. |
 | `pricing_price_scenarios` | Monta cenários de preço. | `cmv_per_portion`, `market` | Sem faixa de mercado devolve só o preço mínimo. Cada cenário projeta o lucro em doze meses com a inflação de alimentos. |
 
 ---
@@ -195,6 +195,7 @@ conferência, e a gravação passa a dizer `her_words_verified: false`.
 | `menu_acceptance_check` | O que ainda falta para este prato entrar no cardápio. | `dish`, `requirements` | Reúne as cinco checagens num lugar só e devolve as perguntas que ela ainda não ouviu, prontas. |
 | `menu_add_dish` | Coloca um prato aceito no cardápio. | `dish`, `category`, `cmv`, `price`, `confidence_band`, `notes` | Só depois do gate, do CMV completo, do preço ancorado e da escolha dela. |
 | `menu_remove_dish` | Tira um prato do cardápio. | `dish` |  |
+| `menu_expected_return` | O resultado da fornada inteira. | `portions` (prato e quantidade) | Receita, taxa da plataforma, custo dos ingredientes usados, lucro e margem sobre a venda, mais a frase pronta em `say_it_like_this`. O desembolso e o custo de produção vêm separados de propósito. |
 | `menu_build_launch_menu` | O cardápio: cada prato com custo, preço e lucro. | nenhum | Marca os que entraram com evidência fraca. |
 
 ---

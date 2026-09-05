@@ -4,11 +4,20 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from ..domain.catalogue import BlockReason, CatalogueUnavailable as MemoryUnavailable
+from ..domain.budget import BudgetLedger
 from ..domain.catalogue import DishFeedbackStore, LaunchMenuStore, RecipeCatalogue
+from ..domain.money import launch_projection
 from .base import BaseMCP
+
+
+class DishPortions(BaseModel):
+    '''How many portions of one menu dish come out of a batch.'''
+
+    dish: Annotated[str, Field(description='Dish exactly as it went on the menu.')]
+    portions: Annotated[int, Field(ge=1, description='Portions she expects to sell.')]
 
 
 class MenuMCP(BaseMCP):
@@ -166,6 +175,81 @@ class MenuMCP(BaseMCP):
                 return {'available': True, **self.menu.summary()}
             except MemoryUnavailable as error:
                 return {'available': False, 'error': str(error)}
+
+        @self.mcp.tool
+        def expected_return(
+            portions: Annotated[list[DishPortions], Field(description='How many portions of each menu dish she plans to sell in one batch.')],
+        ) -> dict:
+            """Close the consultation the way she thinks about it: the day's money.
+
+            A menu with a cost, a price and a per-portion profit answers "how
+            much do I make on one". The question she actually asks is whether
+            the day was worth doing, and that needs the quantity, which is hers.
+
+            Two costs, deliberately not added together: what the food costs
+            (ingredients she already owned included) and what still has to leave
+            her pocket to buy what the pantry lacks.
+            """
+            try:
+                menu = {item['dish'].lower(): item for item in self.menu.items()}
+                reserved = BudgetLedger(self.db, self.settings.top_up_budget).reserved
+            except MemoryUnavailable as error:
+                return {'available': False, 'error': str(error)}
+
+            lines, missing = [], []
+            for wanted in portions:
+                item = menu.get(wanted.dish.lower())
+                if item is None:
+                    missing.append(wanted.dish)
+                    continue
+                lines.append({**item, 'portions': wanted.portions})
+
+            if not lines:
+                return {
+                    'available': True,
+                    'ready': False,
+                    'not_on_the_menu': missing,
+                    'next_step': (
+                        'Nada disso está no cardápio ainda. Feche os pratos com '
+                        'menu_add_dish antes de projetar o retorno.'
+                    ),
+                }
+
+            projection = launch_projection(lines, cash_to_spend=reserved)
+            return {
+                'available': True,
+                'ready': True,
+                'not_on_the_menu': missing,
+                **projection,
+                'say_it_like_this': (
+                    f"Numa fornada de {projection['portions_total']} unidades: "
+                    f"você vende por R$ {projection['revenue']:.2f}, a plataforma "
+                    f"fica com R$ {projection['platform_fee_paid']:.2f}, os "
+                    f"ingredientes usados custam R$ {projection['production_cost']:.2f}, "
+                    f"e sobram R$ {projection['profit']:.2f} no seu bolso"
+                    + (
+                        f", ou seja {projection['margin_on_sales_percent']:.0f} "
+                        'centavos de cada real vendido.'
+                        if projection['margin_on_sales_percent'] is not None else '.'
+                    )
+                    + (
+                        f' Para essa fornada você desembolsa R$ '
+                        f'{projection["cash_to_spend"]:.2f} de compras, e sobra '
+                        'estoque para as próximas.'
+                        if projection['cash_to_spend'] else ''
+                    )
+                ),
+                'careful_with': (
+                    'return_on_cost_percent é sobre a fração de ingrediente que a '
+                    'fornada consome, não sobre o que ela paga no caixa, e por isso '
+                    'sai gigante em doce. Se for citar porcentagem, cite a margem '
+                    'sobre a venda.'
+                ),
+                'next_step': (
+                    'Diga isso a ela com os números desta resposta, sem recalcular '
+                    'nada. Depois chame build_launch_menu para fechar.'
+                ),
+            }
 
         @self.mcp.tool
         def acceptance_check(
