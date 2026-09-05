@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-189-success)
+![Unitários](https://img.shields.io/badge/testes-191-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,12 +38,12 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**189 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**191 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
-| `test_mcp_server.py` | 30 | O servidor sobe, monta, recusa, e não deixa o prato dela morrer em silêncio |
+| `test_mcp_server.py` | 32 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
 | `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
@@ -258,6 +258,27 @@ não. Os rótulos viraram instruções que ficam obviamente erradas se coladas.
 lasanha de panela e pedido a conta; ao mencionar que também não frita por
 imersão, ganhou o discurso do forno de novo. Um veredito passou a ser devido uma
 vez só, item 34.
+
+### A rodada que achou o dinheiro
+
+Regravando a consultoria inteira, a última mensagem dizia: *"Já comprei a massa
+de lasanha e os temperos que faltavam por R$ 30,85."* O agente não compra nada,
+e essa frase é pior que errada, porque ela é acionável: a Dona Maria pode não ir
+ao mercado achando que já está feito.
+
+A causa não estava na redação. A ferramenta se chamava `commit_purchase`, a
+descrição dizia "spend against the budget", e nada nela exigia a decisão dela
+para mexer no orçamento dela. Um modelo lendo "gastar" escreve "gastei".
+
+O caminho da compra **não tinha nenhum teste**, e foi por isso que a redação
+envelheceu sem ninguém notar. Agora tem dois, e a ferramenta virou
+`budget_reserve_purchase`, exigindo as palavras dela. Detalhe em
+[decisoes.md](decisoes.md), item 36.
+
+Na regravação depois da correção, a mesma situação: *"ficaria por volta de
+R$ 29,86, mas é só uma referência que encontrei"*, e a pergunta. Depois que ela
+responde "pode reservar que eu compro amanhã": *"deixei reservado no seu
+orçamento R$ 29,86 pra você comprar amanhã, isso deixa R$ 50,14 dos seus R$ 80"*.
 
 ### A rodada que deu errado de propósito
 

@@ -153,10 +153,10 @@ conferência, e a gravação passa a dizer `her_words_verified: false`.
 
 | Ferramenta | O que faz | Argumentos | Notas |
 |---|---|---|---|
-| `budget_get_status` | Mostra total, comprometido e restante. | nenhum | Com a lista de compras fechadas. |
-| `budget_check_purchase` | Testa se uma lista cabe, sem gastar. | `amount` | Devolve o quanto falta quando não cabe. |
-| `budget_commit_purchase` | Gasta contra o orçamento. | `dish`, `description`, `amount` | Só depois que ela concordou. Recusa estourar. |
-| `budget_release_purchase` | Devolve o dinheiro de um prato abandonado. | `entry_id` |  |
+| `budget_get_status` | Mostra total, reservado e restante. | nenhum | Com a lista do que ela decidiu comprar. |
+| `budget_check_purchase` | Testa se uma lista cabe, sem reservar nada. | `amount` | Devolve o quanto falta quando não cabe. |
+| `budget_reserve_purchase` | Separa parte do orçamento para uma compra que **ela** vai fazer. | `dish`, `description`, `amount`, `her_words` | Nada é comprado aqui: o agente não tem carteira. Exige a citação dela concordando, e recusa estourar. |
+| `budget_release_purchase` | Libera a reserva de um prato abandonado. | `entry_id` |  |
 
 ---
 
@@ -243,7 +243,7 @@ leu a despensa vai falar da despensa, quem calculou cenário vai falar de preço
 | `price` | gate, CMV, mercado e inflação | `pricing_price_scenarios`, `market_*`, `economy_*` |
 
 Três ferramentas (`pricing_price_scenarios`, `menu_add_dish` e
-`budget_commit_purchase`) são **recusadas** pelo mesmo middleware enquanto o
+`budget_reserve_purchase`) são **recusadas** pelo mesmo middleware enquanto o
 gate não tiver aprovado nesta sessão.
 
 Um resultado vazio é uma resposta de verdade. As ferramentas que não acham nada

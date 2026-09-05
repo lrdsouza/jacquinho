@@ -1,8 +1,12 @@
 '''The R$ 80.00 top-up budget, as a ledger instead of a constant.
 
-Kept as state rather than a number repeated in prose: once Dona Maria commits
-to buying something, the money is gone and the next dish has to fit in what is
-left. A rule written in a persona file cannot enforce that; this can.
+Nothing in this system buys anything. The agent has no wallet and no card; the
+shopping happens when Dona Maria goes to the market. What the ledger holds is
+what she has *decided* to spend, so the second dish is costed against what is
+honestly left rather than against the full eighty reais a second time.
+
+Kept as state rather than a number repeated in prose, because a rule written in
+a persona file cannot subtract.
 '''
 
 from __future__ import annotations
@@ -25,13 +29,13 @@ class BudgetLedger:
         self.total = total
 
     @property
-    def committed(self) -> float:
+    def reserved(self) -> float:
         row = self.db.one('SELECT COALESCE(sum(amount), 0) AS spent FROM budget_entries')
         return float(row['spent'])
 
     @property
     def remaining(self) -> float:
-        return self.total - self.committed
+        return self.total - self.reserved
 
     def entries(self) -> list[dict]:
         return [
@@ -40,7 +44,7 @@ class BudgetLedger:
                 'dish': row['dish'],
                 'description': row['description'],
                 'amount': float(row['amount']),
-                'committed_at': row['committed_at'].isoformat(timespec='seconds'),
+                'decided_at': row['committed_at'].isoformat(timespec='seconds'),
             }
             for row in self.db.query(
                 'SELECT * FROM budget_entries ORDER BY committed_at'
@@ -48,11 +52,11 @@ class BudgetLedger:
         ]
 
     def status(self) -> dict:
-        committed = self.committed
+        reserved = self.reserved
         return {
             'total_budget': round(self.total, 2),
-            'committed': round(committed, 2),
-            'remaining': round(self.total - committed, 2),
+            'reserved_for_her_to_buy': round(reserved, 2),
+            'remaining': round(self.total - reserved, 2),
             'entries': self.entries(),
         }
 
@@ -69,11 +73,18 @@ class BudgetLedger:
             'verdict': 'fits' if fits else 'over_budget',
         }
 
-    def commit(self, dish: str, description: str, amount: float) -> dict:
-        """Spend against the budget. Refuses to overspend."""
+    def reserve(self, dish: str, description: str, amount: float) -> dict:
+        """Set money aside for a shopping list she said she would buy.
+
+        Nothing here spends anything. Nobody in this system can: the agent has
+        no wallet, and the shopping happens when Dona Maria goes to the market.
+        What the ledger holds is what she has decided to spend, so the next
+        dish is costed against what is honestly left over rather than against
+        the full eighty reais twice.
+        """
         verdict = self.check(amount)
         if not verdict['fits']:
-            return {'committed': False, **verdict}
+            return {'reserved': False, **verdict}
 
         entry_id = uuid.uuid4().hex[:8]
         self.db.execute(
@@ -81,10 +92,10 @@ class BudgetLedger:
                     VALUES (%s, %s, %s, %s)""",
             (entry_id, dish, description, amount),
         )
-        return {'committed': True, 'entry_id': entry_id, **self.status()}
+        return {'reserved': True, 'entry_id': entry_id, **self.status()}
 
     def release(self, entry_id: str) -> dict:
-        """Undo a commitment, for when she changes her mind about a dish."""
+        """Undo a reservation, for when she changes her mind about a dish."""
         removed = self.db.returning(
             'DELETE FROM budget_entries WHERE entry_id = %s RETURNING entry_id',
             (entry_id,),

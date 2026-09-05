@@ -502,3 +502,47 @@ async def test_a_yes_with_a_but_in_it_is_refused(built, server):
     assert hedged.data['ok'] is False
     assert hedged.data['hedges']
     assert "state='unknown'" in hedged.data['next_step']
+
+
+@pytest.mark.asyncio
+async def test_the_agent_cannot_reserve_money_she_did_not_agree_to(built, server):
+    """The agent has no wallet. It once told her 'já comprei a massa' about
+    money it cannot spend, because nothing made the decision hers."""
+    async with Client(server) as client:
+        # The gate comes first, and rightly so: no money moves for a dish the
+        # kitchen has not been checked against.
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': 'Lasanha de panela', 'equipment_needed': [],
+             'techniques_needed': []},
+        )
+        alone = await client.call_tool(
+            'budget_reserve_purchase',
+            {'dish': 'Lasanha de panela',
+             'description': 'massa de lasanha, oregano', 'amount': 12.0},
+        )
+        assert alone.data['reserved'] is False
+        assert 'palavras dela' in alone.data['error']
+        assert 'não compra nada' in alone.data['next_step']
+
+        await capture_her_message(built, 'pode comprar a massa de lasanha sim')
+        hers = await client.call_tool(
+            'budget_reserve_purchase',
+            {'dish': 'Lasanha de panela',
+             'description': 'massa de lasanha, oregano', 'amount': 12.0,
+             'her_words': 'pode comprar a massa de lasanha sim'},
+        )
+    assert hers.data['reserved'] is True
+    assert 'Nunca diga que você comprou' in hers.data['next_step']
+    assert hers.data['reserved_for_her_to_buy'] >= 12.0
+
+
+@pytest.mark.asyncio
+async def test_the_ledger_holds_what_she_decided_not_what_was_spent(built, server):
+    """A second dish has to be costed against what is honestly left."""
+    async with Client(server) as client:
+        before = await client.call_tool('budget_get_status', {})
+        left = before.data['remaining']
+        fits = await client.call_tool('budget_check_purchase', {'amount': left + 1})
+    assert fits.data['verdict'] == 'over_budget'
+    assert fits.data['shortfall'] > 0

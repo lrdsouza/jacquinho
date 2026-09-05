@@ -215,7 +215,8 @@ class PricingMCP(BaseMCP):
                 'next_step': (
                     'Run market_research_dish_prices for this dish, then call '
                     'price_scenarios with the CMV and that reference band. Commit the '
-                    'shopping with budget_commit_purchase only after she agrees to buy.'
+                    'shopping with budget_reserve_purchase only after she says she '
+                    'will buy it. You are not buying anything: she is.'
                     if complete
                     else 'Do NOT price yet. Take open_questions back to the conversation.'
                 ),

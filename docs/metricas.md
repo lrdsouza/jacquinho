@@ -191,7 +191,7 @@ nome não comprometem ninguém.
 
 Três ferramentas vão além do aviso e são **recusadas** pelo middleware enquanto o
 portão não aprovar. São elas `pricing_price_scenarios`, `menu_add_dish` e
-`budget_commit_purchase`. São as que custam dinheiro.
+`budget_reserve_purchase`. São as que mexem no dinheiro dela ou no cardápio.
 
 ---
 

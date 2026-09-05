@@ -293,7 +293,7 @@ class MCPServer:
                 'nao mande, pergunte o que falta.\n'
                 '9. Pergunte qual preco ela quer adotar. Nao escolha por ela.\n'
                 '10. Se ela fechar o prato e precisar comprar algo, chame '
-                'budget_commit_purchase para descontar do orcamento.'
+                'budget_reserve_purchase para separar do orcamento dela.'
             )
 
     def run(self) -> None:

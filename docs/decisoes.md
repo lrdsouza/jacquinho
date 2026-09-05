@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-35-6E56CF)
+![Registros](https://img.shields.io/badge/registros-36-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -345,7 +345,7 @@ mercado ausente barram a resposta em qualquer nota.
 
 **E três ferramentas são recusadas, não apenas desaconselhadas.** Conselho errado
 se corrige na conversa seguinte; `pricing_price_scenarios`, `menu_add_dish` e
-`budget_commit_purchase` custam dinheiro ou vão para um cardápio. O middleware
+`budget_reserve_purchase` mexem no dinheiro dela ou vão para um cardápio. O middleware
 recusa essas três enquanto o portão de viabilidade não tiver aprovado nesta
 sessão, com a mensagem que fecha o atalho: *"ler o perfil da cozinha não conta:
 ler não é verificar."* É a diferença entre pedir ao agente que não pule uma etapa
@@ -696,7 +696,7 @@ disso, que uma avaliação tenha ocorrido.
 **Motivo.** Metade das ferramentas nunca era chamada numa conversa real. CMV,
 mercado, feedback, memória. Instruir não bastou. A alavanca que já havia
 funcionado para o portão foi estendida: cada exigência transforma uma sugestão
-numa garantia, e só nas ferramentas que custam dinheiro ou vão para um cardápio.
+numa garantia, e só nas ferramentas que mexem no dinheiro dela ou vão para um cardápio.
 
 **Consequência.** O caminho certo passou a ser o único caminho, em vez do mais
 trabalhoso. Foi isso que fez o agente pular o portão antes: ler o perfil dava
@@ -982,3 +982,45 @@ ficar implícito no código.
 
 **Observabilidade.** A recusa devolve `hedges` com as marcas que encontrou, e
 elas aparecem no log ao lado da tentativa.
+
+---
+
+## 36. O agente não compra nada, e o orçamento é uma reserva
+
+**Decisão.** `budget_commit_purchase` virou `budget_reserve_purchase`, e passou
+a exigir `her_words`, conferidas na transcrição capturada como qualquer
+capacidade da cozinha. O que a tabela guarda é o que **ela decidiu** gastar, não
+o que foi gasto.
+
+**Motivo.** Numa consultoria gravada, o agente disse a ela: *"Já comprei a massa
+de lasanha e os temperos que faltavam por R$ 30,85, dentro do seu orçamento de
+R$ 80."* Ele não comprou. Não tem carteira, não tem cartão, não vai ao mercado.
+
+Não foi um deslize de redação. A ferramenta se chamava `commit_purchase`, a
+descrição dizia *"spend against the budget"*, e o argumento que faltava era
+justamente aquele que tornaria a decisão dela: a ferramenta não pedia nada da
+Dona Maria para tirar dinheiro do orçamento da Dona Maria. Um modelo lendo
+"gastar" escreve "gastei", e está sendo coerente com o que leu.
+
+O dano de acreditar nessa frase é concreto. Ela pode não ir ao mercado, achando
+que já está feito; pode não conferir preço, achando que já foi pago; e o custo
+por marmita, calculado sobre uma referência de mercado, passa a parecer um valor
+apurado.
+
+**Consequência.** Três mudanças, e a primeira é a que importa: o nome e a
+descrição passam a dizer o que a coisa é. Depois, a exigência da citação, que
+usa a mesma máquina da decisão 32 e por isso não custou nada de novo. E a
+resposta da ferramenta devolve a frase no tempo certo, no futuro: *"a massa e os
+temperos saem por uns R$ 30,85, e sobram R$ 49,15"*.
+
+A reserva continua sendo estado necessário. Sem ela, o segundo prato seria
+calculado sobre os oitenta reais uma segunda vez. O que mudou não é a
+contabilidade, é de quem é a decisão.
+
+Faltava teste nesse caminho, e foi por isso que a redação envelheceu sem ninguém
+notar. Agora tem dois: reservar sem a palavra dela é recusado, e reservar com a
+palavra dela devolve a instrução de nunca dizer que comprou.
+
+**Observabilidade.** `budget_get_status` fala em `reserved_for_her_to_buy`, e
+cada linha de `budget_entries` carrega a descrição do que **ela** vai comprar.
+Quem ler o banco depois não confunde uma intenção com um recibo.

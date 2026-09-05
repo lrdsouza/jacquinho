@@ -39,7 +39,7 @@ class ConfidenceMiddleware(Middleware):
     NEEDS_GATE = {
         'pricing_price_scenarios': 'nenhum preço sai antes do gate de viabilidade',
         'menu_add_dish': 'nenhum prato entra no cardápio antes do gate',
-        'budget_commit_purchase': 'nenhuma compra é fechada antes do gate',
+        'budget_reserve_purchase': 'nenhum dinheiro é reservado antes do gate',
     }
 
     # The observer scores the evidence trail; it never sees the sentence. A
@@ -73,7 +73,7 @@ class ConfidenceMiddleware(Middleware):
         'pricing_calculate_cmv',
         'pricing_price_scenarios',
         'market_research_dish_prices',
-        'budget_commit_purchase',
+        'budget_reserve_purchase',
         'menu_add_dish',
         # Asking her the next question while the last answer is unanswered is
         # the exact shape of the failure, so it counts as moving on too.
