@@ -20,6 +20,15 @@ O agente a acompanha de uma planilha de compras até um cardápio de lançamento
 precificado, e é construído de modo que **todo número que ele diz veio de uma
 chamada de ferramenta, nunca da memória do modelo**.
 
+> **Procurando as decisões de arquitetura?** As cinco escolhas que o enunciado
+> deixa em aberto (modelo, context files, tools/MCP, estrutura de memória e
+> skills) estão respondidas em
+> [uma tabela](#as-cinco-escolhas-que-o-enunciado-deixou-em-aberto), cada uma
+> com link para a justificativa completa. As quarenta e uma decisões inteiras,
+> com motivo e consequência, estão em
+> [docs/decisoes.md](docs/decisoes.md); as conversas que causaram boa parte
+> delas, em [docs/dialogos.md](docs/dialogos.md).
+
 ---
 
 ## Uma consultoria inteira, do "oi" ao resultado da fornada
@@ -153,18 +162,29 @@ beco sem saída, é um prato esperando.
 
 ### Onde cada exigência do desafio foi cumprida
 
-| O desafio pede | Onde acontece, nesta conversa |
-|---|---|
-| Ler a despensa | Turno 3: o que ela tem, e a única coisa que falta |
-| Descobrir a restrição antes da compra | Turno 1 pergunta, turno 2 fecha o prato |
-| Não inferir o que ela não disse | O forno virou pergunta, não suposição |
-| Sugerir receita compatível | Lasanha de panela, a versão do prato **dela** |
-| Calcular CMV | R$ 7,80 por marmita, aritmética em Python, sem modelo |
-| Custo do que falta comprar | R$ 10,79, e se cabe no orçamento restante |
-| Preço com mercado e margem | Três cenários sobre a faixa observada, taxa descontada |
-| Respeitar o orçamento | R$ 10,79 de R$ 80,00, reservados com ela decidindo |
-| Fechar o cardápio | `menu_items`, com custo, preço, lucro e banda de confiança |
-| Dizer o quanto confia | O badge, na mensagem, e a trilha em `jacquinho confidence` |
+| Enunciado | O que ele pede | Onde acontece, nesta conversa | Onde vive no código |
+|---|---|---|---|
+| **2.1** | Pesquisar receitas reais na internet | Turno 1, busca web pelo prato que ela pediu | `recipes_search_recipes`, `dishes_discover_dishes` |
+| **2.1** | Apresentar candidatas e pedir feedback dela | *"Você topa fazer assim? Já tem prática com esse jeito?"* | `menu_record_feedback` |
+| **2.2** | Utensílios e equipamentos | Turno 1 pergunta o forno antes de qualquer conta | `kitchen_next_questions`, `kitchen_record_capability` |
+| **2.2** | Técnicas e habilidades | Molho branco perguntado e gravado com as palavras dela | catálogo de 26 itens em `kitchen_elicitation_catalogue` |
+| **2.2** | Restrições operacionais | Gás, geladeira, tempo por fornada, no mesmo catálogo | `kitchen_elicitation_coverage` |
+| **2.2** | **Não deixar comprar e descobrir depois** | Turno 2 fecha a lasanha ao forno antes de existir lista de compras | `kitchen_elicitation_gaps`, `safe_to_shop` |
+| **2.3** | O que ela já tem, e em que quantidade | Turno 3: carne, tomate, queijo, leite, farinha, manteiga | `recipes_check_pantry_coverage` |
+| **2.3** | O que falta comprar, o custo, e se cabe | R$ 10,79 de massa, contra os R$ 80 | `pricing_calculate_cmv`, `budget_check_purchase` |
+| **2.4** | CMV = Σ (quantidade usada × custo unitário) | R$ 7,80 por marmita | `pricing_calculate_cmv`, aritmética em Python |
+| **2.4** | Custo unitário = preço pago ÷ quantidade comprada | Derivado das duas abas na semeadura | `PantrySheet`, `UnitConverter` |
+| **2.4** | Incluir compras complementares no CMV | A massa entra pela fração usada, não pelo pacote | `researched_prices` |
+| **2.4** | Ela recebe `0,90 × P` | R$ 23,90 → R$ 21,51 | `net_share` em `app/domain/money.py` |
+| **2.4** | Piso `P ≥ CMV / 0,90` | Devolvido em toda chamada, mesmo sem mercado | `break_even` |
+| **2.4** | Lucro `0,90 × P − CMV` | R$ 21,51 − R$ 7,80 = R$ 13,71 | `profit` |
+| **2.4** | **2–3 cenários, e ela decide** | Três faixas, e a pergunta *"qual desses valores você quer cobrar?"* | `pricing_price_scenarios` |
+| **3** | Orçamento de R$ 80,00 para complementos | R$ 10,79 reservados, R$ 69,21 restantes | `budget_reserve_purchase` |
+
+Duas coisas fora do enunciado, que a conversa mostrou serem necessárias: dizer
+**o quanto confia** no que está falando (o badge, e a trilha em
+`jacquinho confidence`) e fechar com **o resultado da fornada**, que é a
+pergunta que ela de fato faz.
 
 Outras quatro conversas que deram certo e outras quatro que deram errado, com o
 diagnóstico de cada falha, estão em
@@ -264,6 +284,7 @@ a mais, um falso negativo custa os ingredientes dela. Está em
 - [Configuração](#configuração)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [As decisões, em uma página](#as-decisões-em-uma-página)
+  - [As cinco escolhas que o enunciado deixou em aberto](#as-cinco-escolhas-que-o-enunciado-deixou-em-aberto)
 - [O que eu não fiz, e por quê](#o-que-eu-não-fiz-e-por-quê)
 - [Documentação](#documentação)
 
@@ -506,7 +527,9 @@ O modelo padrão é o **Claude Sonnet 5**, fixado em
 portões, então o agente não precisa de raciocínio profundo, mas precisa segurar
 o fio de uma conversa longa com mais de cinquenta ferramentas, e é aí que o
 modelo mais barato mostrou fraqueza. Condução é a parte difícil aqui, não
-pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais.
+pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais. A decisão
+inteira, com o que ela custa, está em
+[docs/decisoes.md, item 20](docs/decisoes.md#20-o-modelo-padrão-é-o-claude-sonnet-5).
 
 O agente roda em qualquer provedor que você apontar e alcança as 57 ferramentas
 de qualquer jeito. O que ele exige de verdade não é inteligência bruta e sim
@@ -1172,6 +1195,28 @@ precisam mudar.
 ---
 
 ## As decisões, em uma página
+
+### As cinco escolhas que o enunciado deixou em aberto
+
+O desafio deixa a meu critério **modelo, context files, tools/MCP, estrutura de
+memória e skills**, e pede a justificativa. Aqui está cada uma, com onde a
+justificativa completa mora.
+
+| O que era minha escolha | O que escolhi | Por quê, em uma linha | Justificativa |
+|---|---|---|---|
+| **Modelo** | `claude-sonnet-5`, com OAuth de uma conta Anthropic Pro | O gargalo não é profundidade, é condução: são 57 ferramentas e cadeias longas, e o modelo mais barato perdia o fio | [decisão 20](docs/decisoes.md#20-o-modelo-padrão-é-o-claude-sonnet-5) |
+| **Context files** | Um só, `hermes/SOUL.md`, com voz e quem fala primeiro | O Hermes trata texto vindo de MCP como dado não confiável e não o injeta no prompt, então a persona **tem** que morar do lado dele | [decisão 3](docs/decisoes.md#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode) |
+| **Tools/MCP** | 57 ferramentas em 11 servidores, um endpoint HTTP | O que dá para conferir vira ferramenta, porque ferramenta executa e instrução só pede | [decisões 2](docs/decisoes.md#2-um-endpoint-http-onze-servidores-montados) e [4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills) |
+| **Estrutura de memória** | Redis para a conversa (20 turnos + 1 resumo), Postgres para o que ela decidiu | Vai para o Redis quando perder custa contexto; para o Postgres quando custa uma pergunta repetida ou dinheiro gasto duas vezes | [decisões 18](docs/decisoes.md#18-o-redis-guarda-a-conversa-20-turnos-mais-1-resumo) e [19](docs/decisoes.md#19-o-postgres-guarda-os-dados-da-dona-maria) |
+| **Skills** | Nenhuma | Uma skill não deixa rastro de ter sido seguida; onde havia o que conferir, virou ferramenta | [decisão 4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills) |
+
+Uma sexta escolha não estava na lista e acabou sendo a mais decisiva: **dois
+hooks de fronteira de turno**, que trazem a fala dela e a resposta final para
+fora do alcance do modelo. Sem eles, tanto a conferência de citações quanto a
+entrega do veredito eram promessas que o servidor não podia verificar
+([decisão 33](docs/decisoes.md#33-os-limites-do-turno-são-do-runtime-não-do-modelo)).
+
+### O resto
 
 Quarenta e uma decisões de arquitetura, cada uma com motivo, consequência e o
 que ela custou. O documento completo é **[docs/decisoes.md](docs/decisoes.md)**;
