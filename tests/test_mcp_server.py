@@ -158,3 +158,67 @@ async def test_discovery_has_a_budget(server):
             await client.call_tool(
                 'dishes_discover_dishes', {'category': 'dessert', 'queries': 2}
             )
+
+
+@pytest.mark.asyncio
+async def test_the_agent_can_ask_what_it_has_not_asked(server):
+    """Not the model deducing it: a query. 'unknown' is a stored state."""
+    async with Client(server) as client:
+        coverage = await client.call_tool('kitchen_elicitation_coverage', {})
+        questions = await client.call_tool('kitchen_next_questions', {'limit': 3})
+    assert coverage.data['still_unknown']
+    assert coverage.data['ready_to_recommend'] is False
+    assert questions.data['questions'][0]['priority'] == 1
+
+
+@pytest.mark.asyncio
+async def test_recording_an_answer_reports_what_is_settled(server):
+    """The agent kept re-asking things it had just been told."""
+    async with Client(server) as client:
+        result = await client.call_tool(
+            'kitchen_record_capability',
+            {'category': 'equipment', 'item': 'fogao',
+             'state': 'confirmed_yes', 'note': '4 bocas'},
+        )
+    settled = result.data['already_answered']
+    unknown = result.data['still_unknown']
+    assert 'fogao' in settled
+    # Order-independent: other tests share this database, so assert the
+    # relationship rather than which specific items happen to be pending.
+    assert unknown, 'the checklist is never fully answered by one call'
+    assert not set(settled) & set(unknown)
+
+
+@pytest.mark.asyncio
+async def test_cmv_is_arithmetic_and_shows_its_working(server):
+    """The model writes no number here."""
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': 'Conta', 'equipment_needed': [], 'techniques_needed': []},
+        )
+        result = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': 'Conta',
+             'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
+        )
+    line = result.data['ingredients'][0]
+    assert line['arithmetic'] == '0.2 x 14.00 = 2.80'
+    assert result.data['cmv_per_portion'] == pytest.approx(2.80)
+
+
+@pytest.mark.asyncio
+async def test_an_ambiguous_unit_becomes_a_question_not_an_estimate(server):
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': 'Brownie', 'equipment_needed': [], 'techniques_needed': []},
+        )
+        result = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': 'Brownie',
+             'lines': [{'ingredient': 'Cobertura de chocolate',
+                        'quantity': 200, 'unit': 'g'}]},
+        )
+    assert result.data['cmv_per_portion'] is None
+    assert result.data['open_questions']

@@ -365,15 +365,55 @@ flowchart LR
     Y --> OK["safe_to_shop = true"]
 ```
 
+#### O agente sabe o que ainda não perguntou
+
+Isso não é dedução do modelo, é uma consulta. `unknown` é um estado guardado, e
+por isso a lacuna é contável:
+
+| Ferramenta | Devolve |
+|---|---|
+| `kitchen_elicitation_coverage` | `answered`, `still_unknown`, `coverage_percent`, `ready_to_recommend` |
+| `kitchen_next_questions` | O que falta, ordenado por prioridade, com a pergunta pronta |
+| `kitchen_elicitation_gaps` | Para um prato: o que perguntar antes de comprar |
+| `kitchen_record_capability` | Depois de gravar: `already_answered` e `still_unknown` |
+
+O último existe porque o agente, tendo acabado de gravar uma resposta, voltava a
+perguntar coisas que ela já tinha dito. Agora a própria gravação devolve a lista
+do que está resolvido, e itens de prioridade 1 barram qualquer recomendação
+enquanto seguirem `unknown`.
+
 Uma exigência que o catálogo nunca viu também bloqueia, e pode ser incorporada
 ao catálogo para o próximo prato não redescobri-la. O catálogo já vem com 26
 itens entre equipamentos, técnicas e restrições operacionais, e o que é gravado
 é sempre uma chave dele — `forno de 45l` vira `forno`, com o detalhe na nota.
 Chave livre seria um portão que não encontra o que ele mesmo gravou.
 
-E três ferramentas não são apenas desaconselhadas, são **recusadas** enquanto o
-portão não aprovar: preço, entrada no cardápio e fechamento de compra. Conselho
-errado se corrige na conversa seguinte; essas três custam dinheiro.
+#### O aceite é bloqueado por checagem, não por bom senso
+
+Três ferramentas não são desaconselhadas, são **recusadas** por um middleware
+que verifica pré-condições antes de deixar a chamada acontecer. Não é o modelo
+julgando que já pode; é uma condição que ou está satisfeita ou não está:
+
+| Ferramenta | Só executa se |
+|---|---|
+| `pricing_price_scenarios` | O portão aprovou **e** existe CMV completo para aquele prato |
+| `menu_add_dish` | Além disso, uma avaliação de confiança ocorreu para aquele prato |
+| `budget_commit_purchase` | O portão aprovou para aquele prato |
+
+A recusa vem com o motivo e o que fazer:
+
+```
+Recusado: nenhum preço sai antes do gate de viabilidade. Rode
+kitchen_analyse_recipe_requirements com o texto da receita... Ler o perfil
+da cozinha não conta: ler não é verificar.
+```
+
+A última frase existe porque era exatamente o atalho que o agente tomava. E o
+portão é por prato: aprovar a parmegiana e depois perguntar sobre lasanha não
+desaprova a parmegiana.
+
+Conselho errado se corrige na conversa seguinte. Essas três custam dinheiro ou
+vão para um cardápio impresso.
 
 ### Um prato só é real quando fontes independentes concordam
 
@@ -383,6 +423,28 @@ distintos suficientes **e** toca um ingrediente da despensa. Um nome feito só
 de palavras da despensa é um ingrediente, não um prato, e é descartado.
 
 ### Dinheiro nunca é inventado
+
+#### O CMV não passa pelo modelo
+
+`pricing_calculate_cmv` é Python. Ele recebe as linhas da receita, resolve cada
+ingrediente contra a despensa, converte a unidade e multiplica:
+
+```
+0.2 kg × R$ 14,00/kg = R$ 2,80
+```
+
+Cada linha volta com a conta escrita, e o total é a soma. O modelo não escreve
+número nenhum aqui — ele só decide o que perguntar e como contar para ela. Se
+uma unidade da receita não bate com a da compra, a ferramenta devolve uma
+**pergunta** em `open_questions` em vez de estimar.
+
+A mesma regra vale para preço mínimo, lucro, saldo de orçamento e projeção de
+inflação. Toda essa aritmética vive em `app/domain/`, sem nenhuma dependência de
+modelo, e é coberta por testes que rodam em milissegundos sem rede.
+
+E há uma segunda linha de defesa para o caso de o modelo escrever um número
+mesmo assim: `confidence_audit_figures` extrai cada cifra da mensagem e verifica
+se alguma ferramenta a produziu.
 
 `price_scenarios` sempre devolve o preço mínimo, porque isso é aritmética pura.
 Ele **não devolve preço de venda nenhum** sem uma faixa de mercado observada.
