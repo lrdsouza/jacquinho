@@ -100,16 +100,25 @@ class KitchenMCP(BaseMCP):
 
             entry = self._profile().record(category, resolved.key, state, note)
             item = resolved.key
+            planner = self._planner()
+            coverage = planner.coverage()
             return {
+                'already_answered': [
+                    row['item'] for row in coverage['answered_items']
+                ],
+                'still_unknown': [row['item'] for row in coverage['still_unknown']],
                 'ok': True,
                 'category': category,
                 'item': item,
                 **entry,
                 'next_step': (
-                    f"She can do this now. Call recipes_revisit_blocks('{item}') - "
-                    'dishes ruled out for lack of it come back on their own.'
+                    f"She can do this now. Call recipes_revisit_blocks('{item}'), "
+                    'then go straight back to the dish you were working on: '
+                    'kitchen_check_feasibility with its requirements. Everything '
+                    'in already_answered is settled - asking about any of it again '
+                    'tells her you were not listening.'
                     if state == 'confirmed_yes'
-                    else 'Recorded. Carry on with the conversation.'
+                    else 'Recorded.'
                 ),
             }
 

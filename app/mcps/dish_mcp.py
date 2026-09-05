@@ -88,7 +88,13 @@ class DishMCP(BaseMCP):
             Use this early: it tells you which kinds of dish are even on the
             table before you spend a search on them.
             '''
-            return self._planner().survey()
+            survey = self._planner().survey()
+            survey['next_step'] = (
+                'Ask her which of these she feels like cooking, then call '
+                'discover_dishes for it. Do not re-offer to search: she already '
+                'said yes by getting you here.'
+            )
+            return survey
 
         @self.mcp.tool
         def assess_category(

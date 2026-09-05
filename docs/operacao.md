@@ -63,9 +63,14 @@ Todo start reconstrói a imagem do MCP. São cerca de cinco segundos com cache
 quente, e em troca uma edição em `app/` nunca fica rodando contra uma imagem
 antiga — uma falha que não dá nenhum sinal.
 
-O `reset` apaga os dois volumes: a transcrição no Redis e todos os registros no
-Postgres — perfil da cozinha, catálogo de receitas com seus bloqueios, saldo do
-orçamento e cardápio. A planilha não é tocada.
+O `reset` apaga o Redis e o Postgres: transcrição, perfil da cozinha, catálogo
+de receitas com seus bloqueios, saldo do orçamento e cardápio. A planilha não é
+tocada, e **o volume do agente também não** — ele guarda o token de OAuth e a
+memória do próprio Hermes. Zerar uma consultoria não deveria custar um novo
+login no navegador.
+
+Para apagar tudo mesmo, incluindo a credencial:
+`docker compose -f dockerfile/docker-compose.yaml down -v`.
 
 ---
 

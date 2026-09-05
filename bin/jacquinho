@@ -130,12 +130,19 @@ case "${1:-chat}" in
         "${COMPOSE[@]}" down
         ;;
     reset)
-        warn 'This deletes the chat history, her kitchen profile, the budget ledger'
-        warn 'and the launch menu. The spreadsheet is untouched.'
+        warn 'This deletes the chat history, the recipe catalogue with every'
+        warn 'block on it, her kitchen profile, the budget ledger and the launch'
+        warn 'menu. The spreadsheet is untouched, and so is your login.'
         read -r -p 'Type RESET to confirm: ' answer
         [ "$answer" = RESET ] || die 'Cancelled.'
-        "${COMPOSE[@]}" down -v
-        bold 'All stored state deleted.'
+        "${COMPOSE[@]}" down
+        # Only the stores that hold HER data. hermes-data holds the OAuth token
+        # and the agent's own memory: wiping it to reset a consultation costs a
+        # browser round-trip to log in again, for nothing.
+        for volume in jacquinho_postgres-data jacquinho_redis-data; do
+            docker volume rm "$volume" >/dev/null 2>&1 || true
+        done
+        bold 'Her data is gone. Your login is not.'
         ;;
     login)
         services_up skip-credentials
