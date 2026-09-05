@@ -320,6 +320,23 @@ O que resta da falha 2. "Você tem frango, consegue fazer parmegiana, e eu
 cobraria R$ 19,90" são três afirmações com apoios diferentes e recebem uma nota
 só, a da última.
 
+### A conferência de cifras que roda sozinha
+
+`confidence_audit_figures` sempre existiu e sempre foi opcional, e por isso não
+rodou no turno em que mais importava: uma mensagem disse à Dona Maria que
+sobravam R$ 7,26 por marmita quando a ferramenta tinha devolvido R$ 5,27, com a
+taxa da plataforma esquecida na subtração feita em prosa.
+
+Agora a mesma conferência roda na fronteira do turno, contra **todos** os
+números que qualquer ferramenta produziu na sessão. Isso exigiu guardar mais que
+a trilha de evidências, que tem seis compartimentos e não guarda nem preço nem
+cardápio, ou seja, justamente as cifras que ela usa para decidir.
+
+É uma métrica grosseira de propósito: pergunta se a cifra existe em algum
+resultado, não se está no lugar certo da frase. Não pega um número certo usado
+errado. Pega o número que ninguém calculou, e sai como `jacquinho.figures` no
+log. Ver [decisoes.md](decisoes.md), item 37.
+
 ### Calibrar os degraus
 
 O que resta da falha 3, e o mais caro. Registrar desfecho (o prato foi aceito?

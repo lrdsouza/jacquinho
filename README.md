@@ -263,6 +263,7 @@ a mais, um falso negativo custa os ingredientes dela. Está em
 - [Garantias](#garantias)
 - [Configuração](#configuração)
 - [Estrutura do projeto](#estrutura-do-projeto)
+- [As decisões, em uma página](#as-decisões-em-uma-página)
 - [O que eu não fiz, e por quê](#o-que-eu-não-fiz-e-por-quê)
 - [Documentação](#documentação)
 
@@ -596,6 +597,8 @@ sequenceDiagram
     participant K as kitchen
     participant PR as pricing, market, economy
     participant C as confidence
+    participant B as budget
+    participant MN as menu
 
     A->>P: listar ingredientes, avaliar categorias
     P-->>A: 37 ingredientes, custos unitários normalizados
@@ -605,7 +608,7 @@ sequenceDiagram
     M-->>A: gosta de cozinhar? vê algum problema?
 
     rect rgb(240, 245, 255)
-    note over A,K: Nada é comprado até isso fechar
+    note over A,K: Nada é decidido nem reservado até isso fechar
     A->>K: analisar o que a receita exige
     K-->>A: equipamentos e técnicas, com as palavras que levantaram cada um
     A->>M: uma pergunta por vez
@@ -614,12 +617,24 @@ sequenceDiagram
     K-->>A: safe_to_shop
     end
 
-    A->>PR: CMV, preços de mercado, inflação atual
-    PR-->>A: custo, faixa de preço, lucro em termos reais
+    A->>PR: CMV com o preço pesquisado do que falta
+    PR-->>A: fração no custo, embalagem inteira na lista de compras
+    A->>PR: mercado e inflação atual
+    PR-->>A: faixa de preço, lucro em termos reais
     A->>C: rascunho da resposta e todas as evidências
     C-->>A: nota, impedimentos, ticket de julgamento
-    A->>M: cenários com a conta e as fontes abertas
-    M-->>A: a escolha dela
+    A->>M: cenários com a conta, e o que ela precisaria comprar
+    M-->>A: o preço que ela escolhe, e se topa comprar
+
+    rect rgb(245, 248, 240)
+    note over A,MN: Só aqui alguma coisa fica decidida
+    A->>B: reservar a compra, com as palavras dela
+    B-->>A: quanto sobra dos R$ 80
+    A->>MN: prato no cardápio
+    A->>MN: resultado da fornada, com a quantidade que ela deu
+    MN-->>A: receita, taxa, custo, lucro, margem sobre a venda
+    A->>M: o dia dela em números
+    end
 ```
 
 Quando um prato cai, seja porque ela não quer cozinhar aquilo ou porque a
@@ -817,6 +832,34 @@ Cada linha volta com a conta escrita, e o total é a soma. O modelo não escreve
 número nenhum aqui: ele só decide o que perguntar e como contar para ela. Se
 uma unidade da receita não bate com a da compra, a ferramenta devolve uma
 **pergunta** em `open_questions` em vez de estimar.
+
+#### O que ela não tem custa duas coisas diferentes
+
+Ela não compra 40 g de leite condensado: compra uma lata. A receita come uma
+colherada. São dois números e não são o mesmo, e a ferramenta separa os dois a
+partir do preço de **uma embalagem**:
+
+```mermaid
+flowchart LR
+    R["a receita pede<br/>15 g por brigadeiro<br/>x 25 unidades"] --> N{"está na<br/>despensa?"}
+    N -->|sim| U["custo unitário da planilha"]
+    N -->|não| P["researched_prices:<br/>R$ 7,89 a lata de 395 g"]
+    P --> D["R$ 7,89 / 395 g<br/>= R$ 0,02 por grama"]
+    D --> C["<b>CMV</b><br/>15 g x 0,02 = R$ 0,30<br/><i>a colherada</i>"]
+    D --> L["<b>lista de compras</b><br/>375 g / 395 g = 1 lata<br/>= R$ 7,89<br/><i>a embalagem inteira</i>"]
+    U --> C
+    P -.->|sem preço pesquisado| X["not_found:<br/>nada é precificado"]
+```
+
+A compra arredonda **para cima**, sempre: 400 g de necessidade sobre latas de
+395 g dão duas latas, e a sobra volta dita, com unidade. Sem o preço pesquisado
+o ingrediente cai em `not_found` e o cálculo fica incompleto, em vez de a
+ferramenta estimar.
+
+Isso não era assim. O ingrediente de fora ficava fora do CMV e **não havia
+caminho de volta**, então o modelo fazia a divisão na mensagem: três embalagens
+inteiras viraram o custo de uma fornada de brigadeiro. Decisão completa em
+[docs/decisoes.md](docs/decisoes.md), item 39.
 
 A mesma regra vale para preço mínimo, lucro, saldo de orçamento e projeção de
 inflação. Toda essa aritmética vive em `app/domain/`, sem nenhuma dependência de
@@ -1125,6 +1168,67 @@ precisam mudar.
 ├── dockerfile/               imagem, compose, dependências, config do agente
 └── docs/                     arquitetura, decisões, referências
 ```
+
+---
+
+## As decisões, em uma página
+
+Quarenta e uma decisões de arquitetura, cada uma com motivo, consequência e o
+que ela custou. O documento completo é **[docs/decisoes.md](docs/decisoes.md)**;
+esta página é uma seleção, agrupada pelo problema que cada decisão resolve, e
+cada número abaixo abre direto na decisão. As que não estão aqui aparecem em
+prosa ao longo do README, e nenhuma delas é menos importante: só é mais fácil
+de entender no lugar onde o assunto aparece.
+
+**Onde mora cada tipo de regra**
+
+| # | Decisão | Em uma linha |
+|---:|---|---|
+| [1](docs/decisoes.md#1-o-cálculo-vive-fora-do-modelo-de-linguagem) | O cálculo vive fora do modelo | Dinheiro é Python; o modelo decide o que dizer, nunca quanto é |
+| [3](docs/decisoes.md#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode) | O procedimento vai com o servidor; a voz não | O Hermes trata texto de MCP como dado, então a persona mora no `SOUL.md` |
+| [4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills) | Ferramentas MCP em vez de skills | O que dá para conferir vira ferramenta; o que só dá para dizer continua texto |
+| [19](docs/decisoes.md#19-o-postgres-guarda-os-dados-da-dona-maria) | Postgres para o que ela decidiu | Redis quando perder custa contexto; Postgres quando custa uma pergunta repetida ou dinheiro |
+| [33](docs/decisoes.md#33-os-limites-do-turno-são-do-runtime-não-do-modelo) | Os limites do turno são do runtime | Dois hooks trazem a fala dela e a resposta final, fora do alcance do modelo |
+
+**O que impede um erro caro**
+
+| # | Decisão | Em uma linha |
+|---:|---|---|
+| [7](docs/decisoes.md#7-capacidades-têm-três-estados-e-silêncio-não-é-consentimento) | Três estados, e silêncio não é consentimento | `unknown` é uma pergunta, nunca um sim |
+| [8](docs/decisoes.md#8-as-exigências-são-lidas-da-receita-não-recordadas) | Exigências lidas da receita | O forno veio do texto `leve ao forno`, não da memória do modelo |
+| [25](docs/decisoes.md#25-as-ferramentas-exigem-umas-às-outras) | As ferramentas exigem umas às outras | Preço exige portão e CMV; cardápio exige, além disso, avaliação |
+| [32](docs/decisoes.md#32-um-confirmado-é-uma-afirmação-sobre-o-que-ela-disse) | Um "confirmado" é uma afirmação sobre o que ela disse | Exige a citação dela, conferida na transcrição capturada |
+| [35](docs/decisoes.md#35-um-sim-com-mas-dentro-não-é-um-sim) | Um "sim" com "mas" dentro não é um sim | Forno que queima embaixo volta como pergunta, não como capacidade |
+| [36](docs/decisoes.md#36-o-agente-não-compra-nada-e-o-orçamento-é-uma-reserva) | O agente não compra nada | O orçamento é reserva, e reservar exige a decisão dela |
+| [39](docs/decisoes.md#39-um-ingrediente-de-fora-tem-dois-custos-e-a-ferramenta-separa-os-dois) | O que ela não tem custa duas coisas | A embalagem que ela compra e a fração que a receita come |
+
+**O que garante que ela seja informada**
+
+| # | Decisão | Em uma linha |
+|---:|---|---|
+| [24](docs/decisoes.md#24-o-estado-da-conversa-viaja-em-toda-resposta-de-ferramenta) | O estado viaja em toda resposta | O agente não perde o fio porque nada em frente dele diz onde está |
+| [30](docs/decisoes.md#30-o-prato-morto-é-fechado-pela-ferramenta-não-pelo-lembrete) | O prato morto é fechado pela ferramenta | Gravar o "não tenho forno" roda o portão e arquiva o prato ali mesmo |
+| [31](docs/decisoes.md#31-o-veredito-é-uma-dívida-da-conversa-não-um-lembrete) | O veredito é uma dívida da conversa | Seguir em frente é recusado até ela ouvir; o fim do turno confere |
+| [37](docs/decisoes.md#37-as-cifras-da-mensagem-são-conferidas-sozinhas-no-fim-do-turno) | As cifras são conferidas sozinhas | Todo R$ da mensagem contra todo R$ que uma ferramenta produziu |
+| [34](docs/decisoes.md#34-um-veredito-não-é-devido-duas-vezes) | Um veredito não é devido duas vezes | Repetir o que ela já ouviu é o mesmo defeito de nunca ter dito |
+| [38](docs/decisoes.md#38-recusar-um-prato-por-gosto-arquiva-o-prato) | Recusar por gosto arquiva o prato | Sem segunda chamada, porque segunda chamada é chamada que se pula |
+| [41](docs/decisoes.md#41-o-portão-sozinho-basta-para-arquivar-o-prato) | O portão sozinho basta para arquivar | A garantia não pode depender de qual das duas ferramentas o modelo escolheu |
+| [40](docs/decisoes.md#40-o-fechamento-fala-do-dia-não-da-marmita) | O fechamento fala do dia | Margem sobre a venda, e o desembolso separado do custo de produção |
+
+**O que é honesto sobre os próprios limites**
+
+| # | Decisão | Em uma linha |
+|---:|---|---|
+| [12](docs/decisoes.md#12-nenhum-preço-de-venda-sem-mercado-observado) | Nenhum preço de venda sem mercado observado | Sem faixa apurada ele devolve o piso e se recusa a sugerir preço |
+| [15](docs/decisoes.md#15-a-confiança-combina-dois-avaliadores-de-forma-conservadora) | Confiança conservadora | Dois avaliadores, e vale a nota do menos convencido |
+| [23](docs/decisoes.md#23-as-falhas-da-métrica-são-corrigidas-onde-dá-e-escritas-onde-não-dá) | Falhas escritas onde não dá para corrigir | Os limiares ordenam respostas; não medem probabilidade de nada |
+| [29](docs/decisoes.md#29-a-busca-tem-um-teto-por-sessão) | A busca tem teto | Categoria vazia não fica cheia na décima tentativa |
+
+O fio que atravessa quase todas: **uma regra escrita onde não pode ser imposta
+não é garantia.** Cada decisão a partir da 29 existe porque uma instrução que o
+modelo podia pular foi pulada numa conversa gravada, e o conserto foi sempre o
+mesmo, mover a regra para onde existe uma verificação. As conversas estão em
+[docs/dialogos.md](docs/dialogos.md).
 
 ---
 

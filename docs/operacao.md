@@ -252,6 +252,28 @@ ferramenta, e as que carregam evidência (o gate, o CMV, o consenso, o mercado e
 a inflação) alimentam a nota. As linhas cruas saem em `jacquinho logs
 jacquinho-mcp` com o prefixo `jacquinho.confidence`, em JSON.
 
+### As três linhas que valem grep
+
+Todas em `jacquinho logs jacquinho-mcp`, todas em JSON, e nenhuma depende de o
+agente pedir.
+
+| Prefixo | Quando aparece | O que dizer sobre ela |
+|---|---|---|
+| `jacquinho.confidence` | Toda chamada de ferramenta | Uma por chamada; a nota e a banda do que está prestes a ser dito |
+| `jacquinho.verdict` | Fim de turno, se um prato morreu ou voltou | `delivered: false` significa que ela **não** foi informada e o próximo turno começa fechado |
+| `jacquinho.figures` | Fim de turno, só se houver cifra sem lastro | Um R$ na mensagem que nenhuma ferramenta produziu, com o trecho onde aparece |
+
+Turno limpo não gera as duas últimas. Se aparecerem, aponte para a mensagem:
+
+```bash
+jacquinho logs jacquinho-mcp | grep 'jacquinho.figures'
+jacquinho logs jacquinho-mcp | grep 'jacquinho.verdict' | grep 'false'
+```
+
+A primeira pega o número que o modelo escreveu em prosa; a segunda, o veredito
+que ele guardou para si. As duas nascem no mesmo lugar, a fronteira do turno,
+que é o único ponto onde o servidor vê a mensagem que chega até ela.
+
 ---
 
 ## Depurando sem o agente

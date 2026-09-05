@@ -190,12 +190,12 @@ conferência, e a gravação passa a dizer `her_words_verified: false`.
 
 | Ferramenta | O que faz | Argumentos | Notas |
 |---|---|---|---|
-| `menu_record_feedback` | Registra o que ela achou de um prato. | `dish`, `likes_cooking`, `comment`, `impediments` | Um "não gosto" encerra o assunto e aponta para o bloqueio e a próxima opção. |
+| `menu_record_feedback` | Registra o que ela achou de um prato. | `dish`, `likes_cooking`, `comment`, `impediments` | Um "não gosto" **arquiva o prato ali mesmo**, com o motivo dela, e devolve `shelved_for_good`. Bloqueio por gosto é o único que nada levanta. |
 | `menu_list_feedback` | Tudo que ela já disse sobre pratos. | nenhum | Separado em aprovados e recusados. |
 | `menu_acceptance_check` | O que ainda falta para este prato entrar no cardápio. | `dish`, `requirements` | Reúne as cinco checagens num lugar só e devolve as perguntas que ela ainda não ouviu, prontas. |
 | `menu_add_dish` | Coloca um prato aceito no cardápio. | `dish`, `category`, `cmv`, `price`, `confidence_band`, `notes` | Só depois do gate, do CMV completo, do preço ancorado e da escolha dela. |
 | `menu_remove_dish` | Tira um prato do cardápio. | `dish` |  |
-| `menu_expected_return` | O resultado da fornada inteira. | `portions` (prato e quantidade) | Receita, taxa da plataforma, custo dos ingredientes usados, lucro e margem sobre a venda, mais a frase pronta em `say_it_like_this`. O desembolso e o custo de produção vêm separados de propósito. |
+| `menu_expected_return` | O resultado da fornada inteira. | `portions` (prato e quantidade) | Receita, taxa da plataforma, custo dos ingredientes usados, lucro e três percentuais: `margin_on_sales_percent` (o que citar), `return_on_cost_percent` e `return_on_cash_percent`. A frase pronta vem em `say_it_like_this`, e `careful_with` diz por que não citar as outras duas. Desembolso e custo de produção vêm separados de propósito. |
 | `menu_build_launch_menu` | O cardápio: cada prato com custo, preço e lucro. | nenhum | Marca os que entraram com evidência fraca. |
 
 ---

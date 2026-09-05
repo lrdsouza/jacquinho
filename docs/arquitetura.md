@@ -184,11 +184,13 @@ sequenceDiagram
     participant B as budget
     participant E as economy
     participant Mk as market
+    participant Mn as menu
 
     A->>K: analyse_recipe_requirements(texto da receita)
     K-->>A: exigências e o que ela nunca respondeu
     Note over A,K: repete até safe_to_shop
-    A->>P: calculate_cmv(linhas)
+    A->>P: calculate_cmv(linhas, researched_prices)
+    Note over P: fração no CMV,<br/>embalagem inteira na lista
     P->>B: check(custo da compra) contra o saldo vivo
     B-->>P: cabe, ou quanto falta
     P-->>A: CMV, compras, perguntas em aberto
@@ -198,7 +200,21 @@ sequenceDiagram
     P->>E: inflação de alimentos atual
     E-->>P: índice de 12 meses da localidade
     P-->>A: cenários com lucro em termos reais
+
+    Note over A,Mn: ela escolhe, e só então algo fica decidido
+    A->>B: reserve_purchase(com as palavras dela)
+    B-->>A: quanto sobra dos R$ 80
+    A->>Mn: add_dish(prato, cmv, preço)
+    A->>Mn: expected_return(quantas porções saem)
+    Mn->>B: quanto ela ainda desembolsa
+    B-->>Mn: reservado
+    Mn-->>A: receita, taxa, custo, lucro, margem sobre a venda
 ```
+
+Duas leituras cruzadas aparecem aqui e são deliberadas: `pricing` consulta o
+saldo do orçamento para que uma estimativa reflita o que já foi decidido, e
+`menu` consulta o mesmo saldo para separar, no fechamento, o que a comida custa
+do que ainda precisa sair do bolso dela.
 
 ## Posse do estado
 
