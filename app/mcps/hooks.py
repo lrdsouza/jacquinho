@@ -33,6 +33,7 @@ import logging
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from ..domain.audit import MessageAudit
 from ..domain.memory import ConversationStore
 from ..domain.verdict import VerdictAnnouncement
 
@@ -101,6 +102,31 @@ class HookRoutes:
             # Losing a turn costs a verification, not the consultation.
             logger.warning('turn not captured: %s', error)
 
+    def _audit_figures(self, session: str, reply: str) -> None:
+        '''Every R$ in the message, against every R$ the tools produced.
+
+        `confidence_audit_figures` does this on demand, and the agent has to
+        remember to ask. It did not: a closing message told her the strogonoff
+        left R$ 7,26 per marmita when the tool had returned R$ 5,27, because the
+        model subtracted cost from price in prose and forgot the platform fee.
+        The ledger had the right number the whole time.
+
+        Nothing here can unsend that message. What it can do is stop the error
+        from being invisible, which is the difference between a bug and a
+        rumour.
+        '''
+        known = self.observer.numbers_seen(session)
+        if not known or not reply.strip():
+            return
+        report = MessageAudit.check(reply, {'tools': sorted(known)})
+        if report['verdict'] == 'clean':
+            return
+        logger.warning(
+            'jacquinho.figures %s',
+            json.dumps({'unsupported': report['unsupported'],
+                        'stated': report['figures_stated']}, ensure_ascii=False),
+        )
+
     def register(self) -> None:
         @self.root.custom_route('/hooks/her-message', methods=['POST'])
         async def her_message(request: Request) -> JSONResponse:
@@ -131,6 +157,8 @@ class HookRoutes:
             self._save('agent', reply)
 
             session = self._session()
+            self._audit_figures(session, reply)
+
             owed = self.observer.owed_announcement(session)
             if not owed:
                 return JSONResponse({})

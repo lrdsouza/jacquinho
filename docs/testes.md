@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-191-success)
+![Unitários](https://img.shields.io/badge/testes-195-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,12 +38,12 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**191 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**195 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
-| `test_mcp_server.py` | 32 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
+| `test_mcp_server.py` | 34 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
 | `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
@@ -54,7 +54,7 @@ ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 | `test_verdict.py` | 12 | A frase que ela lê nomeia o prato e o motivo; um sim com "mas" não é sim |
 | `test_audit.py` | 11 | Todo R$ e todo % da mensagem sai de uma ferramenta |
 | `test_budget_and_catalogue.py` | 7 | Bloqueio condicional contra bloqueio por gosto |
-| `test_hooks.py` | 7 | As fronteiras do turno: fala capturada, veredito entregue |
+| `test_hooks.py` | 9 | As fronteiras do turno: fala capturada, veredito entregue, cifras conferidas |
 
 `test_hooks.py` fala com o servidor por HTTP puro, do jeito que os scripts de
 hook falam, em vez de por MCP: é o único caminho do sistema que o modelo não
@@ -300,6 +300,66 @@ acontecer, e aqui não faz.
 O fim do turno pegou (`delivered: false`), reabriu a dívida, e o turno seguinte
 começou com tudo fechado, e ela ouviu. Que é a garantia inteira, sem exagero:
 não dá para desdizer um turno ruim, dá para recusar esquecê-lo.
+
+---
+
+### A rodada que testou os caminhos que ninguém tinha testado
+
+As duas transcrições do README começam com ela sabendo o que quer. Esta começou
+com *"não faço ideia do que colocar"*, que é o outro caminho inteiro, e achou
+quatro coisas.
+
+**O agente contou a ela um lucro que nenhuma ferramenta calculou.** Fechando o
+estrogonofe a R$ 19,90 sobre um CMV de R$ 12,64, a mensagem disse *"deixando
+R$ 7,26 no seu bolso"*. O valor certo é R$ 5,27, e é o que estava gravado em
+`menu_items`: 19,90 menos os 10% da plataforma dá 17,91, menos 12,64 dá 5,27. O
+modelo subtraiu custo de preço em prosa e esqueceu a taxa, num turno em que ele
+mesmo já tinha dito 5,27 uma mensagem antes.
+
+`confidence_audit_figures` existe exatamente para isso e não foi chamado, porque
+chamá-lo é opcional. Agora a conferência roda sozinha no fim do turno, contra
+**todos** os números que qualquer ferramenta produziu na sessão. Isso exigiu
+guardar mais que a trilha de evidências: a trilha tem seis compartimentos, e
+preço e cardápio não alimentam nenhum deles, ou seja, justamente os números que
+ela usa para decidir. O que sai é uma linha `jacquinho.figures` no log com a
+cifra que ninguém produziu.
+
+O limite continua o mesmo dos hooks: não dá para desdizer a mensagem. Dá para
+não deixar o erro invisível, que é a diferença entre um defeito e um boato.
+
+**A recusa por gosto não sobrevivia à conversa.** Ela disse que parmegiana dá
+muito trabalho e nunca fica boa; o agente respondeu *"anotado, nem entra na
+conversa"* e não escreveu nada: `dish_feedback` e `recipe_blocks` vazios. Vinte
+turnos depois a janela do Redis rola e a parmegiana volta a ser uma ideia nova.
+
+A causa era conhecida e repetida: o `next_step` do `menu_record_feedback` pedia
+uma **segunda** chamada, `recipes_reject_candidate`. Segunda chamada é chamada
+que se pula. Agora a própria recusa arquiva o prato, com o motivo dela e sem
+poder ser levantado por mudança de equipamento, porque gosto não é um problema
+esperando solução.
+
+**O texto do checador vazou de novo, e desta vez a fonte era o `SOUL.md`.** A
+mensagem saiu com *"É o que decide isso"*, colado do passo 2 das instruções de
+como fechar um prato. A lição repetida: um rótulo lido por um modelo prestes a
+escrever para ela é um rascunho, queira-se ou não. O passo virou uma frase de
+exemplo em português corrente, com o aviso de que a lista descreve o que ela
+precisa entender e não é para copiar.
+
+**O que passou.** O portão do forno disparou nos dois pratos novos, inclusive
+num prato que ela pediu no meio da conversa. A reserva de orçamento se comportou
+como devia: falando de R$ 29,75 sem reservar enquanto era estimativa, e
+reservando só depois do *"pode reservar o que precisar comprar"*. Os números do
+segundo prato bateram exatamente, taxa de plataforma incluída. E o agente
+recusou-se três vezes a dar preço antes de fechar a elicitação, mesmo com ela
+pedindo o preço direto.
+
+**O que ficou aberto.** Duas coisas, ditas por escrito em vez de escondidas.
+Ele sugeriu dois pratos na panela de pressão antes de perguntar se ela tem uma;
+sugerir não é comprar, e o portão continua entre a sugestão e o dinheiro, mas a
+ordem certa é perguntar antes. E a recusa de gosto só é gravada se o agente
+chamar `menu_record_feedback`; quando ela recusa um prato que ninguém propôs,
+como aconteceu aqui, nada obriga o registro. Fechar isso pediria ler intenção na
+mensagem dela, que é julgamento de modelo e não checagem.
 
 ---
 

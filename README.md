@@ -910,6 +910,12 @@ bloqueou. No dia em que ela responde que passou a ter aquilo, os pratos voltam
 sozinhos, e ela ouve isso pelo mesmo caminho, porque a volta também é uma
 dívida:
 
+Recusa por **gosto** também é durável, e é o único bloqueio que nada levanta:
+quando ela diz que não quer cozinhar um prato, ele sai da mesa ali mesmo, com o
+motivo nas palavras dela. Antes o registro dependia de uma segunda chamada de
+ferramenta, e segunda chamada é chamada que se pula: ela disse que parmegiana dá
+trabalho demais, o agente respondeu "anotado", e o catálogo ficou vazio.
+
 ```
 ela não tem forno   -> Lasanha e Bolo bloqueados por 'forno'
                        Parmegiana bloqueada por gosto
@@ -997,6 +1003,18 @@ dito e verifica se apareceu em alguma resposta de ferramenta:
 
 Não pega todo tipo de erro. Pega o que este sistema existe para impedir: um
 preço que ninguém calculou.
+
+E **roda sozinho**, no fim de cada turno, contra todos os números que qualquer
+ferramenta produziu na sessão. Chamar a ferramenta era opcional, e numa conversa
+gravada o agente não chamou: fechando um prato a R$ 19,90 sobre um custo de
+R$ 12,64, ele disse a ela *"deixando R$ 7,26 no seu bolso"*. O certo é R$ 5,27,
+e estava gravado no cardápio na mesma chamada: 19,90 menos os 10% da plataforma
+dá 17,91, menos 12,64 dá 5,27. Ele subtraiu custo de preço em prosa e esqueceu a
+taxa.
+
+Uma cifra que nenhuma ferramenta produziu vira uma linha `jacquinho.figures` no
+log, com o trecho onde ela aparece. Como tudo que mora na fronteira do turno,
+isso não desfaz a mensagem; impede que o erro passe despercebido.
 
 ### A confiança se calcula sozinha
 

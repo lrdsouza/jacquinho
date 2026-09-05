@@ -184,3 +184,40 @@ async def test_a_verdict_she_already_heard_is_not_owed_again(http, built):
         )
     assert again.data['dish_now_ruled_out'] is None
     assert built.observer.owed_announcement(session) is None
+
+
+@pytest.mark.asyncio
+async def test_a_figure_no_tool_produced_is_caught_at_the_turn_boundary(http, built, caplog):
+    """A closing message told her the strogonoff left R$ 7,26 per marmita when
+    the tool had returned R$ 5,27: cost subtracted from price in prose, platform
+    fee forgotten. confidence_audit_figures would have caught it, and the agent
+    did not call it."""
+    import logging
+
+    built.observer.numbers['local'] = {12.64, 19.90, 17.91, 5.27}
+
+    async with http as client:
+        with caplog.at_level(logging.WARNING, logger='jacquinho.hooks'):
+            await client.post('/hooks/final-message', json={
+                'session_id': 's1',
+                'assistant_response': 'Cada marmita custa R$ 12,64 e deixa '
+                                      'R$ 7,26 no seu bolso.',
+            })
+    assert 'jacquinho.figures' in caplog.text
+    assert '7.26' in caplog.text, 'a figura inventada tem de aparecer no log'
+    assert '12.64' not in caplog.text, 'a que veio de ferramenta, não'
+
+
+@pytest.mark.asyncio
+async def test_a_message_whose_figures_all_came_from_tools_is_quiet(http, built, caplog):
+    import logging
+
+    built.observer.numbers['local'] = {12.64, 19.90, 5.27}
+    async with http as client:
+        with caplog.at_level(logging.WARNING, logger='jacquinho.hooks'):
+            await client.post('/hooks/final-message', json={
+                'session_id': 's1',
+                'assistant_response': 'Custa R$ 12,64, vende a R$ 19,90, sobra '
+                                      'R$ 5,27 pra você.',
+            })
+    assert 'jacquinho.figures' not in caplog.text

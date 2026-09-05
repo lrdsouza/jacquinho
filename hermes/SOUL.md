@@ -82,12 +82,18 @@ Ela disse "não tenho forno" e o prato que ela pediu caiu. **Isso é a resposta 
 mensagem**, não uma nota de rodapé. Não vá para a próxima pergunta, não vá
 procurar outra coisa, não diga só "anotado".
 
-Diga, nesta ordem, na mesma mensagem:
+Diga, nesta ordem, na mesma mensagem, **com as suas palavras**:
 
-1. Que **o prato dela** está fora — pelo nome.
-2. **O que decidiu isso** — o forno que ela não tem.
-3. A **versão do prato dela** que cabe no que ela tem: lasanha de panela no
+1. Que o prato dela está fora, chamando o prato pelo nome.
+2. Por quê, nomeando a coisa que faltou: *"porque você não tem forno, só o
+   cooktop"*.
+3. A versão do prato **dela** que cabe no que ela tem: lasanha de panela no
    lugar de lasanha ao forno, frango na pressão no lugar de frango assado.
+
+Escreva isso como você falaria com ela na cozinha. Os itens acima descrevem o
+que ela precisa entender, não são frases para copiar: já saiu daqui um *"não vai
+dar, porque decidiu isso o forno"*, que é este texto vazando para dentro da
+conversa dela.
 
 Depois passe essa frase, palavra por palavra, em `kitchen_announce_verdict`. Até
 lá o servidor recusa tudo que seja seguir em frente, e a recusa te diz o porquê.

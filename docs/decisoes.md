@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-36-6E56CF)
+![Registros](https://img.shields.io/badge/registros-38-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -1024,3 +1024,66 @@ palavra dela devolve a instrução de nunca dizer que comprou.
 **Observabilidade.** `budget_get_status` fala em `reserved_for_her_to_buy`, e
 cada linha de `budget_entries` carrega a descrição do que **ela** vai comprar.
 Quem ler o banco depois não confunde uma intenção com um recibo.
+
+---
+
+## 37. As cifras da mensagem são conferidas sozinhas, no fim do turno
+
+**Decisão.** O fim do turno extrai todo R$ e todo % da resposta e compara com
+**todos** os números que qualquer ferramenta produziu na sessão. O que não bate
+sai no log como `jacquinho.figures`. Para isso o observador passou a guardar as
+cifras de toda chamada, não só os seis compartimentos da trilha de evidências.
+
+**Motivo.** Fechando um estrogonofe a R$ 19,90 sobre CMV de R$ 12,64, o agente
+disse a ela *"deixando R$ 7,26 no seu bolso"*. O valor certo é R$ 5,27, gravado
+em `menu_items` na mesma chamada: 19,90 menos os 10% da plataforma dá 17,91,
+menos 12,64 dá 5,27. O modelo subtraiu custo de preço em prosa e esqueceu a
+taxa, num turno em que ele mesmo já tinha dito 5,27 uma mensagem antes.
+
+`confidence_audit_figures` faz exatamente essa conferência desde o começo, e não
+foi chamado. É a mesma história da decisão 15: uma ferramenta que o agente deve
+lembrar de chamar é uma ferramenta que não roda quando mais importa.
+
+A trilha de evidências não servia como referência porque tem seis
+compartimentos, e nem preço nem cardápio alimentam algum deles. Os números que
+ela usa para decidir eram justamente os invisíveis.
+
+**Consequência.** A conferência é grosseira de propósito: pergunta se a cifra
+existe em algum resultado de ferramenta, não se está no lugar certo da frase.
+Não pega um número certo usado errado. Pega o número que ninguém calculou, que é
+a falha que custa dinheiro a ela.
+
+Como todo o resto que mora na fronteira do turno, isto não desfaz a mensagem. O
+que muda é que o erro deixa de ser invisível.
+
+**Observabilidade.** Uma linha por turno sujo, com a cifra e o trecho onde ela
+aparece. Turno limpo não gera linha.
+
+---
+
+## 38. Recusar um prato por gosto arquiva o prato
+
+**Decisão.** `menu_record_feedback` com `likes_cooking` falso bloqueia o prato
+ali mesmo, com o motivo nas palavras dela, criando a entrada no catálogo se ela
+não existir. O bloqueio é `disliked`, que é o único não condicional.
+
+**Motivo.** Ela disse que parmegiana dá muito trabalho e nunca fica boa. O
+agente respondeu "anotado, nem entra na conversa" e não escreveu nada:
+`dish_feedback` e `recipe_blocks` vazios ao fim da conversa. Vinte turnos
+depois, a janela do Redis rola e a parmegiana volta a ser uma ideia nova.
+
+A causa está escrita neste documento umas cinco vezes: o `next_step` pedia uma
+**segunda** chamada, `recipes_reject_candidate`, e segunda chamada é chamada que
+se pula. É o mesmo conserto do prato bloqueado por equipamento na decisão 30, e
+foi preciso repetir porque o defeito não estava no prato bloqueado, estava no
+padrão.
+
+**Consequência.** O prato que ela recusou fica arquivado como recusado, e não
+volta quando ela comprar um forno, porque gosto não é impedimento esperando
+solução. Repetir a recusa não empilha bloqueio.
+
+O que continua aberto: isso só grava se o agente chamar `menu_record_feedback`.
+Quando ela recusa um prato que ninguém propôs, nada obriga o registro. Fechar
+esse caso pediria ler intenção na mensagem dela, que é julgamento de modelo e
+não checagem, e por isso está escrito em [testes.md](testes.md) em vez de
+resolvido pela metade.

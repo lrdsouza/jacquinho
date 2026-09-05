@@ -546,3 +546,52 @@ async def test_the_ledger_holds_what_she_decided_not_what_was_spent(built, serve
         fits = await client.call_tool('budget_check_purchase', {'amount': left + 1})
     assert fits.data['verdict'] == 'over_budget'
     assert fits.data['shortfall'] > 0
+
+
+@pytest.mark.asyncio
+async def test_a_dish_she_dislikes_leaves_the_table_for_good(server):
+    """She said the parmegiana gives her too much work and never turns out well.
+    The agent answered 'anotado, nem entra na conversa' and wrote nothing: the
+    next_step asked for a second call, and a second call gets skipped."""
+    # A name of its own: this database is shared with every other test and with
+    # whatever the last real conversation refused, and the shelving is
+    # deliberately idempotent.
+    import uuid
+
+    dish = f'Parmegiana de teste {uuid.uuid4().hex[:6]}'
+    async with Client(server) as client:
+        told = await client.call_tool(
+            'menu_record_feedback',
+            {'dish': dish, 'likes_cooking': False,
+             'comment': 'da muito trabalho e nunca fica boa'},
+        )
+        assert told.data['shelved_for_good'] == [dish]
+        assert 'recipes_reject_candidate' not in told.data['next_step']
+
+        catalogue = await client.call_tool(
+            'recipes_list_candidates', {'only_open': False}
+        )
+    entry = next(
+        row for row in catalogue.data['blocked']
+        if row['dish'].lower() == dish.lower()
+    )
+    assert 'disliked' in entry['reasons']
+    assert entry['liftable'] is False, 'gosto não é um problema esperando solução'
+
+
+@pytest.mark.asyncio
+async def test_shelving_the_same_dish_twice_does_not_stack_blocks(server):
+    import uuid
+
+    dish = f'Prato Repetido {uuid.uuid4().hex[:6]}'
+    async with Client(server) as client:
+        for _ in range(2):
+            await client.call_tool(
+                'menu_record_feedback',
+                {'dish': dish, 'likes_cooking': False, 'comment': 'nao gosto'},
+            )
+        catalogue = await client.call_tool(
+            'recipes_list_candidates', {'only_open': False}
+        )
+    row = next(r for r in catalogue.data['candidates'] if r['dish'] == dish)
+    assert len(row['active_blocks']) == 1

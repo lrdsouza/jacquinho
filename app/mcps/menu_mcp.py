@@ -6,8 +6,8 @@ from typing import Annotated
 
 from pydantic import Field
 
-from ..domain.catalogue import CatalogueUnavailable as MemoryUnavailable
-from ..domain.catalogue import DishFeedbackStore, LaunchMenuStore
+from ..domain.catalogue import BlockReason, CatalogueUnavailable as MemoryUnavailable
+from ..domain.catalogue import DishFeedbackStore, LaunchMenuStore, RecipeCatalogue
 from .base import BaseMCP
 
 
@@ -31,7 +31,41 @@ class MenuMCP(BaseMCP):
         self.observer = observer
         self.feedback = DishFeedbackStore(db)
         self.menu = LaunchMenuStore(db)
+        self.catalogue = RecipeCatalogue(db)
         super().__init__(settings)
+
+    def _shelve(self, dish: str, comment: str) -> list[str]:
+        '''Take a dish she does not want off the table, here and now.
+
+        The next_step used to say "then call recipes_reject_candidate", and a
+        second call the agent has to remember is a second call it skips. It did:
+        she said the parmegiana gives her too much work and never turns out
+        well, the agent answered "anotado, nem entra na conversa", and nothing
+        was written anywhere. Twenty turns later the conversation window has
+        rolled and the parmegiana is a fresh idea again.
+
+        A dish she named herself is usually not in the catalogue, so it gets the
+        same honest stub a blocked dish gets.
+        '''
+        try:
+            if self.catalogue.get(dish) is None:
+                self.catalogue.save(
+                    dish=dish, source_url='', source_title='dito por ela na conversa',
+                    ingredients=[], equipment=[], techniques=[], pantry_coverage=0.0,
+                    notes='Prato que ela recusou; a receita nunca foi buscada.',
+                )
+            recipe = self.catalogue.get(dish)
+            if recipe and any(
+                b.get('reason') == BlockReason.DISLIKED for b in recipe.active_blocks
+            ):
+                return []
+            self.catalogue.block(
+                dish, BlockReason.DISLIKED, None,
+                comment or 'ela não quer cozinhar este prato',
+            )
+        except Exception:
+            return []
+        return [dish]
 
     def register(self) -> None:
         @self.mcp.tool
@@ -51,13 +85,16 @@ class MenuMCP(BaseMCP):
                 entry = self.feedback.record(dish, likes_cooking, comment, impediments)
             except MemoryUnavailable as error:
                 return {'saved': False, 'error': str(error)}
+            # Taste is a durable fact about her, not a note in this session.
+            shelved = self._shelve(dish, comment) if not likes_cooking else []
             return {
                 'saved': True,
+                'shelved_for_good': shelved,
                 **entry,
                 'next_step': (
-                    "Call recipes_reject_candidate with reason 'disliked', then "
-                    'recipes_next_candidate and offer her the next option. Do not '
-                    'try to talk her into it.'
+                    'Já tirei este prato da mesa, com o motivo dela. Vá para '
+                    'recipes_next_candidate e ofereça a próxima opção. Não tente '
+                    'convencê-la, e não volte a oferecer este.'
                     if not likes_cooking
                     else (
                         'She raised something. Take each impediment to '

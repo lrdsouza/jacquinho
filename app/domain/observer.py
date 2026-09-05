@@ -112,6 +112,12 @@ class ConfidenceObserver:
         # dish still marked in play and owes her the oven speech a second time,
         # in the middle of the costing she asked for.
         self.announced: dict[str, set[tuple]] = {}
+        # Every number any tool produced this session. The trail keeps only the
+        # six evidence slots, so a figure from price_scenarios or menu_add_dish
+        # was invisible to any check - and those are precisely the numbers she
+        # acts on. Bounded: a long consultation is thousands of values, not
+        # millions.
+        self.numbers: dict[str, set[float]] = {}
 
     def _trail(self, key: tuple[str, str]) -> EvidenceTrail:
         trail = self.trails.get(key)
@@ -258,6 +264,22 @@ class ConfidenceObserver:
             announcement.get('dish', ''),
             tuple(sorted(announcement.get('items', []))),
         )
+
+    NUMBER_CAP = 20000
+
+    def remember_numbers(self, session: str, payload: dict | None) -> None:
+        '''Keep every figure a tool produced, so the message can be checked.'''
+        if not isinstance(payload, dict):
+            return
+        from .audit import MessageAudit
+
+        seen = self.numbers.setdefault(session, set())
+        if len(seen) >= self.NUMBER_CAP:
+            return
+        seen |= MessageAudit.known_values(payload)
+
+    def numbers_seen(self, session: str) -> set[float]:
+        return self.numbers.get(session, set())
 
     def owe_announcement(self, session: str, announcement: dict) -> dict | None:
         '''Record a verdict she is owed, out loud, before anything else.
@@ -464,6 +486,7 @@ class ConfidenceObserver:
             self.active_dish.clear()
             self.pending.clear()
             self.announced.clear()
+            self.numbers.clear()
         elif dish is None:
             for key in [k for k in self.trails if k[0] == session]:
                 self.trails.pop(key)

@@ -220,6 +220,9 @@ class ConfidenceMiddleware(Middleware):
                 declared = (payload.get('deterministic') or {}).get('claim')
                 if declared:
                     self.observer.declare_claim(session, dish, declared)
+            # Every figure, not just the six evidence slots: the numbers she
+            # acts on come out of pricing and the menu, which feed no slot.
+            self.observer.remember_numbers(session, payload)
             report = self.observer.record(session, name, payload, dish)
             # Every call gets a log line, so a watcher never looks dead; only a
             # call that actually changed the picture earns an audit row.
