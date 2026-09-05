@@ -11,7 +11,7 @@ todo fato, regra e número, e os devolve como dados.
 
 ```mermaid
 C4Context
-    title Sabor da Maria
+    title Jacquinho, o subchefe da Dona Maria
     Person(maria, "Dona Maria", "Cozinha e vende")
     System(hermes, "Hermes Agent", "Conduz a conversa")
     System(mcp, "jacquinho-mcp", "11 servidores MCP: fatos, regras, aritmética")
@@ -235,6 +235,7 @@ flowchart LR
         rc["recipes<br/>recipe_requirements<br/>recipe_blocks"]
         fm["dish_feedback<br/>menu_items"]
         aa["answer_assessments"]
+        rc2["recipe_costing"]
     end
     hooks["hooks de turno"] --> cr
     chatmcp["chat"] --> c
@@ -247,7 +248,8 @@ flowchart LR
     budgetmcp["budget"] --> b
     pantrymcp["pantry"] --> pk
     dishesmcp["dishes"] --> dc
-    pricingmcp["pricing"] -. lê .-> b
+    pricingmcp["pricing"] --> rc2
+    pricingmcp -. lê .-> b
     recipesmcp -. lê .-> k
     kitchenmcp -. lê .-> cr
 ```

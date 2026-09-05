@@ -1,4 +1,4 @@
-# Sabor da Maria
+# Jacquinho, o agente subchefe da Dona Maria
 
 ![Python](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)
 ![FastMCP](https://img.shields.io/badge/FastMCP-4.0.3-6E56CF)
@@ -9,12 +9,15 @@
 ![Postgres](https://img.shields.io/badge/postgres-17-4169E1?logo=postgresql&logoColor=white)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 ![Servidores MCP](https://img.shields.io/badge/servidores%20MCP-11-success)
-![Ferramentas](https://img.shields.io/badge/ferramentas-57-success)
+![Ferramentas](https://img.shields.io/badge/ferramentas-58-success)
 
-Uma consultora de cardápio e precificação para a **Dona Maria**, cozinheira que
-está abrindo o primeiro delivery dela. Ela sabe cozinhar. O que ela não sabe é
-quais pratos a despensa dela consegue produzir, se a cozinha dela dá conta de
-fazê-los, e quanto cobrar para o delivery valer a pena.
+O **Jacquinho** é o subchefe da **Dona Maria**, cozinheira que está abrindo o
+primeiro delivery dela, o *Sabor da Maria*. Ela sabe cozinhar. O que ela não
+sabe é quais pratos a despensa dela consegue produzir, se a cozinha dela dá
+conta de fazê-los, e quanto cobrar para o delivery valer a pena.
+
+Subchefe, e não chefe: quem decide o prato, o preço e a compra é ela. Ele lê a
+despensa, pergunta o que não sabe, faz as contas e abre os números.
 
 O agente a acompanha de uma planilha de compras até um cardápio de lançamento
 precificado, e é construído de modo que **todo número que ele diz veio de uma
@@ -24,7 +27,7 @@ chamada de ferramenta, nunca da memória do modelo**.
 > deixa em aberto (modelo, context files, tools/MCP, estrutura de memória e
 > skills) estão respondidas em
 > [uma tabela](#as-cinco-escolhas-que-o-enunciado-deixou-em-aberto), cada uma
-> com link para a justificativa completa. As quarenta e uma decisões inteiras,
+> com link para a justificativa completa. As quarenta e quatro decisões inteiras,
 > com motivo e consequência, estão em
 > [docs/decisoes.md](docs/decisoes.md); as conversas que causaram boa parte
 > delas, em [docs/dialogos.md](docs/dialogos.md).
@@ -35,78 +38,130 @@ chamada de ferramenta, nunca da memória do modelo**.
 
 Transcrição real, bancos zerados, gravada com `jacquinho`, copiada palavra por
 palavra (é a única parte deste README que ainda usa travessão, porque é fala
-dela e do agente, não texto meu). É o caso que o desafio pede: ela quer um prato
-que exige forno, não tem forno, e o agente descobre isso **antes** de ela gastar
-um centavo.
+dela e dele, não texto meu). É o caso que o desafio pede: ela quer um prato que
+exige forno, não tem forno, e ele descobre isso **antes** de ela gastar um
+centavo.
 
 ```
 Dona Maria ▸ oi! quero fazer lasanha ao forno pra vender de marmita
 
-Jacquinho  ▸ Oi! Que ótimo — lasanha ao forno é um baita prato pra marmita.
-             Deixa eu ver o que a receita pede e conferir com sua despensa
-             antes de fecharmos qualquer coisa. Mas antes preciso saber uma
-             coisa importante: você tem forno em casa? Ele funciona bem, assa
-             por igual?
+Jacquinho  ▸ Que delícia, lasanha vende muito bem em marmita! Dei uma olhada na
+             sua despensa: você tem carne moída, tomate, cebola, alho, queijo
+             mussarela, parmesão, leite e manteiga — a base toda tá aí.
+             Antes de eu fechar a receita com você: seu forno funciona bem,
+             assa por igual?
 
 Dona Maria ▸ nao tenho forno nao, so um cooktop de 4 bocas
 
-Jacquinho  ▸ A lasanha ao forno não vai dar, porque você não tem forno, só o
-             cooktop de 4 bocas. Mas dá pra fazer uma lasanha de panela, no
-             fogão mesmo, que fica igualmente gostosa — você monta as camadas
-             direto na panela e deixa cozinhar em fogo baixo até derreter tudo.
-             Você topa fazer assim? E me conta: você já tem prática com esse
-             jeito de montar, ou seria a primeira vez?
+Jacquinho  ▸ Anotado, Dona Maria. A lasanha ao forno não vai dar, porque a
+             senhora não tem forno, só o cooktop de 4 bocas.
+             Mas a lasanha não precisa morrer não: dá pra fazer ela na panela,
+             em cima do próprio cooktop. Monta as camadas de massa, molho e
+             queijo numa panela larga, tampa e deixa no fogo baixo até tudo
+             derreter e a massa cozinhar — fica bem parecida, só que sem forno.
+             Quer que eu vá atrás dessa versão de panela pra ver o que ela pede
+             da sua despensa?
 
-Dona Maria ▸ topo sim, ja fiz de panela antes. tenho cacarola grande e funda,
-             so refogo, nao frito por imersao, e faco molho branco de olho.
-             rende 8 marmitas
+Dona Maria ▸ topo a de panela. tenho cacarola grande e funda, so refogo, nao
+             frito por imersao, e faco molho branco de olho. rende 8 marmitas
 
-Dona Maria ▸ pode calcular e me dizer por quanto vendo
+Jacquinho  ▸ Fechado, Dona Maria! A lasanha de frango com molho branco cabe
+             certinho na sua panela, no cooktop.
+             O custo fica em R$ 4,15 por marmita. A massa de lasanha a senhora
+             vai comprar — um pacote de 500g sai por uns R$ 6,95, e sobra massa
+             pra outra fornada. O resto (frango, leite, manteiga, farinha,
+             queijo) já está na sua despensa.
+             Marmita parecida está saindo por uns R$ 14,98 por aí (achei só uma
+             referência, então é só indicativo). Numa faixa parecida, R$ 15,90
+             deixa R$ 14,31 no seu bolso depois da taxa da plataforma, e um
+             lucro de R$ 10,16 por marmita.
+             Que preço a senhora quer colocar?
+             〔preço: confiança média · sem preço de mercado firme · inflação
+              antiga · cozinha confere〕
 
-Jacquinho  ▸ Fechei a conta da lasanha de panela! Rende 8 marmitas por fornada.
-             Pra fazer, só falta uma coisa na sua despensa: a massa de lasanha.
-             O resto (carne moída, tomate, cebola, alho, queijo, leite, farinha,
-             manteiga) você já tem.
-             Um pacote de massa de lasanha de 500g sai por uns R$ 10,79 — isso
-             deixaria R$ 69,21 dos seus R$ 80 reservados pra próxima fornada,
-             se você topar comprar.
-             Com isso, cada marmita custa R$ 8,51 pra você fazer. A plataforma
-             fica com 10% do que você cobrar.
-             Marmita parecida por aí tá saindo entre R$ 14,98 e R$ 28,00, com a
-             maioria rodando perto de R$ 23,50 — mas atenção, olhei poucos
-             anúncios, então essa faixa é só uma referência, não uma verdade
-             fechada.
-             Três jeitos de precificar:
-             - Entrada, R$ 15,90: sobra R$ 5,80 no seu bolso por marmita.
-             - Meio da faixa, R$ 23,90: sobra R$ 13,00 por marmita.
-             - Mais caro, R$ 28,90: sobra R$ 17,50 por marmita.
-             Qual desses valores você quer cobrar? E você topa comprar o pacote
-             de massa de lasanha por R$ 10,79?
+Dona Maria ▸ pode fechar a conta e me dizer por quanto vender
 
-Dona Maria ▸ vou de 23,90 e pode comprar a massa sim. fecha no cardapio e me
-             diz o resultado da fornada
+Jacquinho  ▸ [...] A conta ficou assim:
+             Cada marmita de lasanha de panela custa R$ 4,15 pra fazer.
+             Marmita parecida está saindo entre R$ 14,98 e R$ 17,00 por aí
+             (achei só 2 referências, então é uma faixa indicativa, não uma
+             pesquisa grande).
+             Três opções pra senhora escolher:
+             - R$ 15,90 → deixa R$ 10,16 de lucro por marmita
+             - R$ 16,90 → deixa R$ 11,06 de lucro por marmita
+             - R$ 17,90 → deixa R$ 11,96 de lucro por marmita
+             Qual desses valores a senhora quer colocar?
 
-Jacquinho  ▸ Fechado! Lasanha de panela entrou no cardápio a R$ 23,90.
-             A massa de lasanha sai por uns R$ 10,79 o pacote — isso deixa
-             R$ 69,21 dos seus R$ 80 pra próxima fornada.
-             Cada marmita custa R$ 7,80 pra você fazer. Vendendo a R$ 23,90,
-             você recebe R$ 21,51 (a plataforma fica com 10%), e sobra
-             R$ 13,71 de lucro por marmita.
-             Resultado da fornada toda (8 marmitas):
-             Você vende R$ 191,20 no total. A plataforma fica com R$ 19,12. Os
-             ingredientes usados custam R$ 62,40. Sobram R$ 109,68 no seu bolso
-             — ou seja, 57 centavos de cada real vendido. Você desembolsa
-             R$ 10,79 de compra pra essa fornada, e o resto do que você usar já
-             é da sua despensa.
+Dona Maria ▸ vou de 24,90. eu compro o que falta amanha, pode deixar separado
+             no orcamento. fecha no cardapio e me diz o resultado da fornada
+
+Jacquinho  ▸ Fechado, Dona Maria!
+             A lasanha de panela de frango com molho branco entra no cardápio a
+             R$ 24,90, categoria prato principal.
+             Sobre a compra: os R$ 12,00 da massa de lasanha e orégano já estão
+             separados no orçamento, esperando você ir ao mercado. Isso deixa
+             R$ 68,00 dos seus R$ 80,00 livres para a próxima fornada.
+             E o resultado da fornada, numa leva de 8 marmitas:
+             Você vende as 8 por R$ 199,20 no total. A plataforma fica com
+             R$ 19,92. Os ingredientes usados custam R$ 33,20. Sobram
+             R$ 146,08 no seu bolso — ou seja, 73 centavos de cada real que
+             entra. Você desembolsa só os R$ 12,00 de compra pra essa fornada,
+             e ainda sobra estoque de massa pra próxima.
+             〔preço: confiança alta · poucas fontes de preço · cozinha confere
+              · CMV completo〕
 ```
+
+### O custo de um prato não anda sozinho
+
+R$ 4,15 nos três turnos em que ele falou de dinheiro. Isso não é sorte: **a
+receita de um prato fecha na primeira conta completa**. Passar uma lista de
+ingredientes diferente para o mesmo prato depois disso é recusado, com a receita
+fechada e o custo dela devolvidos.
+
+Existe porque o custo já andou sozinho aqui: R$ 9,90, depois R$ 8,18, depois
+R$ 7,15 na mesma consultoria, com a aritmética certa nas três vezes. A conta
+nunca foi o problema. Os **insumos** eram, porque o agente compunha uma lista um
+pouco diferente a cada chamada, e nada no sistema podia dizer qual daquelas
+listas *era* o prato.
+
+A receita só reabre quando **ela** muda o prato, e reabrir exige a fala dela:
+*"tira a cebola"*, *"põe frango no lugar"*. Se ela desistir do prato, ele é
+arquivado; se ela quiser outro prato, o outro prato tem outra receita. Depois de
+reabrir, tudo que pendurava na receita antiga é refeito: buscar, portão, custo,
+preço. Decisão completa em
+[docs/decisoes.md, item 43](docs/decisoes.md#43-a-receita-de-um-prato-fecha-uma-vez).
+
+Antes desta trava houve uma tentativa pior, e vale contar: o servidor comparava
+o custo novo com **o último que a ferramenta tinha calculado**, e mandava avisar
+quando mudasse. Dentro de um turno o prato é custeado várias vezes e só o último
+número é falado, então o agente abriu uma conversa com *"preciso corrigir um
+número: eu tinha te dito R$ 9,90"* sobre um preço que ela nunca ouviu. Silêncio
+sobre uma mudança é ruim; memória falsa da conversa é pior. Hoje a comparação é
+contra o que **chegou até ela**, marcado na fronteira do turno
+([item 42](docs/decisoes.md#42-uma-promessa-é-o-que-ela-ouviu-não-o-que-a-ferramenta-calculou)).
+
+### Duas arestas nesta gravação
+
+Ditas aqui porque exemplo com defeito escondido é pior que exemplo com defeito
+anotado.
+
+Ele **repetiu o veredito do forno** no quarto turno, que ela já tinha ouvido no
+segundo. Não é a dívida do veredito disparando duas vezes, que isso o servidor
+impede; é o modelo reabrindo o assunto por conta própria.
+
+E disse que os ingredientes usados custam R$ 33,20 *"incluindo os R$ 12,00 que
+você vai comprar"*. Os R$ 33,20 são `8 x 4,15`, o custo de produção, e dele só
+entra a **fração** de massa que a fornada come, não o pacote inteiro. É
+exatamente a confusão que separar os dois números existe para evitar, e aqui ela
+apareceu na frase, não na conta.
 
 ### O fechamento é uma conta, não uma impressão
 
 A última mensagem responde a pergunta que ela de fato faz, que não é quanto
 sobra numa marmita e sim se o dia valeu a pena. Cada cifra sai de
-`menu_expected_return`, e todas conferem: `8 x 23,90 = 191,20`, taxa `19,12`,
-custo `8 x 7,80 = 62,40`, lucro `8 x 13,71 = 109,68`, margem
-`109,68 / 191,20 = 57%`.
+`menu_expected_return`, e todas conferem: `8 x 24,90 = 199,20`, taxa `19,92`,
+custo `8 x 4,15 = 33,20`, lucro `199,20 − 19,92 − 33,20 = 146,08`, margem
+`146,08 / 199,20 = 73%`.
 
 A porcentagem é **margem sobre a venda**, e essa escolha importou. A primeira
 versão liderava com retorno sobre o custo de produção e imprimiu *"um retorno de
@@ -114,14 +169,15 @@ versão liderava com retorno sobre o custo de produção e imprimiu *"um retorno
 a colherada que a fornada consome, não o que ela paga no caixa. Margem sobre
 venda não passa de 100 e por isso continua acreditável.
 
-E os dois custos ficam separados de propósito: **R$ 62,40** de ingrediente usado
-contra **R$ 10,79** de desembolso agora. Somar os dois contaria duas vezes a
+E os dois custos ficam separados de propósito: **R$ 33,20** de ingrediente usado
+contra **R$ 12,00** de desembolso agora. Somar os dois contaria duas vezes a
 despensa que ela já pagou.
 
 ### Quem compra é ela
 
-Repare em como ele fala de dinheiro: *"sai por uns R$ 10,79"*, *"se você topar
-comprar"*, *"você desembolsa"*. Nunca "comprei".
+Repare em quem faz o quê: *"a senhora vai comprar"*, *"já estão separados no
+orçamento, esperando você ir ao mercado"*. Ele nunca diz "comprei", porque não
+comprou.
 
 **Este agente não compra nada.** Não tem carteira, não tem cartão, não vai ao
 mercado. Uma versão anterior dizia à Dona Maria *"já comprei a massa e os
@@ -142,15 +198,21 @@ subir modelo nenhum.
 
 ```
 menu_items
-  lasanha de panela | cmv 7.80 | preço 23.90 | ela recebe 21.51 | lucro 13.71
+  lasanha de panela | cmv 4.15 | preço 24.90 | ela recebe 22.41 | lucro 18.26
+
+recipe_costing
+  lasanha de panela | receita fechada, 8 porções | cmv 4.15
 
 budget_entries
-  pacote de massa de lasanha 500g | R$ 10.79   → restam R$ 69,21 de R$ 80
+  massa de lasanha e orégano | R$ 12.00   → restam R$ 68,00 de R$ 80, para ela comprar
 
 kitchen_capabilities
-  forno           confirmed_no   ela: "nao tenho forno nao, so um cooktop"
-  fogao           confirmed_yes  ela: "so refogo, nao frito por imersao"
-  molho_bechamel  confirmed_yes  ela: "faco molho branco de olho"
+  forno              confirmed_no   ela: "nao tenho forno nao, so um cooktop"
+  fogao              confirmed_yes  ela: "so refogo, nao frito por imersao"
+  fritura            confirmed_no   ela: "so refogo, nao frito por imersao"
+  utensilios_basicos confirmed_yes  ela: "tenho cacarola grande e funda"
+  molho_bechamel     confirmed_yes  ela: "faco molho branco de olho"
+  massa_fresca       confirmed_yes  ela: "ja fiz de panela antes"
 
 recipe_blocks
   lasanha ao forno | forno | ativo   ← volta sozinha no dia em que ela tiver um
@@ -164,22 +226,22 @@ beco sem saída, é um prato esperando.
 
 | Enunciado | O que ele pede | Onde acontece, nesta conversa | Onde vive no código |
 |---|---|---|---|
-| **2.1** | Pesquisar receitas reais na internet | Turno 1, busca web pelo prato que ela pediu | `recipes_search_recipes`, `dishes_discover_dishes` |
-| **2.1** | Apresentar candidatas e pedir feedback dela | *"Você topa fazer assim? Já tem prática com esse jeito?"* | `menu_record_feedback` |
-| **2.2** | Utensílios e equipamentos | Turno 1 pergunta o forno antes de qualquer conta | `kitchen_next_questions`, `kitchen_record_capability` |
-| **2.2** | Técnicas e habilidades | Molho branco perguntado e gravado com as palavras dela | catálogo de 26 itens em `kitchen_elicitation_catalogue` |
+| **2.1** | Pesquisar receitas reais na internet | *"Peguei a receita e vi o que ela pede"*, busca web pelo prato dela | `recipes_search_recipes`, `dishes_discover_dishes` |
+| **2.1** | Apresentar candidatas e pedir feedback dela | *"Você faz molho branco em casa, ou prefere uma versão mais simples?"* | `menu_record_feedback` |
+| **2.2** | Utensílios e equipamentos | A primeira mensagem pergunta o forno, antes de qualquer conta | `kitchen_next_questions`, `kitchen_record_capability` |
+| **2.2** | Técnicas e habilidades | Molho branco perguntado, e gravado com as palavras dela | catálogo de 26 itens em `kitchen_elicitation_catalogue` |
 | **2.2** | Restrições operacionais | Gás, geladeira, tempo por fornada, no mesmo catálogo | `kitchen_elicitation_coverage` |
-| **2.2** | **Não deixar comprar e descobrir depois** | Turno 2 fecha a lasanha ao forno antes de existir lista de compras | `kitchen_elicitation_gaps`, `safe_to_shop` |
-| **2.3** | O que ela já tem, e em que quantidade | Turno 3: carne, tomate, queijo, leite, farinha, manteiga | `recipes_check_pantry_coverage` |
-| **2.3** | O que falta comprar, o custo, e se cabe | R$ 10,79 de massa, contra os R$ 80 | `pricing_calculate_cmv`, `budget_check_purchase` |
-| **2.4** | CMV = Σ (quantidade usada × custo unitário) | R$ 7,80 por marmita | `pricing_calculate_cmv`, aritmética em Python |
+| **2.2** | **Não deixar comprar e descobrir depois** | A lasanha ao forno é fechada antes de existir qualquer lista de compras | `kitchen_elicitation_gaps`, `safe_to_shop` |
+| **2.3** | O que ela já tem, e em que quantidade | Carne moída, queijo, leite, manteiga, farinha, cebola, alho, sal, óleo | `recipes_check_pantry_coverage` |
+| **2.3** | O que falta comprar, o custo, e se cabe | R$ 16,09 de massa e presunto, contra os R$ 80 | `pricing_calculate_cmv`, `budget_check_purchase` |
+| **2.4** | CMV = Σ (quantidade usada × custo unitário) | R$ 7,15 por marmita, e a correção dita quando mudou | `pricing_calculate_cmv`, aritmética em Python |
 | **2.4** | Custo unitário = preço pago ÷ quantidade comprada | Derivado das duas abas na semeadura | `PantrySheet`, `UnitConverter` |
-| **2.4** | Incluir compras complementares no CMV | A massa entra pela fração usada, não pelo pacote | `researched_prices` |
-| **2.4** | Ela recebe `0,90 × P` | R$ 23,90 → R$ 21,51 | `net_share` em `app/domain/money.py` |
+| **2.4** | Incluir compras complementares no CMV | Massa e presunto entram pela fração usada, não pelo pacote | `researched_prices` |
+| **2.4** | Ela recebe `0,90 × P` | R$ 24,90 → R$ 22,41 | `net_share` em `app/domain/money.py` |
 | **2.4** | Piso `P ≥ CMV / 0,90` | Devolvido em toda chamada, mesmo sem mercado | `break_even` |
-| **2.4** | Lucro `0,90 × P − CMV` | R$ 21,51 − R$ 7,80 = R$ 13,71 | `profit` |
-| **2.4** | **2–3 cenários, e ela decide** | Três faixas, e a pergunta *"qual desses valores você quer cobrar?"* | `pricing_price_scenarios` |
-| **3** | Orçamento de R$ 80,00 para complementos | R$ 10,79 reservados, R$ 69,21 restantes | `budget_reserve_purchase` |
+| **2.4** | Lucro `0,90 × P − CMV` | R$ 22,41 − R$ 7,15 = R$ 15,26 | `profit` |
+| **2.4** | **2–3 cenários, e ela decide** | Três faixas, e a pergunta *"qual dessas faixas você quer cobrar?"* | `pricing_price_scenarios` |
+| **3** | Orçamento de R$ 80,00 para complementos | R$ 16,09 reservados **para ela comprar**, R$ 63,91 restantes | `budget_reserve_purchase` |
 
 Duas coisas fora do enunciado, que a conversa mostrou serem necessárias: dizer
 **o quanto confia** no que está falando (o badge, e a trilha em
@@ -531,9 +593,9 @@ pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais. A decisão
 inteira, com o que ela custa, está em
 [docs/decisoes.md, item 20](docs/decisoes.md#20-o-modelo-padrão-é-o-claude-sonnet-5).
 
-O agente roda em qualquer provedor que você apontar e alcança as 57 ferramentas
+O agente roda em qualquer provedor que você apontar e alcança as 58 ferramentas
 de qualquer jeito. O que ele exige de verdade não é inteligência bruta e sim
-**chamada de ferramenta confiável**: são 57 ferramentas e cadeias de vários
+**chamada de ferramenta confiável**: são 58 ferramentas e cadeias de vários
 passos. Cada caminho (assinatura, chave, camada gratuita, Ollama local) tem um
 bloco pronto em `dockerfile/hermes-config.yaml`.
 
@@ -689,7 +751,7 @@ stateDiagram-v2
 | `market` | 1 | Preços de delivery observados para pratos comparáveis |
 | `economy` | 2 | Inflação regional, índice geral e alimentação no domicílio |
 | `budget` | 4 | O orçamento de complementos como saldo gastável |
-| `pricing` | 2 | CMV e cenários de preço ancorados no mercado |
+| `pricing` | 3 | CMV, a receita fechada do prato, e cenários de preço ancorados no mercado |
 | `confidence` | 4 | Quanto a evidência sustenta a resposta |
 | `menu` | 7 | Prontidão para aceite, a opinião dela sobre cada prato, o cardápio e o resultado da fornada |
 
@@ -1204,9 +1266,9 @@ justificativa completa mora.
 
 | O que era minha escolha | O que escolhi | Por quê, em uma linha | Justificativa |
 |---|---|---|---|
-| **Modelo** | `claude-sonnet-5`, com OAuth de uma conta Anthropic Pro | O gargalo não é profundidade, é condução: são 57 ferramentas e cadeias longas, e o modelo mais barato perdia o fio | [decisão 20](docs/decisoes.md#20-o-modelo-padrão-é-o-claude-sonnet-5) |
+| **Modelo** | `claude-sonnet-5`, com OAuth de uma conta Anthropic Pro | O gargalo não é profundidade, é condução: são 58 ferramentas e cadeias longas, e o modelo mais barato perdia o fio | [decisão 20](docs/decisoes.md#20-o-modelo-padrão-é-o-claude-sonnet-5) |
 | **Context files** | Um só, `hermes/SOUL.md`, com voz e quem fala primeiro | O Hermes trata texto vindo de MCP como dado não confiável e não o injeta no prompt, então a persona **tem** que morar do lado dele | [decisão 3](docs/decisoes.md#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode) |
-| **Tools/MCP** | 57 ferramentas em 11 servidores, um endpoint HTTP | O que dá para conferir vira ferramenta, porque ferramenta executa e instrução só pede | [decisões 2](docs/decisoes.md#2-um-endpoint-http-onze-servidores-montados) e [4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills) |
+| **Tools/MCP** | 58 ferramentas em 11 servidores, um endpoint HTTP | O que dá para conferir vira ferramenta, porque ferramenta executa e instrução só pede | [decisões 2](docs/decisoes.md#2-um-endpoint-http-onze-servidores-montados) e [4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills) |
 | **Estrutura de memória** | Redis para a conversa (20 turnos + 1 resumo), Postgres para o que ela decidiu | Vai para o Redis quando perder custa contexto; para o Postgres quando custa uma pergunta repetida ou dinheiro gasto duas vezes | [decisões 18](docs/decisoes.md#18-o-redis-guarda-a-conversa-20-turnos-mais-1-resumo) e [19](docs/decisoes.md#19-o-postgres-guarda-os-dados-da-dona-maria) |
 | **Skills** | Nenhuma | Uma skill não deixa rastro de ter sido seguida; onde havia o que conferir, virou ferramenta | [decisão 4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills) |
 
@@ -1218,7 +1280,7 @@ entrega do veredito eram promessas que o servidor não podia verificar
 
 ### O resto
 
-Quarenta e uma decisões de arquitetura, cada uma com motivo, consequência e o
+Quarenta e quatro decisões de arquitetura, cada uma com motivo, consequência e o
 que ela custou. O documento completo é **[docs/decisoes.md](docs/decisoes.md)**;
 esta página é uma seleção, agrupada pelo problema que cada decisão resolve, e
 cada número abaixo abre direto na decisão. As que não estão aqui aparecem em
@@ -1230,6 +1292,7 @@ de entender no lugar onde o assunto aparece.
 | # | Decisão | Em uma linha |
 |---:|---|---|
 | [1](docs/decisoes.md#1-o-cálculo-vive-fora-do-modelo-de-linguagem) | O cálculo vive fora do modelo | Dinheiro é Python; o modelo decide o que dizer, nunca quanto é |
+| [44](docs/decisoes.md#44-confiança-por-afirmação-o-que-é-pydantic-e-o-que-não-é) | Confiança por afirmação | Pydantic valida forma na entrada; `Claim` decide quais sinais uma frase precisa; nenhum dos dois dá identidade à receita |
 | [3](docs/decisoes.md#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode) | O procedimento vai com o servidor; a voz não | O Hermes trata texto de MCP como dado, então a persona mora no `SOUL.md` |
 | [4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills) | Ferramentas MCP em vez de skills | O que dá para conferir vira ferramenta; o que só dá para dizer continua texto |
 | [19](docs/decisoes.md#19-o-postgres-guarda-os-dados-da-dona-maria) | Postgres para o que ela decidiu | Redis quando perder custa contexto; Postgres quando custa uma pergunta repetida ou dinheiro |
@@ -1255,6 +1318,8 @@ de entender no lugar onde o assunto aparece.
 | [30](docs/decisoes.md#30-o-prato-morto-é-fechado-pela-ferramenta-não-pelo-lembrete) | O prato morto é fechado pela ferramenta | Gravar o "não tenho forno" roda o portão e arquiva o prato ali mesmo |
 | [31](docs/decisoes.md#31-o-veredito-é-uma-dívida-da-conversa-não-um-lembrete) | O veredito é uma dívida da conversa | Seguir em frente é recusado até ela ouvir; o fim do turno confere |
 | [37](docs/decisoes.md#37-as-cifras-da-mensagem-são-conferidas-sozinhas-no-fim-do-turno) | As cifras são conferidas sozinhas | Todo R$ da mensagem contra todo R$ que uma ferramenta produziu |
+| [42](docs/decisoes.md#42-uma-promessa-é-o-que-ela-ouviu-não-o-que-a-ferramenta-calculou) | Promessa é o que ela ouviu | Um custo calculado e não dito não é promessa; comparar com o histórico da ferramenta fez o agente inventar uma lembrança |
+| [43](docs/decisoes.md#43-a-receita-de-um-prato-fecha-uma-vez) | A receita de um prato fecha uma vez | O custo andava sozinho porque os insumos andavam; a receita agora é um fato do prato |
 | [34](docs/decisoes.md#34-um-veredito-não-é-devido-duas-vezes) | Um veredito não é devido duas vezes | Repetir o que ela já ouviu é o mesmo defeito de nunca ter dito |
 | [38](docs/decisoes.md#38-recusar-um-prato-por-gosto-arquiva-o-prato) | Recusar por gosto arquiva o prato | Sem segunda chamada, porque segunda chamada é chamada que se pula |
 | [41](docs/decisoes.md#41-o-portão-sozinho-basta-para-arquivar-o-prato) | O portão sozinho basta para arquivar | A garantia não pode depender de qual das duas ferramentas o modelo escolheu |
@@ -1352,7 +1417,7 @@ As decisões completas, com motivo e consequência de cada uma, estão em
 |---|---|
 | [docs/arquitetura.md](docs/arquitetura.md) | Componentes, camadas, caminhos de requisição, composição |
 | [docs/decisoes.md](docs/decisoes.md) | Cada decisão de arquitetura e sua justificativa |
-| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 57 ferramentas, prompts e recursos |
+| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 58 ferramentas, prompts e recursos |
 | [docs/modelo-de-dados.md](docs/modelo-de-dados.md) | Normalização de unidades, chaves do Redis, arquivos de estado |
 | [docs/metricas.md](docs/metricas.md) | Como a confiança é calculada, suas falhas e como melhorá-la |
 | [docs/testes.md](docs/testes.md) | A suíte automatizada e a simulação de usuário |

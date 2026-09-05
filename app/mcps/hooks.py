@@ -158,6 +158,8 @@ class HookRoutes:
 
             session = self._session()
             self._audit_figures(session, reply)
+            # Only now is a cost a promise: it reached her.
+            self.observer.mark_costs_told(session, reply)
 
             owed = self.observer.owed_announcement(session)
             if not owed:

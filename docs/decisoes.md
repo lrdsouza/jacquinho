@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-41-6E56CF)
+![Registros](https://img.shields.io/badge/registros-44-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -512,7 +512,7 @@ abandonado no meio de uma conversa deve expirar, não se acumular.
 aprendida (pesos de embalagem), o perfil da cozinha, o catálogo de restrições
 que cresceu na conversa, o saldo do orçamento, as categorias de prato, o
 catálogo de receitas com seus requisitos e bloqueios, o que ela achou de cada
-prato, e o cardápio de lançamento. Doze tabelas. O volume de arquivos JSON que
+prato, e o cardápio de lançamento. Treze tabelas. O volume de arquivos JSON que
 existia antes deixou de existir.
 
 **Motivo.** Nenhuma dessas coisas é cache. São fatos que sobrevivem a qualquer
@@ -562,14 +562,14 @@ português claro. Nada disso pede raciocínio profundo, e uma consultoria inteir
 gasta dezenas de chamadas.
 
 O que a simulação mostrou é que o gargalo não é profundidade, é **condução**.
-São 57 ferramentas e cadeias de vários passos, e o modelo mais barato perdia o
+São 58 ferramentas e cadeias de vários passos, e o modelo mais barato perdia o
 fio: chamava a ferramenta certa com o prato errado, esquecia de nomear o `dish`,
 repetia busca. Cada tropeço desses custa mais chamadas do que o modelo mais caro
 teria custado.
 
 **Consequência.** Trocar é uma linha. `claude-haiku-4-5` se custo pesar mais que
 condução, `claude-opus-5` quando capacidade importar mais que custo. Nada mais
-muda: os onze servidores MCP e as 57 ferramentas se comportam de forma idêntica
+muda: os onze servidores MCP e as 58 ferramentas se comportam de forma idêntica
 por baixo, porque o comportamento não mora no modelo.
 
 **Custo e latência.** O único turno caro do fluxo é o do juiz, e é por isso que a
@@ -1170,3 +1170,117 @@ ferramentas o modelo escolheu, e as duas são legítimas.
 **Consequência.** O veredito do portão e a leitura da receita passam a alimentar
 o mesmo arquivamento, com a leitura da receita ganhando quando existe, porque é
 mais específica. Dois testes de domínio cobrem os dois caminhos.
+
+---
+
+## 42. Uma promessa é o que ela ouviu, não o que a ferramenta calculou
+
+**Decisão.** `pricing_calculate_cmv` compara o resultado com o último CMV que
+**chegou até ela**, e não com o último que a ferramenta produziu. A fronteira do
+turno marca quais custos apareceram na mensagem entregue; só esses contam como
+promessa.
+
+**Motivo.** A primeira versão desta decisão comparava com o histórico da
+ferramenta, e produziu um defeito pior que o silêncio que ela existia para
+corrigir. Numa conversa nova, na primeira vez que o agente falou de dinheiro, a
+mensagem abriu assim:
+
+> *"Antes de mais nada: preciso corrigir um número. Eu tinha te dito que a
+> lasanha de panela custava R$ 9,90 por marmita."*
+
+Ele nunca disse isso. Dentro de um turno o prato é custeado várias vezes
+enquanto o agente resolve a receita, e só o último número é falado. Comparar com
+o histórico da ferramenta fez o agente **inventar uma lembrança da conversa** e
+pedir desculpa por um preço que ela nunca viu.
+
+Silêncio sobre uma mudança é ruim. Uma memória falsa da conversa é pior: ela
+corrói exatamente a coisa que o resto do sistema existe para proteger, que é ela
+poder confiar no que ele diz ter dito.
+
+**Consequência.** Só o que passou pela fronteira do turno vira promessa, o que
+significa que a mesma máquina que já servia para conferir cifras e entregar
+veredito agora também define o que foi prometido. Um CMV calculado e não
+mencionado não gera correção nenhuma.
+
+**Observabilidade.** `cmv_told` fica na trilha da sessão, ao lado do `cmv`
+calculado, e a diferença entre os dois é literalmente a diferença entre o que
+ele sabe e o que ela sabe.
+
+---
+
+## 43. A receita de um prato fecha uma vez
+
+**Decisão.** A primeira vez que um prato é custeado por completo, a lista de
+ingredientes daquele prato é gravada em `recipe_costing` e passa a valer. Uma
+chamada seguinte com lista diferente é **recusada**, com a receita fechada e o
+custo dela devolvidos. Só `pricing_reopen_recipe` reabre, e ele exige as
+palavras dela.
+
+**Motivo.** Numa consultoria o custo da mesma lasanha andou sozinho: R$ 9,90,
+depois R$ 8,18, depois R$ 7,15. As três contas estavam certas. A aritmética
+nunca foi o problema: os **insumos** eram, porque o agente compunha uma lista de
+ingredientes um pouco diferente a cada chamada, e nada no sistema podia dizer
+qual daquelas listas *era* o prato.
+
+A decisão 42 detecta a mudança e manda explicá-la a ela. Isso é o segundo melhor
+resultado. O melhor é o número não andar: **um prato tem uma receita**, e se ela
+mudar, quem mudou foi a Dona Maria.
+
+**Consequência.** A receita vira um fato atômico do prato, do mesmo jeito que uma
+capacidade da cozinha é um fato dela. Ordem de ingredientes e caixa alta não
+contam como diferença, porque não mudam o custo; ingrediente que entra, sai ou
+muda de quantidade, sim.
+
+Reabrir é um evento da conversa, não uma decisão do modelo. Ela diz *"tira a
+cebola"*, *"põe frango no lugar"*, e a reabertura carrega essa fala, conferida
+na transcrição capturada como qualquer outra citação. Se ela desiste do prato,
+o caminho é outro e já existia: `menu_record_feedback` arquiva. Se ela quer
+outro prato, o outro prato tem outro nome e portanto outra receita, sem precisar
+de nada.
+
+Depois de reabrir, tudo que pendurava na receita antiga é refeito: buscar a
+receita, rodar o portão, custear, precificar. Os números velhos não são mais
+daquele prato, e o `next_step` diz isso.
+
+O custo é rigidez: se o agente errou a lista na primeira vez, corrigir exige
+falar com ela em vez de silenciosamente recalcular. Isso é intencional. Ele
+errar sozinho e consertar sozinho é indistinguível, do lado dela, de ele estar
+chutando.
+
+**Observabilidade.** `recipe_costing` guarda a lista, as porções, o custo e
+quando fechou, mais o motivo de cada reabertura nas palavras dela. Dá para
+reconstruir, depois, por que o custo de um prato mudou entre duas conversas.
+
+---
+
+## 44. Confiança por afirmação: o que é Pydantic e o que não é
+
+**Decisão.** A confiança é calculada por **afirmação** (`Claim`), com pesos por
+sinal, em Python simples. Pydantic valida as **entradas das ferramentas**, não a
+conta da confiança.
+
+**Motivo.** São dois problemas diferentes e vale não confundi-los.
+
+*A afirmação.* Pontuar toda mensagem contra o pipeline inteiro estava errado:
+"você tem 37 ingredientes" é lido da planilha e é tão certo quanto qualquer
+coisa aqui, e marcá-lo 0,00 por falta de preço de mercado não diz nada sobre a
+frase. Daí `Claim`, com `REQUIRES` mapeando cada tipo de afirmação aos sinais que
+ela de fato precisa: um fato da despensa precisa da despensa; um preço precisa
+de portão, custo, mercado e inflação.
+
+*A forma dos dados.* `RecipeLine`, `PurchasedItem`, `MarketReference`,
+`DishPortions` e `EvidenceBundle` são modelos Pydantic, e existem para que o
+modelo não consiga mandar uma quantidade negativa ou uma unidade ausente. Isso é
+validação de **forma**, na porta de entrada.
+
+O que faltava não era validação de forma. Era **identidade**: nada dizia que a
+receita de um prato é uma coisa só, e é por isso que o custo andava. Um
+`BaseModel` a mais no argumento não impediria a segunda chamada de trazer uma
+lista diferente e igualmente válida. O que impede é a decisão 43, que dá à
+receita um lugar durável e um dono.
+
+**Consequência.** As três peças ficam com papéis separados e verificáveis:
+Pydantic recusa entrada malformada, `RecipeLock` recusa insumo trocado, e
+`Claim` decide quais sinais uma frase precisa ter para valer. Nenhuma delas
+cobre o buraco das outras duas, e é por isso que as três existem.
+

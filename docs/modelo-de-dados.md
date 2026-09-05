@@ -14,7 +14,7 @@ flowchart LR
     subgraph P["Postgres · registros dela, duráveis"]
         p1["recipes · recipe_requirements<br/>recipe_blocks"]
         p2["kitchen_capabilities<br/>elicitation_items"]
-        p3["budget_entries · package_sizes<br/>pantry_items"]
+        p3["budget_entries · package_sizes<br/>pantry_items · recipe_costing"]
         p4["dish_categories · dish_feedback<br/>menu_items · answer_assessments"]
     end
     R -.->|"some quando<br/>resumido ou expirado"| X["descartável"]
@@ -130,7 +130,7 @@ entra no circuito.
 
 ## Postgres, os registros dela
 
-Doze tabelas, um dono para cada.
+Treze tabelas, um dono para cada.
 
 ### Por que os utensílios dela não ficam no Redis
 
@@ -173,6 +173,7 @@ sobrevive é a capacidade, com as palavras dela copiadas na nota.
 | `recipe_blocks` | `recipes`, e `kitchen` | Por que um prato saiu, e o que o traria de volta |
 | `kitchen_capabilities` | `kitchen` | Capacidades em três estados, com as palavras dela |
 | `elicitation_items` | `kitchen` | Restrições acrescentadas durante a conversa |
+| `recipe_costing` | `pricing` | A receita fechada de um prato: lista, porções, custo, e o motivo de cada reabertura nas palavras dela |
 | `budget_entries` | `budget` | Compras fechadas; o saldo é derivado |
 | `dish_categories` | `dishes` | Categorias criadas durante a conversa |
 | `dish_feedback` | `menu` | O que ela achou de cada prato |

@@ -1,6 +1,6 @@
 # Referência MCP
 
-![Ferramentas](https://img.shields.io/badge/ferramentas-57-success)
+![Ferramentas](https://img.shields.io/badge/ferramentas-58-success)
 ![Prompts](https://img.shields.io/badge/prompts-4-6E56CF)
 ![Recursos](https://img.shields.io/badge/recursos-1-0A7EA4)
 
@@ -20,7 +20,7 @@ o dado.
 - [`market`](#market), 1 ferramenta · Preços de delivery observados para pratos comparáveis.
 - [`economy`](#economy), 2 ferramentas · Inflação regional, índice geral e alimentação no domicílio.
 - [`budget`](#budget), 4 ferramentas · O orçamento de complementos como saldo gastável.
-- [`pricing`](#pricing), 2 ferramentas · CMV e cenários de preço ancorados no mercado.
+- [`pricing`](#pricing), 3 ferramentas · CMV, a receita fechada do prato, e cenários de preço ancorados no mercado.
 - [`confidence`](#confidence), 4 ferramentas · Quanto a evidência sustenta o que vai ser dito.
 - [`menu`](#menu), 7 ferramentas · A opinião dela sobre cada prato, o cardápio de lançamento e o resultado da fornada.
 
@@ -166,7 +166,8 @@ conferência, e a gravação passa a dizer `her_words_verified: false`.
 
 | Ferramenta | O que faz | Argumentos | Notas |
 |---|---|---|---|
-| `pricing_calculate_cmv` | Custeia uma porção, separando o que ela tem do que falta. | `dish`, `lines`, `portions`, `researched_prices` | Devolve `open_questions` em vez de chutar quando a unidade da receita não bate com a da compra. Um ingrediente fora da despensa entra por `researched_prices` como **embalagem**, e a ferramenta divide a fração que a receita consome (vai para o CMV) das embalagens inteiras que ela precisa comprar (vão para a lista). Sem o preço pesquisado, o ingrediente volta em `not_found` e nada é precificado. |
+| `pricing_calculate_cmv` | Custeia uma porção, separando o que ela tem do que falta. | `dish`, `lines`, `portions`, `researched_prices` | Devolve `open_questions` em vez de chutar quando a unidade da receita não bate com a da compra. Um ingrediente fora da despensa entra por `researched_prices` como **embalagem**, e a ferramenta divide a fração que a receita consome (vai para o CMV) das embalagens inteiras que ela precisa comprar (vão para a lista). Sem o preço pesquisado, o ingrediente volta em `not_found` e nada é precificado. Compara com o último CMV completo deste prato e devolve `cmv_changed_since_you_told_her` quando o número que ela já ouviu mudou. A primeira conta completa **fecha a receita do prato**: uma lista diferente depois disso é recusada, com a receita fechada devolvida. |
+| `pricing_reopen_recipe` | Reabre a receita fechada de um prato. | `dish`, `her_words`, `what_changed` | Único caminho de volta ao `calculate_cmv` com outra lista. Exige a citação dela, porque a receita muda quando **ela** muda. Depois, refaça portão, custo e preço. |
 | `pricing_price_scenarios` | Monta cenários de preço. | `cmv_per_portion`, `market` | Sem faixa de mercado devolve só o preço mínimo. Cada cenário projeta o lucro em doze meses com a inflação de alimentos. |
 
 ---

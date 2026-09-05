@@ -599,3 +599,198 @@ async def test_shelving_the_same_dish_twice_does_not_stack_blocks(server):
         )
     row = next(r for r in catalogue.data['candidates'] if r['dish'] == dish)
     assert len(row['active_blocks']) == 1
+
+
+async def _tell_her(built, text):
+    """Put a message through the turn boundary, the way a real reply goes out."""
+    import httpx
+
+    transport = httpx.ASGITransport(app=built.root.http_app())
+    async with httpx.AsyncClient(transport=transport, base_url='http://mcp') as wire:
+        await wire.post('/hooks/final-message',
+                        json={'session_id': 'testes', 'assistant_response': text})
+
+
+@pytest.mark.asyncio
+async def test_a_cost_she_never_heard_is_not_a_promise(built, server):
+    """The correction itself went wrong first: comparing against tool history
+    made the agent open a message with 'eu tinha te dito R$ 9,90' about a number
+    she had never seen. Inside one turn the recipe is costed several times and
+    only the last is spoken."""
+    import uuid
+
+    dish = f'Prato Silencioso {uuid.uuid4().hex[:6]}'
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+        )
+        await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish,
+             'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
+        )
+        # She asks for a change, so the recipe legitimately reopens.
+        await capture_her_message(built, 'poe menos frango, metade ja serve')
+        await client.call_tool(
+            'pricing_reopen_recipe',
+            {'dish': dish, 'her_words': 'poe menos frango, metade ja serve'},
+        )
+        # Nothing had been said to her, so the new cost corrects nothing.
+        second = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish,
+             'lines': [{'ingredient': 'Peito de frango', 'quantity': 100, 'unit': 'g'}]},
+        )
+    assert second.data['cmv_changed_since_you_told_her'] is None
+
+
+@pytest.mark.asyncio
+async def test_a_cost_she_already_heard_cannot_change_in_silence(built, server):
+    """The flagship transcript of this repository said R$ 8,51 in one turn and
+    R$ 7,80 in the next, with no word about it. Both came from a tool, so the
+    figure audit saw nothing wrong: it asks whether a number was produced, not
+    whether a different one was already promised."""
+    import uuid
+
+    dish = f'Prato Recalculado {uuid.uuid4().hex[:6]}'
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+        )
+        first = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish,
+             'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'},
+                       {'ingredient': 'Cebola', 'quantity': 50, 'unit': 'g'}]},
+        )
+        assert first.data['cmv_changed_since_you_told_her'] is None
+        told = first.data['cmv_per_portion']
+
+    await _tell_her(built, f'Cada marmita custa R$ {told:.2f}'.replace('.', ','))
+
+    async with Client(server) as client:
+        await capture_her_message(built, 'tira a cebola, nao gosto de cebola')
+        await client.call_tool(
+            'pricing_reopen_recipe',
+            {'dish': dish, 'her_words': 'tira a cebola, nao gosto de cebola'},
+        )
+        second = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish,
+             'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
+        )
+    changed = second.data['cmv_changed_since_you_told_her']
+    assert changed is not None, 'ela ouviu um número, e ele mudou'
+    assert changed['told_her_before'] == told
+    assert changed['now'] == second.data['cmv_per_portion']
+    assert 'caiu' in changed['say_now']
+    # And it says WHY it moved, which is the only useful part.
+    assert 'Cebola' in changed['what_moved']['left_the_recipe']
+    assert 'saiu Cebola' in changed['say_now']
+
+
+@pytest.mark.asyncio
+async def test_recalculating_to_the_same_number_says_nothing(built, server):
+    import uuid
+
+    dish = f'Prato Estavel {uuid.uuid4().hex[:6]}'
+    lines = [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+        )
+        await client.call_tool('pricing_calculate_cmv', {'dish': dish, 'lines': lines})
+        again = await client.call_tool(
+            'pricing_calculate_cmv', {'dish': dish, 'lines': lines}
+        )
+    assert again.data['cmv_changed_since_you_told_her'] is None
+
+
+@pytest.mark.asyncio
+async def test_the_recipe_of_a_dish_is_settled_once(built, server):
+    """The cost wandered from R$ 9,90 to R$ 8,18 to R$ 7,15 in one consultation,
+    every figure arithmetically right and none of them the dish. The arithmetic
+    was never the problem; the inputs were."""
+    import uuid
+
+    dish = f'Prato Fechado {uuid.uuid4().hex[:6]}'
+    lines = [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'},
+             {'ingredient': 'Cebola', 'quantity': 50, 'unit': 'g'}]
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+        )
+        first = await client.call_tool(
+            'pricing_calculate_cmv', {'dish': dish, 'lines': lines, 'portions': 4}
+        )
+        assert first.data['recipe_now_settled'] is True
+        settled_cost = first.data['cmv_per_portion']
+
+        # The same list in another order is the same recipe, and recomputes fine.
+        same = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish, 'lines': list(reversed(lines)), 'portions': 4},
+        )
+        assert same.data['cmv_per_portion'] == settled_cost
+
+        # A different list is refused, with the settled cost handed back.
+        drift = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish,
+             'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}],
+             'portions': 4},
+        )
+    assert drift.data['ok'] is False
+    assert drift.data['cmv_per_portion'] == settled_cost
+    assert 'cebola' in drift.data['what_you_passed_differs_by']['left_the_recipe']
+    assert 'reopen_recipe' in drift.data['next_step']
+
+
+@pytest.mark.asyncio
+async def test_only_her_words_can_reopen_a_recipe(built, server):
+    """A recipe changes when SHE changes it, not because the model composed the
+    list differently on the second call."""
+    import uuid
+
+    dish = f'Prato Reaberto {uuid.uuid4().hex[:6]}'
+    lines = [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'},
+             {'ingredient': 'Cebola', 'quantity': 50, 'unit': 'g'}]
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+        )
+        await client.call_tool('pricing_calculate_cmv', {'dish': dish, 'lines': lines})
+
+        alone = await client.call_tool(
+            'pricing_reopen_recipe', {'dish': dish, 'her_words': ''},
+        )
+        assert alone.data['reopened'] is False
+
+        invented = await client.call_tool(
+            'pricing_reopen_recipe',
+            {'dish': dish, 'her_words': 'ela quis trocar a cebola por alho'},
+        )
+        assert invented.data['reopened'] is False
+        assert 'não disse isso' in invented.data['error']
+
+        await capture_her_message(built, 'tira a cebola dai, nao gosto')
+        real = await client.call_tool(
+            'pricing_reopen_recipe',
+            {'dish': dish, 'her_words': 'tira a cebola dai, nao gosto',
+             'what_changed': 'tirou a cebola'},
+        )
+        assert real.data['reopened'] is True
+
+        # And now a different list is accepted again.
+        after = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish,
+             'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
+        )
+    assert after.data.get('ok') is not False
+    assert after.data['recipe_now_settled'] is True

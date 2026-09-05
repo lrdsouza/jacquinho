@@ -42,6 +42,11 @@ class EvidenceTrail:
     pantry: dict | None = None
     feasibility: dict | None = None
     cmv: dict | None = None
+    # The CMV that actually reached her, which is a different thing from the
+    # last one the tool computed. The agent recalculates several times inside a
+    # turn and only one number is ever spoken; treating the tool history as
+    # what she heard makes it apologise for a price she was never told.
+    cmv_told: float | None = None
     consensus: dict | None = None
     market: dict | None = None
     economy: dict | None = None
@@ -348,6 +353,62 @@ class ConfidenceObserver:
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
         trail = self.trails.get((session, name))
         return bool(trail and (trail.cmv or {}).get('calculation_complete'))
+
+    def previous_cmv(self, session: str, dish: str | None = None) -> float | None:
+        '''The last CMV she was actually told, if there was one.
+
+        A cost she has heard is a promise. Recalculating is allowed and often
+        right, but changing the number without saying so leaves her with two
+        prices in her head and no idea which one is real.
+
+        Deliberately **not** the last value the tool produced. Inside one turn
+        the agent may cost the dish three times while it settles the recipe, and
+        only the last of those is ever spoken. Comparing against tool history
+        made it open a message with "eu tinha te dito R$ 9,90" about a number
+        she had never seen, which is a worse failure than the silence it was
+        meant to fix: an invented memory of the conversation.
+        '''
+        name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
+        trail = self.trails.get((session, name))
+        return trail.cmv_told if trail else None
+
+    def previous_cmv_lines(self, session: str, dish: str | None = None) -> dict:
+        '''The ingredient lines behind the CMV she was told.
+
+        A cost that moves is not news by itself; a cost that moves because the
+        presunto left the recipe is. Without this the agent can only say the
+        number changed, which is the least useful true thing it could say.
+        '''
+        name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
+        trail = self.trails.get((session, name))
+        if trail is None or trail.cmv_told is None:
+            return {}
+        return {
+            entry.get('ingredient', ''): entry.get('amount', '')
+            for entry in (trail.cmv or {}).get('ingredients', [])
+            if isinstance(entry, dict)
+        }
+
+    def mark_costs_told(self, session: str, reply: str) -> list[float]:
+        '''Record which costs actually appeared in the message she received.
+
+        Called from the turn boundary, the one place that sees the delivered
+        text. A CMV the agent computed and did not mention stays unpromised.
+        '''
+        from .audit import MessageAudit
+
+        said = {round(f.value, 2) for f in MessageAudit.figures(reply)}
+        told = []
+        for (owner, _), trail in self.trails.items():
+            if owner != session or not trail.cmv:
+                continue
+            if not trail.cmv.get('calculation_complete'):
+                continue
+            value = trail.cmv.get('cmv_per_portion')
+            if isinstance(value, (int, float)) and round(float(value), 2) in said:
+                trail.cmv_told = round(float(value), 2)
+                told.append(trail.cmv_told)
+        return told
 
     def assessed(self, session: str, dish: str | None = None) -> bool:
         '''Has a confidence assessment been made for this dish?'''

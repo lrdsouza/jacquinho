@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# jacquinho - command line entry point for the Sabor da Maria agent.
+# jacquinho - command line entry point for Jacquinho, the Sabor da Maria sous-chef.
 #
 #   jacquinho              open the chat
 #   jacquinho up           start the background services only
@@ -93,7 +93,7 @@ case "${1:-chat}" in
     chat)
         services_up
         bold ''
-        bold 'Sabor da Maria - talk to the agent. Ctrl-C to leave.'
+        bold 'Jacquinho - o subchefe da Dona Maria. Ctrl-C para sair.'
         bold ''
         # `run`, not `up`: the Hermes default command is an interactive TUI.
         # --accept-hooks: the two turn-boundary hooks ship with this repository

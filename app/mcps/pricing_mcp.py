@@ -7,7 +7,9 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 from ..domain.budget import BudgetLedger
+from ..domain.costing import RecipeLock
 from ..domain.economy import EconomicContext, EconomicDataUnavailable
+from ..domain.memory import ConversationStore, RedisBackend
 from ..domain.money import menu_rounding
 from ..domain.pantry import PantryRepository
 from ..domain.units import UnitConverter, UnknownUnitError
@@ -54,7 +56,10 @@ class PricingMCP(BaseMCP):
     name = 'pricing'
     instructions = (
         'Cost and price authority. Never compute CMV or a selling price in prose: '
-        'call calculate_cmv then price_scenarios. An ingredient the pantry does '
+        'call calculate_cmv then price_scenarios. The first complete costing '
+        'settles that dish\'s ingredient list; pass the same list afterwards and '
+        'you get the same number. It only reopens through reopen_recipe, which '
+        'needs her words, because a recipe changes when SHE changes it. An ingredient the pantry does '
         'not have still has a cost: look up what one package costs and pass it in '
         'researched_prices, and the tool splits the whole package she must buy '
         'from the fraction the recipe eats. Those are different numbers and doing '
@@ -140,9 +145,12 @@ class PricingMCP(BaseMCP):
             'from': 'compra, não da despensa',
         }, cost
 
-    def __init__(self, settings, repository: PantryRepository, db):
+    def __init__(self, settings, repository: PantryRepository, db, observer=None):
         self.repository = repository
         self.db = db
+        self.observer = observer
+        self.lock = RecipeLock(db)
+        self.chat = ConversationStore(RedisBackend(settings.redis_url))
         self.economy = EconomicContext(settings.ibge_locality)
         super().__init__(settings)
 
@@ -215,6 +223,30 @@ class PricingMCP(BaseMCP):
             Returns ``open_questions`` rather than guessing when a recipe unit
             does not match how the ingredient was bought.
             '''
+            # The recipe of a dish is settled once. Passing a different list
+            # for the same dish is how the cost wandered from R$ 9,90 to
+            # R$ 8,18 to R$ 7,15 in one consultation, each figure arithmetically
+            # right and none of them the dish.
+            settled = self.lock.locked(dish) if dish else None
+            if settled and RecipeLock.signature(lines) != settled['lines']:
+                return {
+                    'ok': False,
+                    'recipe_is_settled': settled,
+                    'what_you_passed_differs_by': RecipeLock.differs(
+                        settled['lines'], lines
+                    ),
+                    'cmv_per_portion': settled['cmv_per_portion'],
+                    'calculation_complete': True,
+                    'next_step': (
+                        f'A receita de {dish!r} já está fechada, e o custo dela é '
+                        f'R$ {settled["cmv_per_portion"]:.2f} por porção. Use esse '
+                        'número. Se ela pediu para trocar um ingrediente, ou '
+                        'desistiu deste prato, chame pricing_reopen_recipe com as '
+                        'palavras dela e refaça: receita, portão, custo e preço. '
+                        'Se for outro prato, use o nome do outro prato.'
+                    ),
+                }
+
             used, to_buy, unknown, questions = [], [], [], []
             cmv = 0.0
             bought = {
@@ -310,6 +342,52 @@ class PricingMCP(BaseMCP):
 
             shopping_cost = sum(entry['estimated_cost'] for entry in to_buy)
             complete = not questions and not unknown
+            # A cost she has already heard is a promise. Recalculating is fine;
+            # changing the number in silence leaves her with two prices in her
+            # head. It happened in the flagship transcript of this repository:
+            # R$ 8,51 in one turn, R$ 7,80 in the next, no word about it.
+            changed = None
+            if complete and self.observer is not None:
+                from .middleware import ConfidenceMiddleware
+
+                before = self.observer.previous_cmv(
+                    ConfidenceMiddleware.SESSION_FALLBACK, dish
+                )
+                if before is not None and abs(before - cmv) > 0.005:
+                    direction = 'caiu' if cmv < before else 'subiu'
+                    was = self.observer.previous_cmv_lines(
+                        ConfidenceMiddleware.SESSION_FALLBACK, dish
+                    )
+                    now = {e['ingredient']: e['amount'] for e in used}
+                    saiu = sorted(set(was) - set(now))
+                    entrou = sorted(set(now) - set(was))
+                    mudou = sorted(
+                        k for k in set(was) & set(now) if was[k] != now[k]
+                    )
+                    porque = []
+                    if saiu:
+                        porque.append(f'saiu {", ".join(saiu)}')
+                    if entrou:
+                        porque.append(f'entrou {", ".join(entrou)}')
+                    if mudou:
+                        porque.append(f'mudou a quantidade de {", ".join(mudou)}')
+                    changed = {
+                        'told_her_before': round(before, 2),
+                        'now': round(cmv, 2),
+                        'what_moved': {
+                            'left_the_recipe': saiu,
+                            'joined_the_recipe': entrou,
+                            'changed_amount': mudou,
+                        },
+                        'say_now': (
+                            f'Você disse a ela que este prato custava '
+                            f'R$ {before:.2f} por porção, e agora deu '
+                            f'R$ {cmv:.2f}. Diga que {direction}'
+                            + (f', porque {"; ".join(porque)}' if porque else '')
+                            + '. Ela não pode ficar com dois preços na cabeça sem '
+                            'saber qual vale, nem sem saber o que mudou.'
+                        ),
+                    }
             # Ask the ledger, not the constant: earlier dishes may already have
             # eaten into the budget.
             budget_check = (
@@ -318,8 +396,13 @@ class PricingMCP(BaseMCP):
                 else {'verdict': 'nothing_to_buy', 'fits': True}
             )
 
+            if complete and dish:
+                self.lock.lock(dish, lines, portions, round(cmv, 2))
+
             return {
                 'dish': dish,
+                'cmv_changed_since_you_told_her': changed,
+                'recipe_now_settled': bool(complete and dish),
                 'portions_per_batch': portions,
                 'cmv_per_portion': round(cmv, 2) if complete else None,
                 'calculation_complete': complete,
@@ -336,6 +419,62 @@ class PricingMCP(BaseMCP):
                     'will buy it. You are not buying anything: she is.'
                     if complete
                     else 'Do NOT price yet. Take open_questions back to the conversation.'
+                ),
+            }
+
+        @self.mcp.tool
+        def reopen_recipe(
+            dish: Annotated[str, Field(description='Dish whose recipe is settled.')],
+            her_words: Annotated[str, Field(description='What SHE said that changes the dish, copied from her message.')],
+            what_changed: Annotated[str, Field(description="In one line: 'trocou o presunto por frango', 'desistiu deste prato'.")] = '',
+        ) -> dict:
+            """Unsettle a recipe, because the dish changed in the conversation.
+
+            The only way back into `calculate_cmv` with a different ingredient
+            list. It exists so that a recipe changes when **she** changes it, and
+            not because the model composed the list differently on the second
+            call.
+
+            After this, redo the work that hung off the old recipe: search the
+            recipe again if it is really another dish, run the gate, cost it, and
+            price it. The old numbers are not about this recipe any more.
+            """
+            if len(her_words.split()) < 2:
+                return {
+                    'reopened': False,
+                    'error': 'Reabrir a receita é uma decisão dela, e precisa das '
+                             'palavras dela.',
+                    'next_step': (
+                        'Se ela pediu para trocar alguma coisa ou desistiu do '
+                        'prato, copie a frase dela. Se não pediu, a receita '
+                        'continua como está e o custo é o que já foi calculado.'
+                    ),
+                }
+            try:
+                spoken = self.chat.she_said(her_words)
+            except Exception:
+                spoken = {'said': False, 'turns_on_record': 0, 'unavailable': True}
+            if not spoken['said'] and not spoken.get('unavailable'):
+                return {
+                    'reopened': False,
+                    'error': f'Ela não disse isso. Procurei {her_words!r} nas '
+                             f"{spoken['turns_on_record']} falas dela e não achei.",
+                    'next_step': (
+                        'Não mude a receita dela por conta própria. A receita '
+                        'fechada continua valendo.'
+                    ),
+                }
+            because = f'{what_changed} | ela: “{her_words}”'.strip(' |')
+            done = self.lock.reopen(dish, because)
+            return {
+                'reopened': done,
+                'dish': dish,
+                'note': None if done else 'Não havia receita fechada para este prato.',
+                'next_step': (
+                    'Refaça tudo que dependia da receita antiga: se for outro prato, '
+                    'busque a receita; rode o portão de novo com o que a nova versão '
+                    'exige; recalcule o CMV; e só então volte a falar de preço. Os '
+                    'números antigos não são mais deste prato.'
                 ),
             }
 

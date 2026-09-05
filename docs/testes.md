@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-207-success)
+![Unitários](https://img.shields.io/badge/testes-212-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,12 +38,12 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**207 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**212 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
-| `test_mcp_server.py` | 34 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
+| `test_mcp_server.py` | 39 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
 | `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
@@ -400,6 +400,27 @@ As transcrições completas estão em [dialogos.md](dialogos.md).
 
 ---
 
+### O número que mudou sem aviso
+
+Achado no próprio README, que é o lugar mais constrangedor possível: o exemplo
+principal dizia que a marmita custava R$ 8,51 num turno e R$ 7,80 no seguinte,
+sem uma palavra sobre a diferença.
+
+A auditoria de cifras não pegava, e não é falha dela: os dois números saíram de
+ferramenta. Ela pergunta se a cifra foi calculada, não se uma **diferente** já
+tinha sido prometida.
+
+`pricing_calculate_cmv` passou a comparar com o último CMV completo do mesmo
+prato e devolver `cmv_changed_since_you_told_her`. Na regravação, o agente abriu
+a mensagem com *"antes de mais nada: preciso corrigir um número"*, e repetiu a
+correção no fechamento. Ver [decisoes.md](decisoes.md), item 42.
+
+Vale dizer o que isso **não** é: uma recusa. É uma instrução devolvida na
+resposta, e o modelo pode ignorar. Foi suficiente na simulação; o dado já está
+na fronteira do turno se um dia precisar virar recusa.
+
+---
+
 ## O que ainda não é testado
 
 Dito aqui porque suíte cuja fronteira não está escrita vira falsa sensação de
@@ -427,3 +448,40 @@ chega, o que é justamente o caso que precisaria de teste.
 **Postgres de verdade.** Os testes de domínio usam um banco falso. Migração,
 índice parcial e restrição `CHECK` são exercitados só pelo servidor subindo. Se
 uma migração quebrar, quem avisa é o healthcheck, não um teste.
+
+---
+
+## A rodada do número inventado
+
+Esta achou um defeito que **eu** tinha introduzido, o que a torna a mais útil das
+rodadas até aqui.
+
+**O agente pediu desculpa por um preço que ela nunca ouviu.** Numa conversa nova,
+na primeira vez que falou de dinheiro, a mensagem abriu com *"preciso corrigir um
+número: eu tinha te dito que a lasanha custava R$ 9,90"*. Ele nunca disse isso.
+
+A causa era a decisão 42 na primeira forma: eu comparava o CMV novo com o
+**último que a ferramenta tinha calculado**. Dentro de um turno o prato é
+custeado várias vezes enquanto o agente resolve a receita, e só o último número
+é falado. Comparar com o histórico da ferramenta fez o agente inventar uma
+lembrança da conversa.
+
+Silêncio sobre uma mudança é ruim; memória falsa da conversa é pior. A
+comparação passou a ser contra o que **chegou até ela**, marcado na fronteira do
+turno, que é o único lugar que vê a mensagem entregue.
+
+**E o custo andava sozinho.** R$ 9,90, R$ 8,18, R$ 7,15 na mesma consultoria,
+com a conta certa nas três vezes. A aritmética nunca foi o problema: os insumos
+eram, porque o agente compunha uma lista de ingredientes um pouco diferente a
+cada chamada.
+
+Detectar a mudança e explicá-la é o segundo melhor resultado. O melhor é o
+número não andar, e é o que a decisão 43 faz: a primeira conta completa fecha a
+receita do prato, e uma lista diferente depois disso é recusada. Só reabre por
+`pricing_reopen_recipe`, com as palavras dela, porque a receita muda quando
+**ela** muda.
+
+Cinco testes cobrem os dois caminhos: a mesma lista em outra ordem recomputa
+igual, uma lista diferente é recusada com o custo fechado devolvido, reabrir sem
+a fala dela é recusado, inventar a fala dela é recusado, e um custo calculado
+mas nunca dito não gera correção nenhuma.

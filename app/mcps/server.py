@@ -134,7 +134,9 @@ class MCPServer:
             'market': MarketMCP(self.settings),
             'economy': EconomyMCP(self.settings),
             'budget': BudgetMCP(self.settings, self.database),
-            'pricing': PricingMCP(self.settings, self.repository, self.database),
+            'pricing': PricingMCP(
+                self.settings, self.repository, self.database, self.observer
+            ),
             'confidence': ConfidenceMCP(self.settings, self.database, self.observer),
             'menu': MenuMCP(self.settings, self.database, self.observer),
         }

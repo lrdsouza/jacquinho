@@ -132,6 +132,22 @@ CREATE TABLE IF NOT EXISTS menu_items (
     added_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- The recipe of a dish is settled once, not renegotiated on every costing. The
+-- agent used to pass a slightly different ingredient list each time it costed
+-- the same dish, so the CMV wandered - 9,90 then 8,18 then 7,15 - with nothing
+-- in the system able to say which one was the dish. Locking the lines makes the
+-- cost a property of the dish instead of a property of the last call.
+CREATE TABLE IF NOT EXISTS recipe_costing (
+    slug            TEXT PRIMARY KEY,
+    dish            TEXT NOT NULL,
+    lines           JSONB NOT NULL,
+    portions        INTEGER NOT NULL DEFAULT 1,
+    cmv             NUMERIC(10,2),
+    locked_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reopened_at     TIMESTAMPTZ,
+    reopened_because TEXT
+);
+
 CREATE TABLE IF NOT EXISTS answer_assessments (
     id                  BIGSERIAL PRIMARY KEY,
     dish                TEXT NOT NULL,
