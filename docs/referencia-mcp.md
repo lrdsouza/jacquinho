@@ -37,7 +37,7 @@ o dado.
 
 | Ferramenta | O que faz | Argumentos | Notas |
 |---|---|---|---|
-| `chat_save_turn` | Registra um turno. | `session`, `role`, `content`, `tags` | Grave as palavras dela literalmente. |
+| `chat_save_turn` | Registra um turno. | `session`, `role`, `content`, `tags` | Grave as palavras dela literalmente: `kitchen_record_capability` procura a citação aqui antes de aceitar um `confirmed_*`. Sem isso, nada pode ser confirmado. |
 | `chat_recent_history` | Lê os últimos turnos. | `session`, `limit` |  |
 | `chat_search_history` | Acha o que ela já disse sobre algo. | `session`, `term`, `limit` | Sem sensibilidade a acento. Use antes de perguntar qualquer coisa. |
 | `chat_list_sessions` | Lista as conversas guardadas. | nenhum |  |
@@ -101,7 +101,8 @@ o dado.
 | Ferramenta | O que faz | Argumentos | Notas |
 |---|---|---|---|
 | `kitchen_check_feasibility` | Confere se ela consegue produzir o prato. | `equipment_needed`, `techniques_needed` | Veredito `approved`, `needs_answers` ou `rejected`. |
-| `kitchen_record_capability` | Guarda o que ela respondeu sobre a cozinha. | `category`, `item`, `state`, `note` | Recusa chave fora do catálogo. Ao virar `confirmed_yes`, aponta para `recipes_revisit_blocks`; ao virar `confirmed_no`, roda o portão do prato em discussão e devolve `dish_now_ruled_out`. |
+| `kitchen_record_capability` | Guarda o que ela respondeu sobre a cozinha. | `category`, `item`, `state`, `her_words`, `note` | Recusa chave fora do catálogo, e recusa um `confirmed_*` cuja `her_words` não esteja nas falas guardadas dela. Ao virar `confirmed_yes`, levanta os bloqueios daquele item e devolve `dishes_back_on_the_table`; ao virar `confirmed_no`, roda o portão do prato em discussão, arquiva o prato e devolve `dish_now_ruled_out`. Nos dois casos abre a dívida do veredito. |
+| `kitchen_announce_verdict` | Entrega a ela o veredito sobre o prato dela. | `message_to_her` | Única forma de quitar a dívida. A frase precisa nomear o prato dela e o que decidiu isso, senão volta com `missing_from_your_message`. |
 | `kitchen_read_kitchen_profile` | Tudo que se sabe de equipamentos, técnicas e limites. | nenhum | Vazio significa não perguntado, não ausente. |
 | `kitchen_next_questions` | As coisas mais úteis ainda não perguntadas. | `limit` | Ordenadas por prioridade; itens de prioridade 1 barram recomendação. Também devolve `dish_now_ruled_out` se o prato em discussão já morreu. |
 | `kitchen_elicitation_coverage` | Quanto do catálogo ela já respondeu. | nenhum | Percentual e o que falta. |

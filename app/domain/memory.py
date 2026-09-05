@@ -122,6 +122,32 @@ class ConversationStore:
     def sessions(self) -> list[str]:
         return sorted(self.backend.guard(self.backend.client.smembers, self.SESSIONS_KEY))
 
+    def she_said(self, quote: str) -> dict:
+        '''Did Dona Maria actually say this, anywhere in the conversation?
+
+        The agent once recorded that she owned an oven she had never been asked
+        about, and priced a whole lasagna on top of it. Nothing in the server
+        could contradict that, because the only record of what she said lived
+        in the model's context. It lives here now, so a claim about her words
+        can be checked against her words.
+
+        Searched across sessions on purpose: the session id the agent uses for
+        the chat is its own choice, and a quote in the wrong bucket is still
+        something she said.
+        '''
+        needle = UnitConverter.normalise_text(quote)
+        if not needle:
+            return {'said': False, 'turns_on_record': 0, 'match': None}
+        seen = 0
+        for session in self.sessions():
+            for turn in self.history(session, self.MAX_TURNS):
+                if turn.get('role') != 'dona_maria':
+                    continue
+                seen += 1
+                if needle in UnitConverter.normalise_text(turn['content']):
+                    return {'said': True, 'turns_on_record': seen, 'match': turn}
+        return {'said': False, 'turns_on_record': seen, 'match': None}
+
     # ------------------------------------------------------- summary window
 
     def _summary(self, session: str) -> dict:

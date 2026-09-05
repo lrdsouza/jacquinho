@@ -57,6 +57,29 @@ class ConfidenceMiddleware(Middleware):
         ),
     }
 
+    # Moving on is the failure. When a dish dies - or comes back - she has to
+    # hear it before anything else happens, and three rounds of stronger wording
+    # in tool results did not achieve that: the model filed the answer, honoured
+    # it from then on, and replied about something else. So these are refused
+    # while the session owes her a verdict. Reading is never refused: the profile,
+    # the pantry, the history and the gate stay open, because checking the facts
+    # before speaking is exactly what it should be doing here.
+    MOVING_ON = frozenset({
+        'dishes_survey_categories',
+        'dishes_discover_dishes',
+        'recipes_search_recipes',
+        'recipes_save_candidate',
+        'recipes_check_pantry_coverage',
+        'pricing_calculate_cmv',
+        'pricing_price_scenarios',
+        'market_research_dish_prices',
+        'budget_commit_purchase',
+        'menu_add_dish',
+        # Asking her the next question while the last answer is unanswered is
+        # the exact shape of the failure, so it counts as moving on too.
+        'kitchen_next_questions',
+    })
+
     NEEDS_ASSESSMENT = {
         'menu_add_dish': (
             'nenhum prato entra no cardápio sem passar por '
@@ -155,6 +178,14 @@ class ConfidenceMiddleware(Middleware):
                 'texto da receita, ou kitchen_check_feasibility com o que o prato '
                 'exige, e só volte aqui quando o veredito for approved. Ler o perfil '
                 'da cozinha não conta: ler não é verificar.'
+            )
+
+        owed = self.observer.owed_announcement(session)
+        if owed and name in self.MOVING_ON:
+            raise ToolError(
+                f'Recusado: {owed["say_now"]} Enquanto isso não for feito, '
+                'ferramentas que seguem a conversa estão fechadas. Escreva a frase '
+                'para ela e passe-a em kitchen_announce_verdict.'
             )
 
         if name == self.SEARCH_TOOL:

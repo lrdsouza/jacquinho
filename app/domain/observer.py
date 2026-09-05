@@ -100,6 +100,13 @@ class ConfidenceObserver:
         # Counted per session so a fruitless retry loop cannot quietly spend
         # a hundred of them.
         self.searches: dict[str, int] = {}
+        # A verdict she has not been told yet. The worst turn this agent ever
+        # produced was one where she said 'não tenho forno', the server filed
+        # it correctly, and the reply talked about something else entirely. She
+        # handed over the fact that killed the dish and heard nothing about the
+        # dish. So the verdict becomes a debt the session owes her, and the
+        # tools that mean 'moving on' are refused while it is open.
+        self.pending: dict[str, dict] = {}
 
     def _trail(self, key: tuple[str, str]) -> EvidenceTrail:
         trail = self.trails.get(key)
@@ -239,6 +246,19 @@ class ConfidenceObserver:
         name = self.active_dish.get(session, self.NO_DISH)
         return None if name == self.NO_DISH else name
 
+    def owe_announcement(self, session: str, announcement: dict) -> dict:
+        '''Record a verdict she is owed, out loud, before anything else.'''
+        self.pending[session] = announcement
+        return announcement
+
+    def owed_announcement(self, session: str) -> dict | None:
+        return self.pending.get(session)
+
+    def settle_announcement(self, session: str) -> dict | None:
+        '''Mark the verdict as delivered. Only the tool that checks the words
+        she will actually read is allowed to call this.'''
+        return self.pending.pop(session, None)
+
     def cmv_ready(self, session: str, dish: str | None = None) -> bool:
         '''Was a complete CMV calculated for this dish?'''
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
@@ -270,12 +290,17 @@ class ConfidenceObserver:
         '''
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
         trail = self.trails.get((session, name))
+        owed = self.pending.get(session)
         if trail is None:
-            return {
+            state = {
                 'dish_in_play': None,
                 'next_action': 'Nada em andamento. Se ela já pediu sugestões, '
                                'chame dishes_survey_categories.',
             }
+            if owed:
+                state['deve_a_ela'] = owed
+                state['next_action'] = owed['say_now']
+            return state
 
         gate = (trail.feasibility or {}).get('verdict')
         if gate == 'rejected':
@@ -298,7 +323,12 @@ class ConfidenceObserver:
         else:
             nxt = 'mostre os cenários e deixe ela escolher; então menu_add_dish'
 
+        if owed:
+            # Everything else in the state is a suggestion. This one is a debt.
+            nxt = owed['say_now']
+
         return {
+            'deve_a_ela': owed,
             'dish_in_play': None if name == self.NO_DISH else name,
             'gate': gate or 'não rodou',
             'cmv_calculado': trail.cmv is not None,
@@ -386,6 +416,7 @@ class ConfidenceObserver:
             self.trails.clear()
             self.pantry.clear()
             self.active_dish.clear()
+            self.pending.clear()
         elif dish is None:
             for key in [k for k in self.trails if k[0] == session]:
                 self.trails.pop(key)

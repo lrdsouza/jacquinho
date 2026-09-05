@@ -558,7 +558,7 @@ de chamadas.
 
 **Consequência.** Subir é uma linha. `claude-sonnet-5` para julgamento mais forte
 mantendo bom uso de ferramentas, `claude-opus-5` quando capacidade importar mais
-que custo. Nada mais muda: os onze servidores MCP e as 55 ferramentas se
+que custo. Nada mais muda: os onze servidores MCP e as 56 ferramentas se
 comportam de forma idêntica por baixo.
 
 **Custo e latência.** Modelo menor também responde mais rápido, o que importa numa
@@ -809,3 +809,76 @@ README e em [testes.md](testes.md), porque é o que os testes de diálogo mostra
 
 **Observabilidade.** O campo aparece na resposta da ferramenta e vai para o log;
 dá para ver, depois da conversa, se a frase foi entregue e o agente a ignorou.
+
+---
+
+## 31. O veredito é uma dívida da conversa, não um lembrete
+
+**Decisão.** Quando um prato morre — ou volta —, a sessão passa a dever a ela
+essa frase. Todas as ferramentas que significam seguir em frente são recusadas
+até que `kitchen_announce_verdict` receba o texto que ela vai ler, e esse texto
+é conferido: precisa nomear o prato dela e o que decidiu aquilo.
+
+**Motivo.** É o pior turno que este agente já produziu, e nenhum número estava
+errado: ela diz "não tenho forno", o servidor arquiva certo, e a resposta fala
+de outra coisa. Ela entregou o fato que matou o prato dela e não ouviu nada
+sobre o prato dela.
+
+Três tentativas, todas por redação. Um `next_step` mandando fechar o prato com
+todas as letras. Depois a frase pronta devolvida em `dish_now_ruled_out.say_now`.
+Depois a mesma checagem em `next_questions`, porque pedir a próxima pergunta é o
+instante em que ele mudava de assunto. Melhorou nas três, acertou em nenhuma:
+redação é conselho, e conselho o modelo pode pular. É a mesma lição que este
+documento repete desde a decisão 1.
+
+**Consequência.** Ler nunca é recusado — despensa, perfil, histórico e o próprio
+portão seguem abertos, porque conferir antes de falar é o que ele deveria estar
+fazendo ali. O que fecha é buscar outro prato, custear, precificar, comprar,
+entrar no cardápio e fazer a próxima pergunta.
+
+A conferência da frase é deliberadamente pequena: nome do prato, motivo, e
+tamanho de frase inteira. O nome curto conta — ela chama de "a lasanha" e o
+agente também. E a palavra que bloqueia é descontada do nome do prato antes da
+comparação, senão dizer "forno" passaria por ter nomeado "lasanha ao forno".
+
+Isso não garante que a frase conferida seja de fato enviada a ela; o servidor
+não vê a mensagem final. O que garante é que ela foi escrita, com o prato e o
+motivo dentro, antes de qualquer outra coisa acontecer — e na simulação isso foi
+suficiente, o que as três redações anteriores nunca foram.
+
+**Observabilidade.** A dívida aparece em `conversation_state.deve_a_ela`, em toda
+resposta de ferramenta, e a recusa diz exatamente o que falta dizer.
+
+---
+
+## 32. Um "confirmado" é uma afirmação sobre o que ela disse
+
+**Decisão.** `kitchen_record_capability` exige `her_words` para `confirmed_yes` e
+`confirmed_no`, e procura essa citação nas falas guardadas dela antes de aceitar.
+Sem conversa guardada, nada pode ser confirmado. `unknown` não exige citação.
+
+**Motivo.** Numa simulação com o banco zerado, o agente decidiu sozinho que ela
+tinha forno, fogão, sabia montar camadas e gratinar — sem perguntar nada. O
+portão aprovou em cima disso e precificou uma lasanha inteira, com margem e
+tudo, para uma cozinha que não a assa. O portão funcionou perfeitamente: ele
+confere o perfil, e o perfil dizia sim.
+
+O problema era de onde vinha o sim. O único registro do que ela tinha dito
+morava no contexto do modelo, e o servidor não tinha como discordar. "Silêncio
+não é consentimento" estava escrito na descrição da ferramenta desde o começo, o
+que o tornava exatamente o tipo de regra que este projeto já aprendeu a não
+confiar.
+
+**Consequência.** A conversa passa a ser gravada de verdade — antes o Redis
+ficava vazio numa consultoria inteira, e a janela de contexto documentada não
+descrevia nada. A gravação vira dependência de uma coisa que o agente quer
+fazer, e por isso acontece.
+
+Continua sendo possível inventar a citação junto com a resposta. A diferença é
+que agora inventar é um ato explícito, escrito, e auditável: a nota gravada
+carrega `ela: "…"` ao lado do estado, e quem revisar lê a origem da afirmação
+junto com ela.
+
+**Observabilidade.** `her_words_verified` volta em toda gravação, e é `false`
+quando a citação não pôde ser conferida — Redis fora do ar, por exemplo. A
+consultoria continua; a confiança na linha é que fica menor, e dita.

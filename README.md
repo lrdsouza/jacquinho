@@ -25,59 +25,94 @@ chamada de ferramenta, nunca da memória do modelo**.
 ## O caso que prova o requisito central
 
 A Dona Maria quer um prato que exige forno. Ela não tem forno. O agente
-descobre isso **antes** de ela gastar um centavo do orçamento.
+descobre isso **antes** de ela gastar um centavo do orçamento — e depois, quando
+ela ganha um forno, o prato volta sozinho.
 
-Transcrição real, banco zerado, gravada com `jacquinho`:
+Transcrição real, bancos zerados, gravada com `jacquinho`:
 
 ```
 Dona Maria ▸ oi! quero fazer lasanha ao forno pra vender de marmita
 
-Jacquinho  ▸ Boa! Lasanha à bolonhesa costuma vender muito bem em marmita.
-             Antes de fechar essa receita, preciso saber um pouco da sua
-             cozinha — vou te fazer umas perguntas rápidas, uma de cada vez.
-             Primeira: seu forno funciona bem e assa por igual?
+Jacquinho  ▸ Que legal! Lasanha de carne moída ao forno é sucesso garantido
+             em marmita. Antes de eu montar tudo pra você, preciso confirmar
+             algumas coisas da sua cozinha. Primeira: você tem forno em casa?
+             Funciona bem, assa por igual?
 
 Dona Maria ▸ nao tenho forno nao, so um cooktop de 4 bocas
 
-Jacquinho  ▸ Anotado aqui: sem forno, só o cooktop de 4 bocas — vou levar
-             isso em conta em tudo que eu sugerir pra você. [...]
-             Quer que eu já procure pratos que dão pra fazer com isso e
-             sem forno?
+Jacquinho  ▸ Sua lasanha de carne moída ao forno não vai dar certo, porque
+             você não tem forno, só o cooktop de 4 bocas. Mas dá pra fazer a
+             versão dela na panela, no fogão: lasanha de panela, montando as
+             camadas de massa, molho e queijo direto na panela, no fogo baixo,
+             até derreter tudo. Fica com o mesmo gostinho, só muda o jeito de
+             cozinhar. Topa fazer assim?
+
+Dona Maria ▸ ah espera, esqueci de falar: minha filha me deu um forno eletrico
+             semana passada, ta na caixa ainda mas funciona
+
+Jacquinho  ▸ Boa notícia: com esse forno elétrico que sua filha te deu, a
+             lasanha de carne moída ao forno volta pro jogo! Era só isso que
+             estava faltando antes. Bora fazer ela do jeito que você pensou,
+             assada mesmo?
 ```
+
+Três coisas acontecem aí, e nenhuma delas depende de o modelo lembrar.
+
+**Ele pergunta em vez de supor.** A primeira mensagem não recebeu uma receita
+pronta: recebeu uma pergunta. Um `confirmed_yes` é uma afirmação sobre algo que
+ela disse, e `kitchen_record_capability` procura as palavras dela na conversa
+guardada antes de aceitar. Sem a fala dela no registro, a resposta é recusada e
+o item continua `unknown` — que é uma pergunta, nunca um sim.
+
+**Ele fecha o prato dela em voz alta.** No instante em que ela diz "não tenho
+forno", o servidor roda o portão, arquiva a lasanha como bloqueada *pelo forno*,
+e passa a dever a ela essa frase. Enquanto a dívida existe, tudo que significa
+seguir em frente — buscar outro prato, calcular custo, precificar, fazer a
+próxima pergunta — é **recusado**. Ela só volta a ouvir sobre outra coisa depois
+de ouvir sobre a dela.
+
+**E a resposta dela não é definitiva.** O bloqueio guardou *o que* o causou, e
+por isso pode se desfazer: ela diz que ganhou um forno, o bloqueio se levanta
+sozinho e a lasanha volta — com a mesma dívida de contar isso a ela.
 
 O que aconteceu por baixo, em ordem:
 
 ```
-pantry_list_ingredients               1.00
-recipes_search_recipes                0.50
-kitchen_analyse_recipe_requirements   0.30  lasanha a bolonhesa  feasibility
-                                      └─ leu 'leve ao forno' na receita e travou
-kitchen_record_capability             1.00  forno = confirmed_no
+turno 1  chat_save_turn                       guarda a fala dela, literal
+         recipes_search_recipes
+         kitchen_analyse_recipe_requirements  lê 'leve ao forno' no texto
+         kitchen_check_feasibility            forno = unknown → pergunta
+
+turno 2  kitchen_record_capability            forno = confirmed_no
+                                              └─ com as palavras dela, conferidas
+         → prato arquivado: missing_equipment/forno
+         → dívida aberta; ferramentas de seguir em frente recusadas
+         kitchen_announce_verdict             a frase, checada e entregue
+
+turno 3  kitchen_record_capability            forno = confirmed_yes
+         recipes_revisit_blocks               bloqueio levantado
+         kitchen_announce_verdict             a volta, contada a ela
 ```
 
-E o estado depois da conversa:
+E o estado no banco, ao fim:
 
 ```
-orçamento restante ... R$ 80.00 de R$ 80.00
-compras feitas ...... 0
-cardápio ............ 0 pratos
-perfil gravado ...... forno, fogao
-gate da lasanha ..... safe_to_shop=False | bloqueado por ['forno']
+perfil ......... forno=confirmed_yes  ("forno elétrico, ainda na caixa")
+                 fogao=confirmed_yes  ("cooktop de 4 bocas")
+bloqueio ....... lasanha … ao forno | forno | ativo=false
+                 levantado porque: "forno elétrico, ainda na caixa, mas funciona"
+orçamento ...... R$ 80,00 de R$ 80,00 — nenhum centavo saiu
+cardápio ....... 0 pratos
 ```
 
-Nenhum centavo saiu. A exigência de forno não veio do modelo lembrar que lasanha
-vai ao forno: veio de `kitchen_analyse_recipe_requirements` ler as palavras
-`leve ao forno` no texto da receita que ele mesmo buscou. E o bloqueio persiste
-no banco — se ela comprar um forno amanhã, `recipes_revisit_blocks('forno')`
-traz a lasanha de volta sozinha.
+A exigência de forno não veio de o modelo lembrar que lasanha vai ao forno: veio
+de `kitchen_analyse_recipe_requirements` ler as palavras `leve ao forno` no texto
+da receita que ele mesmo buscou. E a frase que ela ouviu não veio de um pedido
+educado numa descrição de ferramenta: veio de uma dívida que fecha as portas
+até ser paga.
 
-**Uma aresta, dita com franqueza.** Nesta transcrição o agente registra a
-restrição e passa a respeitá-la, mas não diz em voz alta *"a lasanha ao forno
-está fora, mas dá pra fazer de panela"*. A ferramenta devolve exatamente essa
-frase pronta em `dish_now_ruled_out.say_now`, e o modelo não a usa de forma
-confiável. O portão segura — que é o que protege o dinheiro dela — mas o
-fechamento conversacional ainda depende do modelo. Está em
-[docs/testes.md](docs/testes.md) junto com o resto do que a simulação achou.
+O caminho até aqui está em [docs/testes.md](docs/testes.md) — incluindo as três
+tentativas anteriores, todas por redação, todas fracassadas.
 
 ---
 
@@ -254,7 +289,7 @@ pensamento. `claude-haiku-4-5` é uma linha, se custo importar mais.
 
 O agente roda em qualquer provedor que você apontar e alcança as 56 ferramentas
 de qualquer jeito. O que ele exige de verdade não é inteligência bruta e sim
-**chamada de ferramenta confiável**: são 55 ferramentas e cadeias de vários
+**chamada de ferramenta confiável**: são 56 ferramentas e cadeias de vários
 passos. Cada caminho — assinatura, chave, camada gratuita, Ollama local — tem um
 bloco pronto em `dockerfile/hermes-config.yaml`.
 
@@ -426,6 +461,29 @@ flowchart LR
     Y --> OK["safe_to_shop = true"]
 ```
 
+#### Um "sim" é uma afirmação sobre o que ela disse
+
+O erro mais caro que este agente já cometeu não foi de conta: foi decidir que
+ela tinha um forno sobre o qual ninguém tinha perguntado. O portão aprovou em
+cima disso e a lasanha inteira foi precificada — para uma cozinha que não a
+assa. Nada no servidor podia contradizer aquilo, porque o único registro do que
+ela tinha dito vivia no contexto do modelo.
+
+Agora vive no Redis. `kitchen_record_capability` exige `her_words` para qualquer
+`confirmed_yes` ou `confirmed_no`, e **procura essa frase nas falas dela** antes
+de aceitar:
+
+| Situação | Resposta do servidor |
+|---|---|
+| Sem `her_words` | Recusado: *"um confirmado é uma afirmação sobre o que ELA disse"* |
+| `her_words` que ela não disse | Recusado, com quantas falas dela foram procuradas |
+| Nenhuma fala guardada | Recusado: guarde a mensagem dela primeiro |
+| `state='unknown'` | Aceito sem citação — `unknown` é uma pergunta, não uma afirmação |
+
+O que fica gravado carrega a citação: `forno=confirmed_no — ela: "nao tenho
+forno nao, so um cooktop de 4 bocas"`. Quem auditar depois lê a origem da
+afirmação junto com ela.
+
 #### O agente sabe o que ainda não perguntou
 
 Isso não é dedução do modelo, é uma consulta. `unknown` é um estado guardado, e
@@ -554,19 +612,55 @@ O orçamento de complementos diminui conforme ela fecha compras, sobrevive a
 reinicializações, e recusa estourar em vez de ficar negativo. O saldo é derivado
 por `sum()` no banco, então não pode divergir das compras.
 
+### O prato dela morre em voz alta
+
+O pior turno que este agente já produziu não errou nenhum número: ela disse "não
+tenho forno", o servidor arquivou certo, e a resposta falou de outra coisa. Ela
+entregou o fato que matou o prato dela e não ouviu nada sobre o prato dela.
+
+Três rodadas de redação mais forte não resolveram — um `next_step` mandando
+fechar o prato, depois a frase pronta devolvida na resposta da ferramenta.
+Redação é conselho, e conselho o modelo pode pular.
+
+Então o veredito virou uma **dívida da conversa**:
+
+```mermaid
+flowchart TD
+    N["ela responde 'não tenho forno'"] --> P["portão roda sozinho<br/>prato arquivado por 'forno'"]
+    P --> D["a sessão passa a dever a ela<br/>o veredito, em voz alta"]
+    D --> X["dishes_discover · recipes_search · pricing_*<br/>market_* · budget_commit · menu_add<br/>kitchen_next_questions"]
+    X -.->|recusados| D
+    D --> A["kitchen_announce_verdict<br/><i>com a frase que ela vai ler</i>"]
+    A -->|nomeia o prato dela<br/>e o que o travou| L["dívida quitada,<br/>a conversa segue"]
+    A -.->|"'entendido, vou ver outras opções'"| D
+```
+
+Ler nunca é recusado: a despensa, o perfil, o histórico e o próprio portão
+seguem abertos, porque conferir antes de falar é exatamente o que ele deveria
+estar fazendo ali. O que fecha é seguir em frente.
+
+E a frase é conferida antes de passar. Ela precisa nomear **o prato dela** — o
+nome curto conta, ela chama de "a lasanha" e o agente também — e **o que
+decidiu isso**. Um aceno educado não quita nada.
+
 ### Um bloqueio se desfaz quando o motivo dele muda
 
 Um prato recusado por falta de equipamento guarda **qual** equipamento o
 bloqueou. No dia em que ela responde que passou a ter aquilo, os pratos voltam
-sozinhos:
+sozinhos — e ela ouve isso pelo mesmo caminho, porque a volta também é uma
+dívida:
 
 ```
 ela não tem forno   -> Lasanha e Bolo bloqueados por 'forno'
                        Parmegiana bloqueada por gosto
-ela compra o forno  -> desbloqueadas: ['Lasanha ao forno', 'Bolo de cenoura']
+ela ganha um forno  -> desbloqueadas: ['Lasanha ao forno', 'Bolo de cenoura']
                        ainda bloqueada: Parmegiana (gosto não é um problema
                        esperando solução)
 ```
+
+Um prato que ela nomeou e que ninguém pesquisou ainda também é arquivado, com um
+registro honesto sobre a origem — *"dito por ela na conversa"*. Sem isso o
+bloqueio não teria onde se prender, e a volta um mês depois não aconteceria.
 
 ### O contexto da conversa é limitado por construção
 
@@ -622,8 +716,10 @@ toda chamada.
 ### As ferramentas exigem umas às outras
 
 Preço exige portão aprovado **e** CMV daquele prato. Cardápio exige, além disso,
-uma avaliação. O caminho certo é o único caminho, em vez do mais trabalhoso — foi
-por ser mais trabalhoso que o agente o pulava.
+uma avaliação. Um veredito não contado a ela fecha tudo que significa seguir em
+frente. Um "sim" sobre a cozinha dela exige a fala dela, guardada. O caminho
+certo é o único caminho, em vez do mais trabalhoso — foi por ser mais trabalhoso
+que o agente o pulava.
 
 ### Os números da mensagem são conferidos sem modelo
 
@@ -754,6 +850,12 @@ precisam mudar.
 │   │   ├── economy.py        inflação regional
 │   │   ├── budget.py         o saldo gastável
 │   │   ├── confidence.py     pontuação determinística e julgamento
+│   │   ├── observer.py       trilha de evidência por sessão e por prato
+│   │   ├── audit.py          confere cifras da mensagem contra as ferramentas
+│   │   ├── catalogue.py      receitas e bloqueios que se desfazem
+│   │   ├── verdict.py        a frase que ela lê, e o que a torna uma resposta
+│   │   ├── money.py          ponto de equilíbrio, lucro, arredondamento
+│   │   ├── database.py       conexão e esquema em Postgres
 │   │   └── memory.py         armazenamento em Redis
 │   └── mcps/                 uma classe por servidor MCP, mais a raiz de composição
 ├── hermes/SOUL.md            voz e quem fala primeiro, lido pelo agente
@@ -826,7 +928,7 @@ As decisões completas, com motivo e consequência de cada uma, estão em
 |---|---|
 | [docs/arquitetura.md](docs/arquitetura.md) | Componentes, camadas, caminhos de requisição, composição |
 | [docs/decisoes.md](docs/decisoes.md) | Cada decisão de arquitetura e sua justificativa |
-| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 55 ferramentas, prompts e recursos |
+| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 56 ferramentas, prompts e recursos |
 | [docs/modelo-de-dados.md](docs/modelo-de-dados.md) | Normalização de unidades, chaves do Redis, arquivos de estado |
 | [docs/metricas.md](docs/metricas.md) | Como a confiança é calculada, suas falhas e como melhorá-la |
 | [docs/testes.md](docs/testes.md) | A suíte automatizada e a simulação de usuário |

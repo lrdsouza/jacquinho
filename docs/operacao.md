@@ -104,7 +104,7 @@ muda mais nada: os servidores MCP, as ferramentas e todas as regras se comportam
 de forma idêntica por baixo.
 
 O eixo que importa aqui não é inteligência bruta, e sim **confiabilidade de
-chamada de ferramenta**. São 55 ferramentas e cadeias de vários passos; um
+chamada de ferramenta**. São 56 ferramentas e cadeias de vários passos; um
 modelo que não segura um esquema de ferramenta falha aqui independentemente do
 tamanho.
 
@@ -177,7 +177,7 @@ O `jacquinho login` já passa a opção.
 ```bash
 jacquinho hermes auth status    # a credencial ficou gravada?
 jacquinho hermes model          # que modelos a assinatura oferece
-jacquinho tools                 # as 55 ferramentas respondem?
+jacquinho tools                 # as 56 ferramentas respondem?
 jacquinho                       # abre o chat
 ```
 
@@ -186,7 +186,7 @@ padrão no `hermes-config.yaml` é `claude-haiku-4-5`, escolhido pensando em cha
 de API, onde toda a família está disponível. O conjunto que uma assinatura libera
 pode ser diferente; se o Haiku não estiver lá, troque a linha `default:` pelo que
 aparecer — `claude-sonnet-5` é o candidato mais provável. Nada mais muda: os onze
-servidores MCP e as 55 ferramentas se comportam de forma idêntica por baixo.
+servidores MCP e as 56 ferramentas se comportam de forma idêntica por baixo.
 
 ### Modelo local
 

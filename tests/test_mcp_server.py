@@ -14,8 +14,41 @@ from app.mcps.server import MCPServer  # noqa: E402
 
 
 @pytest.fixture(scope='module')
-def server():
-    return MCPServer(Settings.from_env()).root
+def built():
+    return MCPServer(Settings.from_env())
+
+
+@pytest.fixture(scope='module')
+def server(built):
+    return built.root
+
+
+@pytest.fixture(autouse=True)
+def one_conversation_per_test(built):
+    """A verdict owed to her belongs to the conversation that created it.
+
+    The server is built once for the module because building it is slow, so
+    without this a debt raised in one test would close the tools of the next -
+    which is correct in a conversation and nonsense across tests.
+    """
+    yield
+    built.observer.pending.clear()
+
+
+async def _she_says(client, text, **capability):
+    """She speaks, and only then is her answer recorded.
+
+    The agent once decided she owned an oven nobody had asked about and priced a
+    whole lasagna on it. A confirmed answer is now a claim about her words, and
+    the server looks them up - so the tests have to put them there too.
+    """
+    await client.call_tool(
+        'chat_save_turn',
+        {'session': 'testes', 'role': 'dona_maria', 'content': text},
+    )
+    return await client.call_tool(
+        'kitchen_record_capability', {'her_words': text, **capability},
+    )
 
 
 @pytest.mark.asyncio
@@ -178,10 +211,9 @@ async def test_the_agent_can_ask_what_it_has_not_asked(server):
 async def test_recording_an_answer_reports_what_is_settled(server):
     """The agent kept re-asking things it had just been told."""
     async with Client(server) as client:
-        result = await client.call_tool(
-            'kitchen_record_capability',
-            {'category': 'equipment', 'item': 'fogao',
-             'state': 'confirmed_yes', 'note': '4 bocas'},
+        result = await _she_says(
+            client, 'tenho um fogao de 4 bocas aqui em casa',
+            category='equipment', item='fogao', state='confirmed_yes',
         )
     settled = result.data['already_answered']
     unknown = result.data['still_unknown']
@@ -231,9 +263,20 @@ async def test_an_ambiguous_unit_becomes_a_question_not_an_estimate(server):
 async def test_acceptance_check_lists_what_is_still_missing(server):
     """The checks lived in five places and nobody consulted all five."""
     async with Client(server) as client:
+        # A requirement of its own, because this database is shared with every
+        # other test and with whatever the last real conversation answered. The
+        # assertion is about a question she has not been asked; borrowing one
+        # that someone else may have answered tests the neighbours instead.
+        await client.call_tool(
+            'kitchen_register_requirement',
+            {'key': 'prensa_de_teste', 'category': 'equipment',
+             'question': 'Você tem prensa?',
+             'why_it_matters': 'Sem ela o prato não sai.',
+             'priority': 1, 'triggers': ['prensa']},
+        )
         result = await client.call_tool(
             'menu_acceptance_check',
-            {'dish': 'Prato Novo', 'requirements': ['massa fresca']},
+            {'dish': 'Prato Novo', 'requirements': ['prensa_de_teste']},
         )
     data = result.data
     assert data['ready_to_accept'] is False
@@ -282,10 +325,9 @@ async def test_a_no_tells_the_agent_to_close_the_dish(server):
     """She told the agent the thing that rules the dish out and heard nothing
     back about the dish she had asked for."""
     async with Client(server) as client:
-        result = await client.call_tool(
-            'kitchen_record_capability',
-            {'category': 'equipment', 'item': 'forno',
-             'state': 'confirmed_no', 'note': 'so cooktop'},
+        result = await _she_says(
+            client, 'nao tenho forno nao, so um cooktop',
+            category='equipment', item='forno', state='confirmed_no',
         )
     guidance = result.data['next_step']
     assert 'check_feasibility' in guidance
@@ -303,10 +345,9 @@ async def test_a_blocking_answer_rules_the_dish_out_on_the_spot(server):
              'recipe_text': 'Monte em uma travessa e leve ao forno preaquecido '
                             'ate gratinar.'},
         )
-        result = await client.call_tool(
-            'kitchen_record_capability',
-            {'category': 'equipment', 'item': 'forno',
-             'state': 'confirmed_no', 'note': 'so cooktop de 4 bocas'},
+        result = await _she_says(
+            client, 'nao tenho forno, so um cooktop de 4 bocas',
+            category='equipment', item='forno', state='confirmed_no',
         )
     ruled = result.data['dish_now_ruled_out']
     assert ruled is not None
@@ -315,22 +356,129 @@ async def test_a_blocking_answer_rules_the_dish_out_on_the_spot(server):
     assert 'lasanha ao forno' in ruled['dish']
 
 
+async def _kill_the_lasagna(client, dish='Lasanha ao forno'):
+    """She asks for an oven dish and says she has no oven."""
+    await client.call_tool(
+        'kitchen_analyse_recipe_requirements',
+        {'dish': dish,
+         'recipe_text': 'Leve ao forno preaquecido ate gratinar.'},
+    )
+    return await _she_says(
+        client, 'nao tenho forno, so um cooktop de 4 bocas',
+        category='equipment', item='forno', state='confirmed_no',
+    )
+
+
 @pytest.mark.asyncio
-async def test_asking_for_the_next_question_also_closes_the_dead_dish(server):
-    """Reaching for the next question is the moment the agent moves on. If the
-    dish on the table is already dead, moving on is the bug."""
+async def test_an_answer_she_never_gave_is_refused(server):
+    """The most expensive failure this agent ever produced: it decided she owned
+    an oven nobody had asked about, the gate approved on that, and it priced a
+    whole lasagna she cannot bake."""
     async with Client(server) as client:
-        await client.call_tool(
-            'kitchen_analyse_recipe_requirements',
-            {'dish': 'Lasanha ao forno',
-             'recipe_text': 'Leve ao forno preaquecido ate gratinar.'},
-        )
-        await client.call_tool(
+        invented = await client.call_tool(
             'kitchen_record_capability',
-            {'category': 'equipment', 'item': 'forno',
-             'state': 'confirmed_no', 'note': 'so cooktop'},
+            {'category': 'equipment', 'item': 'air fryer',
+             'state': 'confirmed_yes',
+             'her_words': 'ela tem uma air fryer grande'},
         )
-        questions = await client.call_tool('kitchen_next_questions', {'limit': 3})
-    ruled = questions.data['dish_now_ruled_out']
-    assert ruled is not None
-    assert 'forno' in ruled['blocked_by']
+    assert invented.data['ok'] is False
+    assert 'unknown' in invented.data['next_step']
+
+
+@pytest.mark.asyncio
+async def test_a_confirmed_answer_without_her_words_is_refused(server):
+    """Silence is not consent, and neither is inference."""
+    async with Client(server) as client:
+        bare = await client.call_tool(
+            'kitchen_record_capability',
+            {'category': 'equipment', 'item': 'liquidificador',
+             'state': 'confirmed_yes'},
+        )
+    assert bare.data['ok'] is False
+    assert 'palavras dela' in bare.data['error']
+
+
+@pytest.mark.asyncio
+async def test_unknown_needs_no_quote_because_it_is_a_question(server):
+    async with Client(server) as client:
+        pending = await client.call_tool(
+            'kitchen_record_capability',
+            {'category': 'equipment', 'item': 'batedeira', 'state': 'unknown'},
+        )
+    assert pending.data['ok'] is True
+
+
+@pytest.mark.asyncio
+async def test_her_own_words_are_accepted_and_kept(server):
+    async with Client(server) as client:
+        told = await _she_says(
+            client, 'tenho uma panela de pressao de 5 litros',
+            category='equipment', item='panela de pressao', state='confirmed_yes',
+        )
+    assert told.data['ok'] is True
+    assert told.data['her_words_verified'] is True
+
+
+@pytest.mark.asyncio
+async def test_moving_on_is_refused_until_she_hears_the_verdict(server):
+    """The worst turn this agent produced: she says she has no oven, the server
+    files it correctly, and the reply is about something else."""
+    from fastmcp.exceptions import ToolError
+
+    async with Client(server) as client:
+        await _kill_the_lasagna(client)
+        for tool, args in [
+            ('kitchen_next_questions', {'limit': 3}),
+            ('dishes_survey_categories', {}),
+            ('recipes_search_recipes', {'query': 'strogonofe'}),
+        ]:
+            with pytest.raises(ToolError, match='announce_verdict'):
+                await client.call_tool(tool, args)
+        # Reading is never refused: checking before speaking is the right move.
+        await client.call_tool('kitchen_read_kitchen_profile', {})
+        await client.call_tool('pantry_list_ingredients', {})
+
+
+@pytest.mark.asyncio
+async def test_a_polite_acknowledgement_does_not_settle_the_debt(server):
+    """'Entendido, vou ver outras opções' is a sentence about the agent, not an
+    answer about her dish."""
+    async with Client(server) as client:
+        await _kill_the_lasagna(client)
+        weak = await client.call_tool(
+            'kitchen_announce_verdict',
+            {'message_to_her': 'Entendido, vou procurar outras opcoes para voce'},
+        )
+        assert weak.data['ok'] is False
+        assert weak.data['missing_from_your_message']
+
+        good = await client.call_tool(
+            'kitchen_announce_verdict',
+            {'message_to_her': 'A lasanha ao forno fica fora porque ela precisa de '
+                               'forno e voce so tem o cooktop, mas da pra fazer '
+                               'lasanha de panela'},
+        )
+        assert good.data['ok'] is True
+        # And now the conversation moves again.
+        await client.call_tool('kitchen_next_questions', {'limit': 2})
+
+
+@pytest.mark.asyncio
+async def test_the_dish_comes_back_when_she_says_she_has_the_oven(server):
+    """She may not have an oven today and say she has one next week. The block
+    recorded what stopped it precisely so this can happen."""
+    async with Client(server) as client:
+        await _kill_the_lasagna(client, 'Lasanha ao forno da vovo')
+        await client.call_tool(
+            'kitchen_announce_verdict',
+            {'message_to_her': 'A lasanha da vovo fica fora porque precisa de forno '
+                               'e voce so tem cooktop, mas fazemos de panela'},
+        )
+        back = await _she_says(
+            client, 'olha, acabei de comprar um forno eletrico',
+            category='equipment', item='forno', state='confirmed_yes',
+        )
+    revived = back.data['dishes_back_on_the_table']
+    assert revived is not None
+    assert any('vovo' in dish for dish in revived['dishes'])
+    assert 'forno' in revived['say_now']

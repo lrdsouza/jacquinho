@@ -38,12 +38,13 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**163 testes, 10 suítes, ~9 s** (o tempo é quase todo subida de contêiner).
+**178 testes, 11 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
+| `test_mcp_server.py` | 29 | O servidor sobe, monta, recusa, e não deixa o prato dela morrer em silêncio |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
-| `test_mcp_server.py` | 23 | O servidor sobe, monta, recusa e fecha o prato morto |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
 | `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
 | `test_units.py` | 15 | Unidade e embalagem: `balde 2kg` são dois quilos |
@@ -51,14 +52,22 @@ python -m pytest tests/ -q
 | `test_pricing.py` | 13 | A aritmética do desafio |
 | `test_observer.py` | 13 | Trilha por sessão e por prato |
 | `test_audit.py` | 11 | Todo R$ e todo % da mensagem sai de uma ferramenta |
+| `test_verdict.py` | 9 | A frase que ela lê nomeia o prato dela e o motivo |
 | `test_budget_and_catalogue.py` | 7 | Bloqueio condicional contra bloqueio por gosto |
 
-Os doze testes que `test_mcp_server.py` ganhou desde a primeira versão são quase
-todos cicatriz: o teto de buscas, a recusa de chave livre em `record_capability`,
-o `conversation_state` viajando na resposta, e os dois que cobrem o prato morto —
-gravar o "não tenho forno" devolve o veredito da lasanha na mesma resposta, e
-pedir a próxima pergunta também o devolve, porque pedir a próxima pergunta é
-exatamente o instante em que o agente ia mudar de assunto.
+Os dezoito testes que `test_mcp_server.py` ganhou desde a primeira versão são
+quase todos cicatriz: o teto de buscas, a recusa de chave livre em
+`record_capability`, o `conversation_state` viajando na resposta, e o bloco que
+cobre o prato morto — que as ferramentas de seguir em frente são recusadas
+enquanto ela não ouve o veredito, que um aceno educado não quita a dívida, que
+uma resposta que ela nunca deu é recusada, e que o prato volta quando ela diz
+que ganhou o forno.
+
+`test_verdict.py` não toca banco nem servidor: é trabalho de string, e por isso
+roda em toda mudança. É onde está o detalhe que só aparece quando se tenta —
+"lasanha ao forno" compartilha uma palavra com o que a bloqueia, então dizer
+apenas "forno" passaria por ter nomeado o prato dela. A palavra que bloqueia é
+descontada do nome antes da comparação.
 
 O domínio é testável sem banco porque a única coisa que ele precisa de Postgres
 são linhas; um `FakeDatabase` de vinte linhas devolve exatamente o que a
@@ -178,6 +187,47 @@ avaliações. Foi o que transformou a confiança em observador.
 O padrão vale mais que os itens: **quase todo defeito foi uma regra escrita onde
 não podia ser imposta.** Instrução que o modelo pode pular não é garantia. O
 conserto, sempre o mesmo, foi mover a regra para onde existe uma verificação.
+
+### A rodada que fechou o caso central
+
+Bancos zerados — Postgres, Redis e a transcrição do próprio Hermes — e a
+conversa que o desafio pede: ela quer lasanha ao forno e não tem forno.
+
+**Primeiro achado, e o mais grave de todos.** O agente não perguntou nada.
+Gravou sozinho `forno=confirmed_yes`, `fogao=confirmed_yes`,
+`montar_camadas=confirmed_yes`, `gratinar_forno=confirmed_yes` — quatro
+respostas que ela nunca deu — e entregou, num único turno, o CMV, a faixa de
+mercado e três cenários de preço para uma lasanha assada numa cozinha sem forno.
+
+O portão funcionou perfeitamente. Ele confere o perfil, e o perfil dizia sim.
+O defeito estava um passo antes: o único registro do que ela tinha dito vivia no
+contexto do modelo, e o servidor não tinha como discordar. O Redis, que a
+documentação descreve como a memória da conversa, estava **vazio** — o agente
+nunca chamou `chat_save_turn` numa consultoria inteira.
+
+Corrigido tornando o registro da fala dela uma dependência do que o agente quer
+fazer: um `confirmed_*` exige `her_words`, e a citação é procurada nas falas
+guardadas. Sem conversa gravada, nada é confirmado. Detalhe da decisão em
+[decisoes.md](decisoes.md), item 32.
+
+**Segundo achado: o prato morria em silêncio.** Este já era conhecido e tinha
+resistido a três consertos por redação. Virou dívida da conversa — item 31.
+
+Depois das duas correções, a mesma conversa, do zero:
+
+| Turno | O que ela disse | O que ele fez |
+|---|---|---|
+| 1 | "quero fazer lasanha ao forno" | Perguntou se ela tem forno, em vez de supor |
+| 2 | "nao tenho forno nao, so um cooktop" | Disse que a lasanha ao forno está fora, disse por quê, e ofereceu lasanha de panela |
+| 3 | "minha filha me deu um forno eletrico" | Contou que a lasanha voltou, e que era só isso que faltava |
+
+Orçamento ao fim: R$ 80,00 de R$ 80,00. O bloqueio no banco saiu de ativo para
+levantado, com o motivo registrado nas palavras dela.
+
+**O que continua incerto.** O servidor não vê a mensagem final, então ele
+garante que a frase foi escrita com o prato e o motivo dentro, não que ela tenha
+sido enviada exatamente assim. Nesta rodada foi; três rodadas de redação
+anteriores não conseguiram nem isso.
 
 ---
 

@@ -11,7 +11,10 @@ from ..domain.elicitation import (
     ElicitationPlanner,
     RequirementExtractor,
 )
+from ..domain.catalogue import BlockReason, CatalogueUnavailable, RecipeCatalogue
 from ..domain.kitchen import KitchenProfile
+from ..domain.memory import ConversationStore, RedisBackend
+from ..domain.verdict import VerdictAnnouncement
 from .base import BaseMCP
 
 
@@ -32,15 +35,95 @@ class KitchenMCP(BaseMCP):
     def __init__(self, settings, db, observer=None):
         self.db = db
         self.observer = observer
+        self.catalogue = RecipeCatalogue(db)
+        # Read-only here: the kitchen never writes the chat, it only checks a
+        # claim about her words against them.
+        self.chat = ConversationStore(RedisBackend(settings.redis_url))
         super().__init__(settings)
 
-    def _recheck_dish_in_play(self, state: str) -> dict | None:
+    def _she_really_said(self, quote: str) -> dict:
+        try:
+            return self.chat.she_said(quote)
+        except Exception:
+            # No Redis is a reason to be careful, not a reason to break the
+            # consultation. Say so instead of pretending it checked out.
+            return {'said': False, 'turns_on_record': 0, 'unavailable': True}
+
+    @staticmethod
+    def _session() -> str:
+        from .middleware import ConfidenceMiddleware
+
+        return ConfidenceMiddleware.SESSION_FALLBACK
+
+    def _park_dish(
+        self, dish: str, blockers: list[str], requirements: list[str], note: str
+    ) -> list[str]:
+        '''File the dead dish as a conditional block, not as a dead end.
+
+        She may not have an oven today and say she has one next week. A dish
+        ruled out only inside the conversation cannot come back when that
+        happens; one recorded against the capability that stopped it comes back
+        on its own, because that is what the block stored.
+
+        A dish she named herself is usually not in the catalogue yet - nobody
+        searched for it, she just said it. It gets a stub row, honest about
+        where it came from, so the block has something to hang on.
+        '''
+        parked: list[str] = []
+        try:
+            if self.catalogue.get(dish) is None:
+                self.catalogue.save(
+                    dish=dish, source_url='', source_title='dito por ela na conversa',
+                    ingredients=[], equipment=list(requirements), techniques=[],
+                    pantry_coverage=0.0,
+                    notes='Prato que ela pediu; a receita ainda não foi buscada.',
+                )
+            recipe = self.catalogue.get(dish)
+            already = {b.get('blocking_item') for b in (recipe.active_blocks if recipe else [])}
+            for item in blockers:
+                if item in already:
+                    continue
+                self.catalogue.block(
+                    dish, BlockReason.MISSING_EQUIPMENT, item,
+                    note or f'ela disse que não tem {item}',
+                )
+                parked.append(item)
+        except Exception:
+            # The dish is already ruled out in the conversation. Failing to
+            # park it costs the comeback later; it must not take the verdict
+            # she is owed right now down with it.
+            return parked
+        return parked
+
+    def _bring_dishes_back(self, item: str, note: str) -> dict | None:
+        '''She said yes to something she had said no to. Undo the damage.
+
+        A block that recorded what stopped it can lift itself, and that is the
+        whole reason it recorded it. Doing it here rather than asking the agent
+        to remember recipes_revisit_blocks is the same choice made everywhere
+        else in this server: the answer changes the world, not a reminder.
+        '''
+        try:
+            revived = self.catalogue.lift_for_capability(
+                item, note or f'ela disse que tem {item}'
+            )
+        except Exception:
+            return None
+        if not revived:
+            return None
+        dishes = [entry['dish'] for entry in revived]
+        announcement = VerdictAnnouncement.for_unblock(dishes, item)
+        if self.observer is not None:
+            self.observer.owe_announcement(self._session(), announcement)
+        return {'dishes': dishes, 'recipes': revived, **announcement}
+
+    def _recheck_dish_in_play(self, state: str, note: str = '') -> dict | None:
         '''Re-run the gate after an answer, but only if the answer was a no.'''
         if state != 'confirmed_no':
             return None
-        return self._blocked_dish_in_play()
+        return self._blocked_dish_in_play(park=True, note=note)
 
-    def _blocked_dish_in_play(self) -> dict | None:
+    def _blocked_dish_in_play(self, park: bool = False, note: str = '') -> dict | None:
         '''Re-run the gate for the dish under discussion, right here.
 
         Telling the agent to go and re-check was not enough: it recorded the
@@ -62,15 +145,20 @@ class KitchenMCP(BaseMCP):
         blockers = [entry['item'] for entry in gaps['known_blockers']]
         if not blockers:
             return None
+
+        announcement = VerdictAnnouncement.for_block(dish, blockers)
+        if park:
+            announcement['parked_for_later'] = self._park_dish(
+                dish, blockers, requirements, note
+            )
+            # From here the session owes her this sentence, and the tools that
+            # mean 'moving on' are refused until it is paid.
+            self.observer.owe_announcement(session, announcement)
         return {
             'dish': dish,
             'verdict': 'rejected',
             'blocked_by': blockers,
-            'say_now': (
-                f'A cozinha dela não faz {dish}: falta {blockers}. Diga isso a ela '
-                'com todas as letras AGORA, e ofereça uma versão do prato DELA que '
-                'caiba no que ela tem. Não mude de assunto sem fechar este.'
-            ),
+            **announcement,
         }
 
     def _profile(self) -> KitchenProfile:
@@ -103,12 +191,55 @@ class KitchenMCP(BaseMCP):
             category: Annotated[Literal['equipment', 'techniques', 'constraints'], Field(description='Where to file it.')],
             item: Annotated[str, Field(description="e.g. 'forno', 'air fryer', 'massa fresca'.")],
             state: Annotated[Literal['confirmed_yes', 'confirmed_no', 'unknown'], Field(description='What she answered.')],
+            her_words: Annotated[str, Field(description='The words SHE used, copied from her message - not your paraphrase. Checked against the saved conversation. Only omit for state=unknown.')] = '',
             note: Annotated[str, Field(description="Detail in her own words, e.g. 'fogao de 4 bocas, sem forno'.")] = '',
         ) -> dict:
             '''Store what Dona Maria answered about her kitchen.
 
             Persists across sessions, so she never has to repeat herself.
+
+            A ``confirmed_yes`` or ``confirmed_no`` is a claim about something
+            she said, so it has to carry her words, and they are looked up in
+            the saved conversation. Anything you have not asked about is
+            ``unknown`` - which is a question, never a yes.
             '''
+            # This is the failure that costs her money: the agent decided she
+            # owned an oven nobody had asked about, the gate approved on that,
+            # and it priced an entire lasagna she cannot bake. Silence is not
+            # consent, and neither is inference.
+            if state in ('confirmed_yes', 'confirmed_no'):
+                spoken = self._she_really_said(her_words)
+                if len(her_words.split()) < 2:
+                    return {
+                        'ok': False,
+                        'error': 'Um confirmado é uma afirmação sobre o que ELA '
+                                 'disse, e precisa das palavras dela.',
+                        'next_step': (
+                            f'Se ela já respondeu sobre {item!r}, copie a frase dela '
+                            'em her_words. Se ela não respondeu, então isto é '
+                            "state='unknown' e você ainda tem uma pergunta a fazer."
+                        ),
+                    }
+                if not spoken['said'] and not spoken.get('unavailable'):
+                    # Nothing on record is the same problem as the wrong thing
+                    # on record: either way the claim answers to nobody.
+                    detail = (
+                        f"Procurei {her_words!r} nas {spoken['turns_on_record']} "
+                        'falas dela e não achei.'
+                        if spoken['turns_on_record']
+                        else 'Não há nenhuma fala dela guardada para conferir.'
+                    )
+                    return {
+                        'ok': False,
+                        'error': f'Não dá para confirmar isso. {detail}',
+                        'next_step': (
+                            'Guarde a mensagem dela com chat_save_turn '
+                            "(role='dona_maria', o texto exatamente como ela "
+                            'escreveu) e registre de novo. Se ela nunca falou '
+                            f'sobre {item!r}, isto é unknown, e você tem uma '
+                            'pergunta a fazer - não uma dedução a registrar.'
+                        ),
+                    }
             # Free text here is how the gate gets bypassed: 'forno de 45l' is
             # stored, check_feasibility('forno') finds nothing, and reading the
             # profile becomes a better answer than running the gate. Resolve to
@@ -138,27 +269,44 @@ class KitchenMCP(BaseMCP):
             if resolved.category != category:
                 category = resolved.category
 
-            entry = self._profile().record(category, resolved.key, state, note)
+            entry = self._profile().record(
+                category, resolved.key, state,
+                f'{note} — ela: “{her_words}”'.strip(' —') if her_words else note,
+            )
             item = resolved.key
             planner = self._planner()
             coverage = planner.coverage()
-            ruled_out = self._recheck_dish_in_play(state)
+            ruled_out = self._recheck_dish_in_play(state, note)
+            back_on = (
+                self._bring_dishes_back(item, note)
+                if state == 'confirmed_yes' else None
+            )
             return {
                 'dish_now_ruled_out': ruled_out,
+                'dishes_back_on_the_table': back_on,
                 'already_answered': [
                     row['item'] for row in coverage['answered_items']
                 ],
                 'still_unknown': [row['item'] for row in coverage['still_unknown']],
                 'ok': True,
+                # Honest about how much this was checked: with no saved chat,
+                # her words could not be verified against anything.
+                'her_words_verified': (
+                    self._she_really_said(her_words)['said']
+                    if her_words else False
+                ),
                 'category': category,
                 'item': item,
                 **entry,
                 'next_step': (
-                    f"She can do this now. Call recipes_revisit_blocks('{item}'), "
-                    'then go straight back to the dish you were working on: '
-                    'kitchen_check_feasibility with its requirements. Everything '
-                    'in already_answered is settled - asking about any of it again '
-                    'tells her you were not listening.'
+                    (
+                        back_on['say_now'] if back_on else
+                        'She can do this now. Go straight back to the dish you '
+                        'were working on: kitchen_check_feasibility with its '
+                        'requirements. Everything in already_answered is settled '
+                        '- asking about any of it again tells her you were not '
+                        'listening.'
+                    )
                     if state == 'confirmed_yes'
                     else (
                         # A 'no' that leaves the dish unresolved is the worst
@@ -174,6 +322,57 @@ class KitchenMCP(BaseMCP):
                         if state == 'confirmed_no'
                         else 'Recorded.'
                     )
+                ),
+            }
+
+        @self.mcp.tool
+        def announce_verdict(
+            message_to_her: Annotated[str, Field(description='The sentence you are about to send her, word for word, in Portuguese. Not a summary of it.')],
+        ) -> dict:
+            '''Deliver the verdict she is owed about her own dish.
+
+            When a dish dies or comes back, she has to hear it. Everything that
+            means moving on - searching, costing, pricing, asking the next
+            question - is refused until this call goes through, and it only
+            goes through if the sentence names her dish and what decided it.
+
+            Send her exactly the text you pass here.
+            '''
+            if self.observer is None:
+                return {'ok': True, 'note': 'nothing pending'}
+            session = self._session()
+            owed = self.observer.owed_announcement(session)
+            if owed is None:
+                return {
+                    'ok': True,
+                    'note': 'Nada pendente. Siga a conversa.',
+                }
+            check = VerdictAnnouncement.check(
+                message_to_her, owed.get('dish', ''), owed.get('items', []),
+            )
+            if not check['ok']:
+                # Refusing here is the point. A sentence that does not name her
+                # dish is not an answer about her dish.
+                return {
+                    'ok': False,
+                    'still_owed': owed,
+                    'missing_from_your_message': check['missing'],
+                    'next_step': (
+                        'Reescreva a frase para ela contendo o que falta acima e '
+                        'chame de novo. Ela precisa ouvir o nome do prato dela e '
+                        'o que decidiu isso - não um resumo educado.'
+                    ),
+                }
+            self.observer.settle_announcement(session)
+            return {
+                'ok': True,
+                'delivered': owed.get('kind'),
+                'dish': owed.get('dish'),
+                'send_this': message_to_her,
+                'next_step': (
+                    'Mande exatamente essa frase a ela. Depois dela, e só depois, '
+                    'siga: se o prato caiu, ofereça a versão que cabe na cozinha '
+                    'dela; se voltou, retome de onde parou.'
                 ),
             }
 
