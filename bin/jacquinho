@@ -96,8 +96,11 @@ case "${1:-chat}" in
         bold 'Sabor da Maria - talk to the agent. Ctrl-C to leave.'
         bold ''
         # `run`, not `up`: the Hermes default command is an interactive TUI.
+        # --accept-hooks: the two turn-boundary hooks ship with this repository
+        # and are declared in its config, so the first-use consent prompt has
+        # nobody to ask. They are readable in hooks/.
         HERMES_UID=$(id -u) HERMES_GID=$(id -g) \
-            "${COMPOSE[@]}" run --rm hermes
+            "${COMPOSE[@]}" run --rm hermes --accept-hooks
         ;;
     up)
         services_up
@@ -197,7 +200,7 @@ asyncio.run(main())
         shift
         services_up
         HERMES_UID=$(id -u) HERMES_GID=$(id -g) \
-            "${COMPOSE[@]}" run --rm hermes "$@"
+            "${COMPOSE[@]}" run --rm hermes --accept-hooks "$@"
         ;;
     install)
         mkdir -p "$HOME/.local/bin"

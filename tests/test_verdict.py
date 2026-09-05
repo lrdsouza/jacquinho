@@ -30,7 +30,7 @@ def test_changing_the_subject_politely_is_still_changing_the_subject():
         'lasanha ao forno', ['forno'],
     )
     assert not check['ok']
-    assert any('nome do prato' in miss for miss in check['missing'])
+    assert any('pelo nome' in miss for miss in check['missing'])
 
 
 def test_naming_the_blocker_does_not_count_as_naming_the_dish():
@@ -41,7 +41,7 @@ def test_naming_the_blocker_does_not_count_as_naming_the_dish():
         'lasanha ao forno', ['forno'],
     )
     assert not check['ok']
-    assert any('nome do prato' in miss for miss in check['missing'])
+    assert any('pelo nome' in miss for miss in check['missing'])
 
 
 def test_the_short_name_counts():
@@ -59,7 +59,7 @@ def test_the_reason_has_to_be_there():
         'lasanha ao forno', ['forno'],
     )
     assert not check['ok']
-    assert any('decidiu isso' in miss for miss in check['missing'])
+    assert any('motivo' in miss for miss in check['missing'])
 
 
 def test_every_blocker_has_to_be_named():
@@ -84,3 +84,27 @@ def test_the_comeback_announcement_says_what_changed():
     assert owed['kind'] == BACK_ON
     assert 'forno' in owed['say_now']
     assert 'lasanha ao forno' in owed['say_now']
+
+
+# --- a yes that is not a yes -------------------------------------------------
+
+from app.domain.kitchen import Hedge  # noqa: E402
+
+
+def test_a_hedged_yes_is_caught():
+    """She said her oven lights but does not heat evenly. It was filed as
+    confirmed_yes, and the truth went into the note, which the gate cannot read."""
+    found = Hedge.found_in(
+        'meu forno acende mas nao esquenta direito, as vezes queima embaixo'
+    )
+    assert 'mas' in found
+    assert 'as vezes' in found
+
+
+def test_a_plain_yes_passes_untouched():
+    assert Hedge.found_in('tenho sim, um forno eletrico que a minha filha me deu') == []
+    assert Hedge.found_in('tenho uma cacarola grande e funda') == []
+
+
+def test_broken_counts_as_hedged():
+    assert Hedge.found_in('tenho um liquidificador mas ta quebrado')

@@ -12,7 +12,7 @@ from ..domain.elicitation import (
     RequirementExtractor,
 )
 from ..domain.catalogue import BlockReason, CatalogueUnavailable, RecipeCatalogue
-from ..domain.kitchen import KitchenProfile
+from ..domain.kitchen import Hedge, KitchenProfile
 from ..domain.memory import ConversationStore, RedisBackend
 from ..domain.verdict import VerdictAnnouncement
 from .base import BaseMCP
@@ -114,6 +114,8 @@ class KitchenMCP(BaseMCP):
         dishes = [entry['dish'] for entry in revived]
         announcement = VerdictAnnouncement.for_unblock(dishes, item)
         if self.observer is not None:
+            if self.observer.already_announced(self._session(), announcement):
+                return None
             self.observer.owe_announcement(self._session(), announcement)
         return {'dishes': dishes, 'recipes': revived, **announcement}
 
@@ -147,6 +149,10 @@ class KitchenMCP(BaseMCP):
             return None
 
         announcement = VerdictAnnouncement.for_block(dish, blockers)
+        if self.observer.already_announced(session, announcement):
+            # She heard this one. Repeating it is not diligence, it is a reply
+            # that ignores where the conversation got to.
+            return None
         if park:
             announcement['parked_for_later'] = self._park_dish(
                 dish, blockers, requirements, note
@@ -218,6 +224,22 @@ class KitchenMCP(BaseMCP):
                             f'Se ela já respondeu sobre {item!r}, copie a frase dela '
                             'em her_words. Se ela não respondeu, então isto é '
                             "state='unknown' e você ainda tem uma pergunta a fazer."
+                        ),
+                    }
+                hedges = Hedge.found_in(her_words) if state == 'confirmed_yes' else []
+                if hedges:
+                    return {
+                        'ok': False,
+                        'error': f'Isso não é um sim: ela disse {her_words!r}.',
+                        'hedges': hedges,
+                        'next_step': (
+                            f'Um {item!r} que ela tem "mas" alguma coisa não passa '
+                            'no portão como se estivesse inteiro — e o detalhe fica '
+                            'na nota, que o portão não lê. Grave como '
+                            "state='unknown' e pergunte a ela o que exatamente "
+                            'acontece, para saber se dá para contar com isso neste '
+                            'prato. Se ela confirmar que funciona bem, aí sim '
+                            'confirmed_yes.'
                         ),
                     }
                 if not spoken['said'] and not spoken.get('unavailable'):
@@ -358,21 +380,26 @@ class KitchenMCP(BaseMCP):
                     'still_owed': owed,
                     'missing_from_your_message': check['missing'],
                     'next_step': (
-                        'Reescreva a frase para ela contendo o que falta acima e '
-                        'chame de novo. Ela precisa ouvir o nome do prato dela e '
-                        'o que decidiu isso - não um resumo educado.'
+                        'Reescreva a frase para ela cobrindo o que falta acima, '
+                        'com as suas palavras, e chame de novo. Não copie os '
+                        'itens da lista para dentro da frase: eles descrevem o '
+                        'que ela precisa entender, não como dizer.'
                     ),
                 }
-            self.observer.settle_announcement(session)
+            # Drafted, not delivered. The turn boundary sees the message she
+            # actually receives; this only proves the sentence exists.
+            self.observer.draft_announcement(session)
             return {
                 'ok': True,
                 'delivered': owed.get('kind'),
                 'dish': owed.get('dish'),
                 'send_this': message_to_her,
                 'next_step': (
-                    'Mande exatamente essa frase a ela. Depois dela, e só depois, '
-                    'siga: se o prato caiu, ofereça a versão que cabe na cozinha '
-                    'dela; se voltou, retome de onde parou.'
+                    'Mande exatamente essa frase a ela, nesta resposta. O fim do '
+                    'turno confere se ela chegou; se não chegar, o próximo turno '
+                    'começa com tudo fechado de novo. Depois dela, e só depois: '
+                    'se o prato caiu, ofereça a versão que cabe na cozinha dela; '
+                    'se voltou, retome de onde parou.'
                 ),
             }
 

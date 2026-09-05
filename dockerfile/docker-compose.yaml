@@ -122,6 +122,8 @@ services:
       # start and stop. None of it is actionable, and it buries the agent's own
       # first screen. Errors still print.
       S6_VERBOSITY: '0'
+      # Where the hook scripts post what they captured.
+      JACQUINHO_MCP: http://jacquinho-mcp:8000
     volumes:
       # HERMES_HOME=/opt/data in the image: memory, sessions, user profile.
       - hermes-data:/opt/data
@@ -132,6 +134,10 @@ services:
       # rewrite strips the comments and reverts edits made in the repository.
       - ./hermes-config.yaml:/opt/data/config.yaml:ro
       - ../hermes/SOUL.md:/opt/data/SOUL.md:ro
+      # Turn-boundary hooks. They carry her raw message into the server before
+      # the model reads it, and the final reply after the tool loop ends - the
+      # two moments the model does not get to narrate.
+      - ../hooks:/opt/data/hooks:ro
       - ../data:/data:ro
     # No `command:` — the image entrypoint falls through to the interactive TUI.
 

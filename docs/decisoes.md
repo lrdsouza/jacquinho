@@ -512,7 +512,7 @@ abandonado no meio de uma conversa deve expirar, não se acumular.
 aprendida (pesos de embalagem), o perfil da cozinha, o catálogo de restrições
 que cresceu na conversa, o saldo do orçamento, as categorias de prato, o
 catálogo de receitas com seus requisitos e bloqueios, o que ela achou de cada
-prato, e o cardápio de lançamento. Dez tabelas. O volume de arquivos JSON que
+prato, e o cardápio de lançamento. Doze tabelas. O volume de arquivos JSON que
 existia antes deixou de existir.
 
 **Motivo.** Nenhuma dessas coisas é cache. São fatos que sobrevivem a qualquer
@@ -882,3 +882,95 @@ junto com ela.
 **Observabilidade.** `her_words_verified` volta em toda gravação, e é `false`
 quando a citação não pôde ser conferida — Redis fora do ar, por exemplo. A
 consultoria continua; a confiança na linha é que fica menor, e dita.
+
+---
+
+## 33. Os limites do turno são do runtime, não do modelo
+
+**Decisão.** Dois hooks de shell do Hermes ligam a fronteira do turno ao
+servidor. `pre_llm_call` traz a mensagem dela antes de o modelo ler;
+`post_llm_call` traz a resposta depois que o laço de ferramentas termina. Os
+dois scripts vivem em `hooks/`, falam HTTP com rotas próprias do servidor, e
+falham abertos.
+
+**Motivo.** Duas garantias tinham o mesmo buraco no meio: tudo neste servidor
+roda porque o modelo decidiu chamar alguma coisa.
+
+*A citação.* Um `confirmed_yes` é uma afirmação sobre o que ela disse, conferida
+contra a transcrição — que até aqui era escrita pelo próprio agente. Citação
+conferida contra transcrição escrita por quem cita não é conferência. O agente
+podia gravar a fala e depois citar a si mesmo.
+
+*A entrega.* O servidor decidia que o prato morreu, entregava a frase, recusava
+tudo que significasse seguir em frente — e nunca via a mensagem que chega a ela.
+Garantia de que a frase foi **escrita**, nunca de que foi **enviada**.
+
+**Consequência.** As falas capturadas ficam num balde próprio, marcadas
+`source: hook`, e passam a valer mais: existindo qualquer fala capturada, só
+elas contam para conferir uma citação. A dívida do veredito ganhou dois
+estágios — a ferramenta *rascunha* (e isso reabre as portas dentro do turno), o
+fim do turno *quita*, olhando o texto que ela recebeu. Se não recebeu, a dívida
+reabre e o turno seguinte começa fechado.
+
+Um hook de shell não pode reescrever a mensagem em voo; só um plugin em Python
+pode, e um servidor escrevendo direto para ela seria uma garantia pior que a
+recusa de esquecer. Então **não dá para desdizer um turno ruim; dá para recusar
+esquecê-lo**, e é isso que está prometido, sem exagero.
+
+Nem todo turno de "usuário" é ela: o Hermes roda uma passagem de curadoria que
+fala na cadeira dela. Capturada, viraria prova de algo que a Dona Maria teria
+dito. É filtrada pelos mesmos prefixos que o próprio Hermes usa internamente.
+
+**Observabilidade.** `jacquinho.verdict` registra, por turno, se o veredito
+chegou a ela e o que faltou. É a única métrica do sistema medida sobre a
+mensagem, e não sobre a intenção.
+
+---
+
+## 34. Um veredito não é devido duas vezes
+
+**Decisão.** Cada veredito entregue fica registrado por sessão. Repetir o mesmo
+— mesmo prato, mesmo motivo — não abre dívida nova.
+
+**Motivo.** Apareceu rodando a consultoria inteira. Ela já tinha ouvido que a
+lasanha ao forno estava fora, aceitado a de panela e pedido o custo. Aí
+mencionou que também não frita por imersão. Aquele `confirmed_no` disparou a
+recheca do prato "em jogo", que ainda era a lasanha ao forno, e o agente lhe
+deu o discurso do forno de novo — no meio da conta que ela tinha pedido.
+
+Dizer de novo o que ela já ouviu é o mesmo defeito de nunca ter dito: a
+mensagem não é sobre onde a conversa está.
+
+**Consequência.** A dívida é sobre um par (prato, motivo), não sobre um evento.
+O registro é da sessão, não do banco: se ela voltar semanas depois, ouvir de
+novo por que a lasanha está fora é gentileza, não repetição.
+
+---
+
+## 35. Um "sim" com "mas" dentro não é um sim
+
+**Decisão.** `confirmed_yes` é recusado quando as palavras dela carregam
+hesitação — "mas", "às vezes", "mais ou menos", "quebrado", "acho que". Volta
+como pergunta, e o item continua `unknown`.
+
+**Motivo.** Ela disse *"meu forno acende mas não esquenta direito, às vezes
+queima embaixo"*. Foi gravado `confirmed_yes`, com o detalhe na nota — e a nota
+é o único lugar que o portão não lê. Dali em diante o portão liberaria qualquer
+prato de forno para uma cozinha cujo forno queima o fundo, e ela compraria os
+ingredientes. Era a falha central do desafio de volta, numa forma nova: o portão
+funcionava, o dado é que estava mentindo.
+
+Três estados não têm onde guardar "tem, mais ou menos".
+
+**Consequência.** É uma lista de palavras, e listas de palavras erram. O que a
+torna aceitável aqui é a assimetria: `unknown` bloqueia compra, então um falso
+positivo custa uma pergunta a mais e um falso negativo custaria os ingredientes
+dela. Errar para o lado da pergunta é barato; para o outro lado, não.
+
+O conserto de verdade é um quarto estado — "tem, mas não dá para contar com
+isso" — que muda o contrato do portão em todo lugar que o lê. Isso merece uma
+passagem própria, não um remendo pendurado nesta. Está escrito aqui em vez de
+ficar implícito no código.
+
+**Observabilidade.** A recusa devolve `hedges` com as marcas que encontrou, e
+elas aparecem no log ao lado da tentativa.

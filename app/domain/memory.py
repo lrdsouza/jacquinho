@@ -84,11 +84,21 @@ class ConversationStore:
     def _summary_key(session: str) -> str:
         return f'chat:{session}:summary'
 
-    def save_turn(self, session: str, role: str, content: str, tags: list[str]) -> dict:
+    # A turn the agent typed into a tool, versus one captured from the wire
+    # before the model saw it. The difference matters exactly once, and it is
+    # the difference that stops the agent inventing her answers.
+    AUTHORED = 'agent'
+    CAPTURED = 'hook'
+
+    def save_turn(
+        self, session: str, role: str, content: str, tags: list[str],
+        source: str = AUTHORED,
+    ) -> dict:
         entry = {
             'role': role,
             'content': content,
             'tags': tags,
+            'source': source,
             'at': _now(),
         }
         key = self._turns_key(session)
@@ -137,16 +147,30 @@ class ConversationStore:
         '''
         needle = UnitConverter.normalise_text(quote)
         if not needle:
-            return {'said': False, 'turns_on_record': 0, 'match': None}
-        seen = 0
-        for session in self.sessions():
-            for turn in self.history(session, self.MAX_TURNS):
-                if turn.get('role') != 'dona_maria':
-                    continue
-                seen += 1
-                if needle in UnitConverter.normalise_text(turn['content']):
-                    return {'said': True, 'turns_on_record': seen, 'match': turn}
-        return {'said': False, 'turns_on_record': seen, 'match': None}
+            return {'said': False, 'turns_on_record': 0, 'match': None,
+                    'checked_against': 'nada'}
+
+        hers = [
+            turn
+            for session in self.sessions()
+            for turn in self.history(session, self.MAX_TURNS)
+            if turn.get('role') == 'dona_maria'
+        ]
+        # If anything was captured from the wire, only that counts. Otherwise
+        # the agent could write her answer into the transcript and then quote
+        # itself, which is the same fabrication wearing a receipt.
+        captured = [t for t in hers if t.get('source') == self.CAPTURED]
+        pool, provenance = (
+            (captured, 'falas capturadas antes do modelo ver')
+            if captured
+            else (hers, 'falas salvas pelo agente')
+        )
+        for turn in pool:
+            if needle in UnitConverter.normalise_text(turn['content']):
+                return {'said': True, 'turns_on_record': len(pool), 'match': turn,
+                        'checked_against': provenance}
+        return {'said': False, 'turns_on_record': len(pool), 'match': None,
+                'checked_against': provenance}
 
     # ------------------------------------------------------- summary window
 

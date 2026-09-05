@@ -122,7 +122,39 @@ entra no circuito.
 
 ## Postgres — os registros dela
 
-Onze tabelas, um dono para cada.
+Doze tabelas, um dono para cada.
+
+### Por que os utensílios dela não ficam no Redis
+
+É a pergunta que a divisão convida, e a resposta é o que separa as duas metades
+deste documento. O que ela **tem** — fogão, panela de pressão, air fryer, a
+técnica que ela domina, o espaço na geladeira — é registro, não conversa:
+
+*Um bloqueio é uma relação, não um valor.* A lasanha saiu **por causa do**
+forno. No dia em que o forno aparece, os pratos que esperavam por ele voltam com
+`UPDATE recipe_blocks … WHERE blocking_item = 'forno' RETURNING`. Em chave-valor
+isso é varrer tudo e reconstruir em Python, e a volta silenciosamente para de
+acontecer quando alguém esquece de varrer.
+
+*O Redis aqui tem janela.* A conversa é cortada em vinte turnos por construção.
+Um perfil de cozinha guardado na conversa desapareceria junto com ela, e a
+consultoria seguinte começaria perguntando tudo de novo — que é exatamente o
+que a regra mais importante deste agente proíbe.
+
+*A pergunta "o que ela ainda não respondeu" é uma consulta.* `unknown` é um
+estado guardado, e é assim que `kitchen_next_questions` sabe o que falta sem o
+modelo deduzir nada. Contar o que não existe é mais difícil do que ler uma
+coluna.
+
+O Redis guarda o que a conversa precisa **agora**: os últimos turnos, o resumo,
+as fichas de julgamento com TTL. O Postgres guarda o que a conversa **decidiu**.
+Um item vai para o Redis quando perdê-lo custa contexto; vai para o Postgres
+quando perdê-lo custa uma pergunta repetida ou dinheiro gasto duas vezes.
+
+A exceção que confirma a regra é a fala dela capturada pelos hooks
+(`chat:real:turns`): fica no Redis porque é conversa, e é lida pelo Postgres-side
+apenas para conferir uma citação no instante da gravação — depois disso, o que
+sobrevive é a capacidade, com as palavras dela copiadas na nota.
 
 | Tabela | Dono | Conteúdo |
 |---|---|---|

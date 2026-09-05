@@ -52,3 +52,31 @@ mcp_servers:
     url: http://jacquinho-mcp:8000/mcp
     timeout: 90
     connect_timeout: 30
+
+# ---------------------------------------------------------------------------
+# Turn-boundary hooks
+#
+# Every other check in this system runs because the model decided to call a
+# tool. These two run because the turn started and because it ended, which is
+# what makes them worth having.
+#
+# `pre_llm_call` carries her message before the model reads it. The server
+# stores it as the captured copy, and a `confirmed_yes` about her kitchen is
+# checked against that copy rather than against the transcript the agent wrote
+# itself — a quote checked against a transcript the quoter authored is not a
+# check.
+#
+# `post_llm_call` carries the reply after the tool loop ends. It is the only
+# place the server sees what she actually receives, so it is where the verdict
+# debt is settled. A shell hook cannot rewrite an outgoing message, so this
+# does not stop a bad turn from being sent; it refuses to forget one.
+#
+# Both fail open: a consultation must not stop because a hook could not reach
+# the server. What is lost then is a verification, and the server says which.
+hooks:
+  pre_llm_call:
+    - command: /opt/data/hooks/her-message.sh
+      timeout: 10
+  post_llm_call:
+    - command: /opt/data/hooks/final-message.sh
+      timeout: 10

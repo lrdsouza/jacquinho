@@ -17,6 +17,7 @@ from fastmcp import FastMCP
 from ..config import Settings
 from ..domain.database import Database
 from ..domain.observer import ConfidenceObserver
+from .hooks import HookRoutes
 from .middleware import ConfidenceMiddleware
 from ..domain.pantry import PantryRepository
 from .budget_mcp import BudgetMCP
@@ -140,6 +141,7 @@ class MCPServer:
         self._mount()
         self._register_prompts()
         self._install_middleware()
+        self._install_hooks()
 
     def _mount(self) -> None:
         for namespace, child in self.children.items():
@@ -154,6 +156,12 @@ class MCPServer:
             return {'seeded': False, 'reason': str(error)}
         logging.getLogger('jacquinho').info('pantry seed: %s', report)
         return report
+
+    def _install_hooks(self) -> None:
+        '''Turn boundaries the model does not control.'''
+        HookRoutes(
+            self.root, self.children['chat'].store, self.observer,
+        ).register()
 
     def _install_middleware(self) -> None:
         '''Confidence watches every call; the agent does not have to ask it to.'''

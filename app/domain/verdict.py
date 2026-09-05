@@ -63,18 +63,24 @@ class VerdictAnnouncement:
         said = set(words)
         missing: list[str] = []
 
+        # These strings are read by a model that is about to write to her, and
+        # a model reading 'o que decidiu isso (forno)' will write exactly that
+        # back - it happened: "não vai dar, porque decidiu isso o forno que
+        # você não tem". They are instructions now, phrased so that pasting
+        # them is obviously wrong.
         if len(words) < cls.MIN_WORDS:
-            missing.append('uma frase inteira, não um aceno')
+            missing.append('escreva uma frase inteira para ela, não um aceno')
         # 'lasanha ao forno' shares a word with the thing that blocks it, so
         # naming the oven would otherwise count as naming the dish. Strip the
         # overlap first: what is left is what actually identifies HER dish.
         blocking_words = {w for item in items for w in cls._significant(item)}
         own = [w for w in cls._significant(dish) if w not in blocking_words]
         if dish and own and not any(word in said for word in own):
-            missing.append(f'o nome do prato dela ({dish})')
+            missing.append(f'chame o prato pelo nome: {dish}')
         for item in items:
             if not cls._mentions(said, item):
-                missing.append(f'o que decidiu isso ({item})')
+                missing.append(f'explique a ela, com suas palavras, que isto '
+                               f'foi o motivo: {item}')
 
         return {'ok': not missing, 'missing': missing, 'word_count': len(words)}
 

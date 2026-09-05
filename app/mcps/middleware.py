@@ -181,7 +181,7 @@ class ConfidenceMiddleware(Middleware):
             )
 
         owed = self.observer.owed_announcement(session)
-        if owed and name in self.MOVING_ON:
+        if owed and not owed.get('drafted') and name in self.MOVING_ON:
             raise ToolError(
                 f'Recusado: {owed["say_now"]} Enquanto isso não for feito, '
                 'ferramentas que seguem a conversa estão fechadas. Escreva a frase '

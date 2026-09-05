@@ -20,6 +20,40 @@ class CapabilityState:
     ALL = (YES, NO, UNKNOWN)
 
 
+class Hedge:
+    """Finds the answer that is neither yes nor no.
+
+    She said "meu forno acende mas não esquenta direito, às vezes queima
+    embaixo". It was filed as ``confirmed_yes``, note and all - and the note is
+    where the truth went, which is the one place the gate cannot read. From
+    then on the gate would clear any oven dish for a kitchen whose oven burns
+    the bottom, and she would buy ingredients for it.
+
+    Three states have no room for "has one, sort of". Until they do, a hedged
+    yes is refused and turned back into a question. The asymmetry is what makes
+    a word list acceptable here: a false positive costs one extra question, a
+    false negative costs her the ingredients.
+    """
+
+    # Not a grammar. The shapes people actually use to answer "do you have X?"
+    # with something other than yes or no.
+    MARKERS = (
+        'mas ', ' mas', 'porem', 'porém', 'so que', 'só que',
+        'as vezes', 'às vezes', 'de vez em quando',
+        'nao muito', 'não muito', 'mais ou menos', 'meio ',
+        'nao direito', 'não direito', 'nao funciona bem', 'não funciona bem',
+        'quebrad', 'estragad', 'com problema', 'com defeito',
+        'acho que', 'talvez', 'nao sei se', 'não sei se',
+        'ta ruim', 'tá ruim', 'nao presta', 'não presta',
+        'precisa consertar', 'ta velho', 'tá velho',
+    )
+
+    @classmethod
+    def found_in(cls, text: str) -> list[str]:
+        lowered = f' {(text or "").lower()} '
+        return [marker.strip() for marker in cls.MARKERS if marker in lowered]
+
+
 class KitchenProfile:
     """Persistent record of equipment, techniques and operating limits.
 

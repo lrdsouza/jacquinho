@@ -107,6 +107,11 @@ class ConfidenceObserver:
         # dish. So the verdict becomes a debt the session owes her, and the
         # tools that mean 'moving on' are refused while it is open.
         self.pending: dict[str, dict] = {}
+        # Verdicts she has already heard. Without this, any later 'no' about
+        # anything - she does not deep-fry either - re-runs the gate for the
+        # dish still marked in play and owes her the oven speech a second time,
+        # in the middle of the costing she asked for.
+        self.announced: dict[str, set[tuple]] = {}
 
     def _trail(self, key: tuple[str, str]) -> EvidenceTrail:
         trail = self.trails.get(key)
@@ -246,18 +251,59 @@ class ConfidenceObserver:
         name = self.active_dish.get(session, self.NO_DISH)
         return None if name == self.NO_DISH else name
 
-    def owe_announcement(self, session: str, announcement: dict) -> dict:
-        '''Record a verdict she is owed, out loud, before anything else.'''
-        self.pending[session] = announcement
-        return announcement
+    @staticmethod
+    def _verdict_key(announcement: dict) -> tuple:
+        return (
+            announcement.get('kind', ''),
+            announcement.get('dish', ''),
+            tuple(sorted(announcement.get('items', []))),
+        )
+
+    def owe_announcement(self, session: str, announcement: dict) -> dict | None:
+        '''Record a verdict she is owed, out loud, before anything else.
+
+        Nothing is owed twice: telling her again that the lasagna needs an oven,
+        after she took the pan version and moved on, is the same failure as
+        never telling her - the message is not about where the conversation is.
+        '''
+        if self._verdict_key(announcement) in self.announced.get(session, set()):
+            return None
+        self.pending[session] = {**announcement, 'drafted': False}
+        return self.pending[session]
+
+    def already_announced(self, session: str, announcement: dict) -> bool:
+        return self._verdict_key(announcement) in self.announced.get(session, set())
 
     def owed_announcement(self, session: str) -> dict | None:
         return self.pending.get(session)
 
+    def draft_announcement(self, session: str) -> dict | None:
+        '''The sentence has been written, with the dish and the reason in it.
+
+        That reopens the tools that mean moving on, because the agent has done
+        the part it can be held to inside a turn. It does not clear the debt:
+        only the message she receives can do that, and the server does not see
+        that until the turn ends.
+        '''
+        owed = self.pending.get(session)
+        if owed is not None:
+            owed['drafted'] = True
+        return owed
+
+    def reopen_announcement(self, session: str) -> dict | None:
+        '''She did not hear it after all. Shut the doors again.'''
+        owed = self.pending.get(session)
+        if owed is not None:
+            owed['drafted'] = False
+        return owed
+
     def settle_announcement(self, session: str) -> dict | None:
-        '''Mark the verdict as delivered. Only the tool that checks the words
-        she will actually read is allowed to call this.'''
-        return self.pending.pop(session, None)
+        '''She got it. Only the turn boundary, which sees the message she
+        actually received, is allowed to say so.'''
+        owed = self.pending.pop(session, None)
+        if owed is not None:
+            self.announced.setdefault(session, set()).add(self._verdict_key(owed))
+        return owed
 
     def cmv_ready(self, session: str, dish: str | None = None) -> bool:
         '''Was a complete CMV calculated for this dish?'''
@@ -297,7 +343,7 @@ class ConfidenceObserver:
                 'next_action': 'Nada em andamento. Se ela já pediu sugestões, '
                                'chame dishes_survey_categories.',
             }
-            if owed:
+            if owed and not owed.get('drafted'):
                 state['deve_a_ela'] = owed
                 state['next_action'] = owed['say_now']
             return state
@@ -323,7 +369,7 @@ class ConfidenceObserver:
         else:
             nxt = 'mostre os cenários e deixe ela escolher; então menu_add_dish'
 
-        if owed:
+        if owed and not owed.get('drafted'):
             # Everything else in the state is a suggestion. This one is a debt.
             nxt = owed['say_now']
 
@@ -417,6 +463,7 @@ class ConfidenceObserver:
             self.pantry.clear()
             self.active_dish.clear()
             self.pending.clear()
+            self.announced.clear()
         elif dish is None:
             for key in [k for k in self.trails if k[0] == session]:
                 self.trails.pop(key)

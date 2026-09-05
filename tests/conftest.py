@@ -66,3 +66,20 @@ def database(sheet_rows) -> FakeDatabase:
 def pantry(database) -> PantryRepository:
     """The repository over exactly what the seed would have written."""
     return PantryRepository(database)
+
+
+async def capture_her_message(built, text: str) -> None:
+    """Put her words on the record the way the runtime does.
+
+    Not through `chat_save_turn`: a turn the agent typed is exactly what the
+    server refuses to treat as evidence of what she said. The tests have to use
+    the same door the hook script uses, or they test a path nothing takes.
+    """
+    import httpx
+
+    transport = httpx.ASGITransport(app=built.root.http_app())
+    async with httpx.AsyncClient(transport=transport, base_url='http://mcp') as wire:
+        await wire.post(
+            '/hooks/her-message',
+            json={'session_id': 'testes', 'user_message': text},
+        )

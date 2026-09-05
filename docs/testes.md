@@ -38,12 +38,12 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**178 testes, 11 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**189 testes, 12 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
-| `test_mcp_server.py` | 29 | O servidor sobe, monta, recusa, e não deixa o prato dela morrer em silêncio |
+| `test_mcp_server.py` | 30 | O servidor sobe, monta, recusa, e não deixa o prato dela morrer em silêncio |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
 | `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
@@ -51,9 +51,14 @@ ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 | `test_search_and_consensus.py` | 15 | Recência, domínios distintos, extração de preço |
 | `test_pricing.py` | 13 | A aritmética do desafio |
 | `test_observer.py` | 13 | Trilha por sessão e por prato |
+| `test_verdict.py` | 12 | A frase que ela lê nomeia o prato e o motivo; um sim com "mas" não é sim |
 | `test_audit.py` | 11 | Todo R$ e todo % da mensagem sai de uma ferramenta |
-| `test_verdict.py` | 9 | A frase que ela lê nomeia o prato dela e o motivo |
 | `test_budget_and_catalogue.py` | 7 | Bloqueio condicional contra bloqueio por gosto |
+| `test_hooks.py` | 7 | As fronteiras do turno: fala capturada, veredito entregue |
+
+`test_hooks.py` fala com o servidor por HTTP puro, do jeito que os scripts de
+hook falam, em vez de por MCP — é o único caminho do sistema que o modelo não
+percorre, e testá-lo pela porta errada testaria um caminho que ninguém usa.
 
 Os dezoito testes que `test_mcp_server.py` ganhou desde a primeira versão são
 quase todos cicatriz: o teto de buscas, a recusa de chave livre em
@@ -229,6 +234,52 @@ garante que a frase foi escrita com o prato e o motivo dentro, não que ela tenh
 sido enviada exatamente assim. Nesta rodada foi; três rodadas de redação
 anteriores não conseguiram nem isso.
 
+### A rodada que fechou a consultoria inteira
+
+Bancos zerados outra vez, e desta vez até o cardápio: cinco turnos, do "oi" ao
+prato fechado a R$ 23,90 com R$ 30,85 comprados de um orçamento de R$ 80. A
+transcrição está no [README](../README.md), com o estado final dos bancos.
+
+Três defeitos apareceram no caminho, todos consertados nesta rodada.
+
+**O agente decidia sozinho o que ela tinha.** Já descrito acima; foi o que
+motivou exigir `her_words`. Mas a correção tinha um buraco: a transcrição
+conferida era escrita pelo próprio agente. Citação conferida contra transcrição
+escrita por quem cita não é conferência. Fechado com os hooks de fronteira de
+turno — [decisoes.md](decisoes.md), item 33.
+
+**A frase do checador vazava para dentro da mensagem dela.** A recusa listava o
+que faltava como `o que decidiu isso (forno)`, e a resposta seguinte saiu
+*"não vai dar, porque decidiu isso o forno que você não tem"*. Um rótulo lido
+por um modelo prestes a escrever para ela é um rascunho, quer você queira ou
+não. Os rótulos viraram instruções que ficam obviamente erradas se coladas.
+
+**O veredito era repetido.** Ela já tinha ouvido sobre o forno, aceitado a
+lasanha de panela e pedido a conta; ao mencionar que também não frita por
+imersão, ganhou o discurso do forno de novo. Um veredito passou a ser devido uma
+vez só — item 34.
+
+### A rodada que deu errado de propósito
+
+A conversa do pudim, também no README. Ela responde `"meu forno acende mas não
+esquenta direito, às vezes queima embaixo"` — o caso que os três estados não
+sabem representar.
+
+Na primeira execução isso virou `confirmed_yes` com o detalhe na nota, que é o
+único lugar que o portão não lê: dali em diante ele liberaria pratos de forno
+para uma cozinha cujo forno queima o fundo. Item 35.
+
+Na segunda, com a recusa de sim hesitante no lugar, apareceu outro defeito — e
+melhor, porque é o que o sistema faz quando o modelo erra. O agente escreveu a
+frase do veredito, passou por `kitchen_announce_verdict`, e então escreveu para
+ela *"já te falei o veredito e a saída"*. Chamar a ferramenta não é falar com
+ela; o resto do sistema todo ensina que chamar ferramenta faz a coisa
+acontecer, e aqui não faz.
+
+O fim do turno pegou (`delivered: false`), reabriu a dívida, e o turno seguinte
+começou com tudo fechado — ela ouviu. Que é a garantia inteira, sem exagero:
+não dá para desdizer um turno ruim, dá para recusar esquecê-lo.
+
 ---
 
 ## O que ainda não é testado
@@ -239,6 +290,12 @@ cobertura.
 **A conversa.** Não há teste automatizado de diálogo. Uma resposta é boa ou ruim
 por julgamento, e cada execução custa uma chamada de modelo. A simulação acima é
 manual e não roda em CI.
+
+**O hook, rodando de verdade.** `test_hooks.py` chama as rotas por HTTP, mas com
+o app em memória: o script de shell, o `curl` dentro do contêiner do agente e o
+registro do hook pelo Hermes são exercitados à mão. Foi assim que se descobriu
+que `user_message` chega aninhado em `extra` — um campo lido do lugar errado
+devolve vazio e não reclama.
 
 **A rede.** Busca web e IBGE são exercitados contra o serviço real, à mão. Não há
 teste com resposta gravada, então a suíte não pega uma mudança de formato do
