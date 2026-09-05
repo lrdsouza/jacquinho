@@ -155,7 +155,7 @@ conferência, e a gravação passa a dizer `her_words_verified: false`.
 |---|---|---|---|
 | `budget_get_status` | Mostra total, reservado e restante. | nenhum | Com a lista do que ela decidiu comprar. |
 | `budget_check_purchase` | Testa se uma lista cabe, sem reservar nada. | `amount` | Devolve o quanto falta quando não cabe. |
-| `budget_reserve_purchase` | Separa parte do orçamento para uma compra que **ela** vai fazer. | `dish`, `description`, `amount`, `her_words` | Nada é comprado aqui: o agente não tem carteira. Exige a citação dela concordando, e recusa estourar. |
+| `budget_reserve_purchase` | Separa parte do orçamento para uma compra que **ela** vai fazer. | `dish`, `description`, `amount`, `her_words` | Nada é comprado aqui: o agente não tem carteira. Exige a citação dela concordando, e recusa estourar. O `amount` tem de bater com o `shopping_cost` da receita fechada: a lista de compras é derivada da receita, não escolhida. |
 | `budget_release_purchase` | Libera a reserva de um prato abandonado. | `entry_id` |  |
 
 ---

@@ -83,39 +83,63 @@ apurada.
 ## Certo 2 · O fechamento da fornada
 
 **O que se testa:** a pergunta que ela realmente faz, que não é quanto sobra numa
-marmita e sim se o dia valeu a pena.
+marmita e sim se o dia valeu a pena. E, junto, que o custo **não anda** entre um
+turno e outro.
 
 ```
-Dona Maria ▸ vou de 23,90 e pode comprar a massa sim. fecha no cardapio e me
-             diz o resultado da fornada
+Dona Maria ▸ topo a de panela. tenho cacarola grande e funda, so refogo, nao
+             frito por imersao, e faco molho branco de olho. rende 8 marmitas
 
-Jacquinho  ▸ Fechado! Lasanha de panela entrou no cardápio a R$ 23,90.
-             A massa de lasanha sai por uns R$ 10,79 o pacote — isso deixa
-             R$ 69,21 dos seus R$ 80 pra próxima fornada.
-             Cada marmita custa R$ 7,80 pra você fazer. Vendendo a R$ 23,90,
-             você recebe R$ 21,51 (a plataforma fica com 10%), e sobra
-             R$ 13,71 de lucro por marmita.
-             Resultado da fornada toda (8 marmitas):
-             Você vende R$ 191,20 no total. A plataforma fica com R$ 19,12. Os
-             ingredientes usados custam R$ 62,40. Sobram R$ 109,68 no seu bolso
-             — ou seja, 57 centavos de cada real vendido. Você desembolsa
-             R$ 10,79 de compra pra essa fornada, e o resto do que você usar já
-             é da sua despensa.
+Jacquinho  ▸ Fechado, Dona Maria! A lasanha de frango com molho branco cabe
+             certinho na sua panela, no cooktop.
+             O custo fica em R$ 4,15 por marmita. A massa de lasanha a senhora
+             vai comprar — um pacote de 500g sai por uns R$ 6,95, e sobra massa
+             pra outra fornada. O resto (frango, leite, manteiga, farinha,
+             queijo) já está na sua despensa.
+
+Dona Maria ▸ pode fechar a conta e me dizer por quanto vender
+
+Jacquinho  ▸ [...] Cada marmita de lasanha de panela custa R$ 4,15 pra fazer.
+             Marmita parecida está saindo entre R$ 14,98 e R$ 17,00 por aí
+             (achei só 2 referências, então é uma faixa indicativa).
+             Três opções pra senhora escolher:
+             - R$ 15,90 → deixa R$ 10,16 de lucro por marmita
+             - R$ 16,90 → deixa R$ 11,06 de lucro por marmita
+             - R$ 17,90 → deixa R$ 11,96 de lucro por marmita
+
+Dona Maria ▸ vou de 24,90. eu compro o que falta amanha, pode deixar separado
+             no orcamento. fecha no cardapio e me diz o resultado da fornada
+
+Jacquinho  ▸ Fechado, Dona Maria!
+             A lasanha de panela de frango com molho branco entra no cardápio a
+             R$ 24,90, categoria prato principal.
+             Sobre a compra: os R$ 12,00 da massa de lasanha e orégano já estão
+             separados no orçamento, esperando você ir ao mercado. Isso deixa
+             R$ 68,00 dos seus R$ 80,00 livres para a próxima fornada.
+             E o resultado da fornada, numa leva de 8 marmitas:
+             Você vende as 8 por R$ 199,20 no total. A plataforma fica com
+             R$ 19,92. Os ingredientes usados custam R$ 33,20. Sobram
+             R$ 146,08 no seu bolso — ou seja, 73 centavos de cada real que
+             entra. Você desembolsa só os R$ 12,00 de compra pra essa fornada.
 ```
 
 **Por que está certo.** Toda cifra sai de `menu_expected_return`, e todas batem:
-`8 x 23,90 = 191,20`, taxa `19,12`, custo `8 x 7,80 = 62,40`, lucro
-`8 x 13,71 = 109,68`, margem `109,68 / 191,20 = 57%`. A auditoria automática de
-cifras no fim do turno não achou nada sem lastro.
+`8 x 24,90 = 199,20`, taxa `19,92`, custo `8 x 4,15 = 33,20`, lucro
+`199,20 − 19,92 − 33,20 = 146,08`, margem `146,08 / 199,20 = 73%`. A auditoria
+automática de cifras não achou nada sem lastro, e o pipeline de afirmações
+fechou a mensagem em `1.0`.
+
+**R$ 4,15 nos três turnos.** Não é sorte: a receita do prato fecha na primeira
+conta completa, e uma lista de ingredientes diferente depois disso é recusada.
+Ver [decisoes.md](decisoes.md), item 43.
 
 A porcentagem é **margem sobre a venda**, não retorno sobre custo. A primeira
 versão dizia "retorno de 1556%", que é aritmeticamente verdadeiro e inútil: a
 base era a colherada que a fornada consome, não o que ela paga no caixa. Margem
-sobre venda não passa de 100 e por isso continua acreditável. As outras duas
-bases continuam na resposta da ferramenta, rotuladas.
+sobre venda não passa de 100 e por isso continua acreditável.
 
-Repare também nos dois custos separados: R$ 62,40 de ingrediente usado contra
-R$ 10,79 de desembolso. Somar os dois contaria duas vezes a despensa que ela já
+Repare também nos dois custos separados: R$ 33,20 de ingrediente usado contra
+R$ 12,00 de desembolso. Somar os dois contaria duas vezes a despensa que ela já
 pagou.
 
 ---

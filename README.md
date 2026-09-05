@@ -27,7 +27,7 @@ chamada de ferramenta, nunca da memória do modelo**.
 > deixa em aberto (modelo, context files, tools/MCP, estrutura de memória e
 > skills) estão respondidas em
 > [uma tabela](#as-cinco-escolhas-que-o-enunciado-deixou-em-aberto), cada uma
-> com link para a justificativa completa. As quarenta e cinco decisões inteiras,
+> com link para a justificativa completa. As quarenta e seis decisões inteiras,
 > com motivo e consequência, estão em
 > [docs/decisoes.md](docs/decisoes.md); as conversas que causaram boa parte
 > delas, em [docs/dialogos.md](docs/dialogos.md).
@@ -1163,6 +1163,10 @@ o mesmo prato não é oitenta por cento certo. E mudança que ela pediu não é
 contradição, senão o sistema puniria o agente por fazer a coisa certa e ele
 aprenderia a esconder a mudança.
 
+Os tipos são modelos Pydantic (`AtomicClaim`, `ToolFact`, `CheckedClaim`,
+`MessageJudgement`), o método e as referências científicas que o embasam estão
+em [docs/metricas.md](docs/metricas.md#afirmações-atômicas-o-pipeline-por-mensagem).
+
 O tipo de cada afirmação vem de **quem produziu o valor**, não das palavras ao
 redor. Classificar pela frase parecia razoável e não era: *"sobram R$ 63,91 dos
 seus R$ 80"* é o orçamento, e todas as pistas que o fariam virar lucro estão
@@ -1329,7 +1333,7 @@ entrega do veredito eram promessas que o servidor não podia verificar
 
 ### O resto
 
-Quarenta e cinco decisões de arquitetura, cada uma com motivo, consequência e o
+Quarenta e seis decisões de arquitetura, cada uma com motivo, consequência e o
 que ela custou. O documento completo é **[docs/decisoes.md](docs/decisoes.md)**;
 esta página é uma seleção, agrupada pelo problema que cada decisão resolve, e
 cada número abaixo abre direto na decisão. As que não estão aqui aparecem em
@@ -1358,6 +1362,7 @@ de entender no lugar onde o assunto aparece.
 | [35](docs/decisoes.md#35-um-sim-com-mas-dentro-não-é-um-sim) | Um "sim" com "mas" dentro não é um sim | Forno que queima embaixo volta como pergunta, não como capacidade |
 | [36](docs/decisoes.md#36-o-agente-não-compra-nada-e-o-orçamento-é-uma-reserva) | O agente não compra nada | O orçamento é reserva, e reservar exige a decisão dela |
 | [39](docs/decisoes.md#39-um-ingrediente-de-fora-tem-dois-custos-e-a-ferramenta-separa-os-dois) | O que ela não tem custa duas coisas | A embalagem que ela compra e a fração que a receita come |
+| [46](docs/decisoes.md#46-a-lista-de-compras-é-derivada-não-escolhida) | A lista de compras é derivada | Argumento ecoado não é evidência; onde existe resposta certa, o parâmetro não deveria existir |
 
 **O que garante que ela seja informada**
 

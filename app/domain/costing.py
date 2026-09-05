@@ -71,25 +71,41 @@ class RecipeLock:
             'lines': row['lines'],
             'portions': int(row['portions']),
             'cmv_per_portion': float(row['cmv']) if row['cmv'] is not None else None,
+            'shopping': row['shopping'],
+            'shopping_cost': float(row['shopping_cost']),
             'locked_at': row['locked_at'].isoformat(timespec='seconds'),
         }
 
-    def lock(self, dish: str, lines: list, portions: int, cmv: float) -> dict:
-        '''Settle the recipe. Idempotent for the same dish.'''
+    def lock(
+        self, dish: str, lines: list, portions: int, cmv: float,
+        shopping: list | None = None, shopping_cost: float = 0.0,
+    ) -> dict:
+        '''Settle the recipe, and with it the shopping list it implies.
+
+        The list travels with the recipe because it is the same fact: what she
+        has to buy is the recipe minus the pantry, not a number the agent gets
+        to pick. It was pickable, and it drifted: one turn said the massa costs
+        R$ 6,95 and was the only thing missing, and the closing message reserved
+        R$ 12,00 for "massa e orégano", with the orégano appearing from nowhere.
+        '''
         self.db.ensure_schema()
         self.db.execute(
-            '''INSERT INTO recipe_costing (slug, dish, lines, portions, cmv)
-                    VALUES (%s, %s, %s::jsonb, %s, %s)
+            '''INSERT INTO recipe_costing
+                       (slug, dish, lines, portions, cmv, shopping, shopping_cost)
+                    VALUES (%s, %s, %s::jsonb, %s, %s, %s::jsonb, %s)
                ON CONFLICT (slug) DO UPDATE SET
                     dish = EXCLUDED.dish,
                     lines = EXCLUDED.lines,
                     portions = EXCLUDED.portions,
                     cmv = EXCLUDED.cmv,
+                    shopping = EXCLUDED.shopping,
+                    shopping_cost = EXCLUDED.shopping_cost,
                     locked_at = now(),
                     reopened_at = NULL,
                     reopened_because = NULL''',
             (self.slug(dish), dish, psycopg.types.json.Json(self.signature(lines)),
-             portions, cmv),
+             portions, cmv, psycopg.types.json.Json(shopping or []),
+             round(shopping_cost, 2)),
         )
         return self.locked(dish) or {}
 

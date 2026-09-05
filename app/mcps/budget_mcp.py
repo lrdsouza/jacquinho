@@ -7,6 +7,7 @@ from typing import Annotated
 from pydantic import Field
 
 from ..domain.budget import BudgetLedger
+from ..domain.costing import RecipeLock
 from ..domain.memory import ConversationStore, RedisBackend
 from .base import BaseMCP
 
@@ -28,6 +29,7 @@ class BudgetMCP(BaseMCP):
     def __init__(self, settings, db):
         self.db = db
         self.chat = ConversationStore(RedisBackend(settings.redis_url))
+        self.lock = RecipeLock(db)
         super().__init__(settings)
 
     def _ledger(self) -> BudgetLedger:
@@ -88,6 +90,29 @@ class BudgetMCP(BaseMCP):
                         'Pergunte se ela quer comprar, e volte com a resposta.'
                     ),
                 }
+            # The amount is not the agent's to choose. It is what the recipe
+            # needs minus what she has, and `calculate_cmv` already worked it
+            # out. Letting the model pass a number here is how R$ 6,95 of massa
+            # became R$ 12,00 of "massa e orégano" between two messages, with
+            # the orégano appearing from nowhere and the total never explained.
+            settled = self.lock.locked(dish)
+            expected = (settled or {}).get('shopping_cost')
+            if settled and expected is not None and abs(expected - amount) > 0.005:
+                return {
+                    'reserved': False,
+                    'error': (
+                        f'A lista de compras de {dish!r} custa R$ {expected:.2f}, '
+                        f'não R$ {amount:.2f}.'
+                    ),
+                    'the_shopping_list_is': settled.get('shopping', []),
+                    'next_step': (
+                        'Use o valor e os itens que o calculate_cmv apurou. Se '
+                        'faltou algum ingrediente na receita, isso muda a '
+                        'receita: chame pricing_reopen_recipe com as palavras '
+                        'dela e refaça a conta. Não invente item nem total.'
+                    ),
+                }
+
             result = self._ledger().reserve(dish, description, amount)
             if result.get('reserved'):
                 result['next_step'] = (

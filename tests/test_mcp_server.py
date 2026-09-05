@@ -512,18 +512,21 @@ async def test_a_yes_with_a_but_in_it_is_refused(built, server):
 async def test_the_agent_cannot_reserve_money_she_did_not_agree_to(built, server):
     """The agent has no wallet. It once told her 'já comprei a massa' about
     money it cannot spend, because nothing made the decision hers."""
+    # A dish of its own: a dish with a settled recipe has a settled shopping
+    # list too, and this test is about her decision, not about the amount.
+    import uuid
+
+    dish = f'Prato Sem Acordo {uuid.uuid4().hex[:6]}'
     async with Client(server) as client:
         # The gate comes first, and rightly so: no money moves for a dish the
         # kitchen has not been checked against.
         await client.call_tool(
             'kitchen_check_feasibility',
-            {'dish': 'Lasanha de panela', 'equipment_needed': [],
-             'techniques_needed': []},
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
         )
         alone = await client.call_tool(
             'budget_reserve_purchase',
-            {'dish': 'Lasanha de panela',
-             'description': 'massa de lasanha, oregano', 'amount': 12.0},
+            {'dish': dish, 'description': 'massa de lasanha', 'amount': 12.0},
         )
         assert alone.data['reserved'] is False
         assert 'palavras dela' in alone.data['error']
@@ -532,8 +535,7 @@ async def test_the_agent_cannot_reserve_money_she_did_not_agree_to(built, server
         await capture_her_message(built, 'pode comprar a massa de lasanha sim')
         hers = await client.call_tool(
             'budget_reserve_purchase',
-            {'dish': 'Lasanha de panela',
-             'description': 'massa de lasanha, oregano', 'amount': 12.0,
+            {'dish': dish, 'description': 'massa de lasanha', 'amount': 12.0,
              'her_words': 'pode comprar a massa de lasanha sim'},
         )
     assert hers.data['reserved'] is True
@@ -794,3 +796,79 @@ async def test_only_her_words_can_reopen_a_recipe(built, server):
         )
     assert after.data.get('ok') is not False
     assert after.data['recipe_now_settled'] is True
+
+
+@pytest.mark.asyncio
+async def test_the_shopping_list_is_not_the_agents_to_choose(built, server):
+    """One message said the massa costs R$ 6,95 and was the only thing missing;
+    the closing reserved R$ 12,00 for 'massa e orégano', with the orégano
+    appearing from nowhere. The amount was a free parameter, so it drifted."""
+    import uuid
+
+    dish = f'Prato Compras {uuid.uuid4().hex[:6]}'
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+        )
+        costed = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish, 'portions': 8,
+             'lines': [{'ingredient': 'massa de lasanha', 'quantity': 60,
+                        'unit': 'g'}],
+             'researched_prices': [
+                 {'ingredient': 'massa de lasanha', 'package_price': 6.95,
+                  'package_quantity': 500, 'package_unit': 'g'}]},
+        )
+        expected = costed.data['shopping_cost']
+        assert expected == 6.95
+
+        await capture_her_message(built, 'pode reservar que eu compro amanha')
+        invented = await client.call_tool(
+            'budget_reserve_purchase',
+            {'dish': dish, 'description': 'massa e orégano', 'amount': 12.00,
+             'her_words': 'pode reservar que eu compro amanha'},
+        )
+        assert invented.data['reserved'] is False
+        assert 'R$ 6,95' in invented.data['error'].replace('.', ',')
+        assert invented.data['the_shopping_list_is']
+
+        right = await client.call_tool(
+            'budget_reserve_purchase',
+            {'dish': dish, 'description': 'massa de lasanha', 'amount': expected,
+             'her_words': 'pode reservar que eu compro amanha'},
+        )
+    assert right.data['reserved'] is True
+
+
+@pytest.mark.asyncio
+async def test_an_extra_ingredient_has_to_go_through_the_recipe(built, server):
+    """Adding orégano to the shopping list is adding it to the recipe, and the
+    recipe only changes when she changes it."""
+    import uuid
+
+    dish = f'Prato Extra {uuid.uuid4().hex[:6]}'
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+        )
+        await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish, 'portions': 8,
+             'lines': [{'ingredient': 'massa de lasanha', 'quantity': 60,
+                        'unit': 'g'}],
+             'researched_prices': [
+                 {'ingredient': 'massa de lasanha', 'package_price': 6.95,
+                  'package_quantity': 500, 'package_unit': 'g'}]},
+        )
+        # Slipping the orégano in as a new line is refused: same dish, new list.
+        slipped = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish, 'portions': 8,
+             'lines': [{'ingredient': 'massa de lasanha', 'quantity': 60,
+                        'unit': 'g'},
+                       {'ingredient': 'oregano', 'quantity': 2, 'unit': 'g'}]},
+        )
+    assert slipped.data['ok'] is False
+    assert 'oregano' in slipped.data['what_you_passed_differs_by']['joined_the_recipe']

@@ -397,7 +397,8 @@ class PricingMCP(BaseMCP):
             )
 
             if complete and dish:
-                self.lock.lock(dish, lines, portions, round(cmv, 2))
+                self.lock.lock(dish, lines, portions, round(cmv, 2),
+                               shopping=to_buy, shopping_cost=shopping_cost)
 
             return {
                 'dish': dish,

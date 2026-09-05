@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-45-6E56CF)
+![Registros](https://img.shields.io/badge/registros-46-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -1348,3 +1348,43 @@ a partir dele na abertura da conversa é um passo pequeno e ainda não foi dado.
 nota, quantas afirmações foram conferidas, quantas contradizem. Contradição sai
 em `warning` com o texto da divergência. Mensagem sem nada a conferir não gera
 linha.
+
+---
+
+## 46. A lista de compras é derivada, não escolhida
+
+**Decisão.** O que falta comprar e quanto custa saem de `calculate_cmv` e ficam
+gravados junto com a receita fechada. `budget_reserve_purchase` **recusa** um
+valor que não seja esse.
+
+**Motivo.** Numa consultoria, uma mensagem dizia que a massa de lasanha era a
+única coisa faltando e custava R$ 6,95. A mensagem de fechamento reservou
+R$ 12,00 "da massa de lasanha e orégano". O orégano apareceu do nada e o total
+nunca foi explicado.
+
+O `amount` era um parâmetro livre da ferramenta. Um parâmetro livre num lugar
+onde existe resposta certa é um convite a inventar, e o modelo aceitou.
+
+**E há um furo mais fundo aqui, que este caso expôs.** A conferência de cifras
+pergunta se alguma ferramenta produziu o número. `budget_reserve_purchase`
+recebia o `12.00` **do modelo** e o devolvia no resultado, então o número
+aparecia como "produzido por ferramenta". Argumento ecoado não é evidência, e
+tratá-lo como tal transforma a checagem em raciocínio circular.
+
+A lição vale além deste caso: **uma ferramenta só serve de evidência para os
+valores que ela calcula**, não para os que recebe. Onde existe resposta certa
+derivável, o argumento não deveria existir.
+
+**Consequência.** A lista de compras vira o mesmo tipo de fato que a receita: o
+que o prato pede menos o que ela tem. Acrescentar orégano à lista é acrescentar
+orégano à receita, e isso passa por `pricing_reopen_recipe` com as palavras
+dela, como qualquer mudança de prato.
+
+A recusa devolve a lista apurada e o total certo, então o caminho de volta é
+imediato. O custo é o de sempre nesta base: rigidez. Se a receita esqueceu um
+tempero de verdade, corrigir exige falar com ela, e isso é intencional.
+
+**Observabilidade.** `recipe_costing.shopping` guarda a lista item a item com
+quantas embalagens e quanto sobra, ao lado de `shopping_cost`. Na verificação
+depois da correção, os três lugares batem: a mensagem, a receita e o lançamento
+do orçamento, todos R$ 10,39 para um item.

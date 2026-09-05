@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-229-success)
+![Unitários](https://img.shields.io/badge/testes-231-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,12 +38,12 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**229 testes, 13 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**231 testes, 13 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
-| `test_mcp_server.py` | 39 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
+| `test_mcp_server.py` | 41 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
 | `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
@@ -449,6 +449,29 @@ contradição.
 `warning` apareciam, por propagação. Ou seja: o `grep jacquinho.verdict` que a
 documentação de operação manda rodar encontrava as falhas e nunca uma entrega
 bem-sucedida. Registrado agora.
+
+---
+
+### A conta que não fechava
+
+Achado lendo o próprio README: uma mensagem dizia que a massa de lasanha era a
+única coisa faltando e custava R$ 6,95; a mensagem de fechamento reservou
+R$ 12,00 "da massa de lasanha e orégano". O orégano apareceu do nada.
+
+O `amount` de `budget_reserve_purchase` era parâmetro livre. Mas o defeito de
+raiz é mais fundo, e vale escrever: **a conferência de cifras contava argumento
+ecoado como evidência.** A ferramenta recebia `12.00` do modelo e devolvia no
+resultado, então o número aparecia como "produzido por ferramenta". Raciocínio
+circular, e a checagem passava sorrindo.
+
+A regra que saiu disso: uma ferramenta só serve de evidência para os valores que
+**calcula**, não para os que recebe. Onde existe resposta certa derivável, o
+parâmetro não deveria existir. A lista de compras virou fato derivado da receita
+e a reserva recusa qualquer outro valor. Ver [decisoes.md](decisoes.md), item 46.
+
+Na verificação depois da correção os três lugares batem: a mensagem diz R$ 10,39
+para um item, `recipe_costing.shopping_cost` diz R$ 10,39 com um item, e o
+lançamento do orçamento diz R$ 10,39.
 
 ---
 

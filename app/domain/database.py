@@ -143,10 +143,20 @@ CREATE TABLE IF NOT EXISTS recipe_costing (
     lines           JSONB NOT NULL,
     portions        INTEGER NOT NULL DEFAULT 1,
     cmv             NUMERIC(10,2),
+    -- What the dish still needs bought, and what that costs, both derived from
+    -- the lines above. Kept with the recipe because it is the same fact: a
+    -- shopping list is not something the agent may choose, it is what the
+    -- recipe minus the pantry comes to.
     locked_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     reopened_at     TIMESTAMPTZ,
     reopened_because TEXT
 );
+
+-- The shopping list joined the recipe after the table already existed in
+-- running installs, and CREATE TABLE IF NOT EXISTS adds no columns.
+ALTER TABLE recipe_costing
+    ADD COLUMN IF NOT EXISTS shopping      JSONB NOT NULL DEFAULT '[]'::jsonb,
+    ADD COLUMN IF NOT EXISTS shopping_cost NUMERIC(10,2) NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS answer_assessments (
     id                  BIGSERIAL PRIMARY KEY,

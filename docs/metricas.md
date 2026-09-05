@@ -337,6 +337,141 @@ resultado, não se está no lugar certo da frase. Não pega um número certo usa
 errado. Pega o número que ninguém calculou, e sai como `jacquinho.figures` no
 log. Ver [decisoes.md](decisoes.md), item 37.
 
+## Afirmações atômicas: o pipeline por mensagem
+
+A pontuação por sinais mede a **evidência reunida**. Não mede a frase. Esta
+segunda camada mede a frase, e roda na fronteira do turno, sobre o texto que a
+Dona Maria realmente recebeu.
+
+### Os quatro passos
+
+```mermaid
+flowchart TD
+    M["mensagem entregue"] --> D["1. decompor<br/><i>ClaimExtractor</i>"]
+    D --> F["2. filtrar o conferível<br/><i>pergunta e conselho saem</i>"]
+    F --> G["3. conferir contra as ferramentas<br/><i>CommitmentLedger.ground</i>"]
+    G --> C["4. comparar com o que ela ouviu<br/><i>CommitmentLedger.contradictions</i>"]
+    C --> J["MessageJudgement<br/>nota, contradições, lista"]
+    J --> B["bind: isto vira a promessa"]
+```
+
+### Os tipos, em Pydantic
+
+Os modelos existem para que cada peça do pipeline tenha um contrato explícito, e
+para que o resultado seja serializável direto no log e no banco.
+
+| Modelo | O que é | Campos que decidem alguma coisa |
+|---|---|---|
+| `AtomicClaim` | Uma afirmação, pequena o bastante para ser verdadeira ou falsa sozinha | `kind`, `subject`, `value`, `exclusive` |
+| `ToolFact` | Um valor que uma ferramenta estabeleceu para um prato | `subject`, `kind`, `value` |
+| `CheckedClaim` | Uma afirmação com o que aconteceu com ela | `verdict`, `earlier_value` |
+| `MessageJudgement` | A nota da mensagem inteira | `score`, `contradictions`, `verifiable` |
+
+`ClaimKind` é um `str, Enum`: `cost`, `price`, `receipt`, `profit`, `budget`,
+`market`, `unverifiable`. `Verdict` também: `grounded`, `ungrounded`,
+`contradicts_earlier_turn`, `revised_because_she_asked`, `not_checkable`.
+
+### O que é atômico, e por quê
+
+Uma afirmação é atômica quando pode ser julgada sem depender de outra frase.
+"Cada marmita custa R$ 4,15 e vendendo a R$ 24,90 sobra R$ 18,26" são **três**
+afirmações, e a do meio pode estar certa com as outras erradas.
+
+A atomicidade só vale se cada átomo tiver **identidade estável**, e é aí que
+esteve o erro de projeto mais caro desta camada. A primeira versão lia o tipo da
+afirmação pelas palavras ao redor do número. Parecia razoável: *"custa R$ 4,15"*
+é custo, *"sobra R$ 18,26"* é lucro. Mas *"sobram R$ 63,91 dos seus R$ 80"* é o
+orçamento, e todas as pistas que o classificariam como lucro estão na frase.
+
+Tipo errado é pior que nenhum, porque inventa contradição entre dois números que
+nunca falaram da mesma coisa. Hoje a identidade vem de **quem produziu o valor**:
+o custo é o que `calculate_cmv` devolveu para aquele prato, o preço é o que foi
+para o cardápio. A leitura da frase serve só para saber **quais** desses valores
+ela de fato ouviu.
+
+O mesmo princípio aparece uma camada abaixo, na receita: um prato tem uma lista
+de ingredientes, fechada na primeira conta completa. Sem isso o custo andava
+sozinho entre turnos com aritmética correta em todas as vezes, porque os insumos
+mudavam. Ver [decisoes.md](decisoes.md), itens 43 e 46.
+
+### A conta
+
+```
+nota = afirmações que conferem / afirmações conferíveis
+nota = 0,00                     se houver qualquer contradição
+nota = 1,00                     se não houver nada conferível
+```
+
+A contradição zera em vez de entrar na média porque ouvir dois custos diferentes
+para o mesmo prato não é oitenta por cento certo. E mensagem sem nada conferível
+vale 1,00 porque uma pergunta não pode estar errada: pontuá-la baixo mediria o
+avaliador, não a mensagem.
+
+Mudança que **ela** pediu não é contradição. `pricing_reopen_recipe` autoriza a
+revisão daquele prato e o valor novo passa como `revised`. Sem isso o sistema
+puniria o agente por corrigir na frente dela, e o que ele aprenderia é a
+esconder a correção.
+
+### De onde veio o desenho
+
+O método é o que a literatura de verificação de fatos de texto longo convergiu,
+com uma adaptação que muda o custo de rodá-lo.
+
+**Decompor e verificar uma afirmação por vez** é o método do FActScore e do SAFE,
+que quebram uma resposta longa em fatos atômicos e verificam cada um contra uma
+fonte, reportando precisão.
+
+**Filtrar para as verificáveis** é a correção que o [VeriScore][veriscore] fez em
+cima disso: ele extrai apenas afirmações verificáveis e descarta opinião,
+conselho, hipótese e ficção, porque essas não podem ser certas nem erradas.
+Também é de lá a ideia de **descontextualizar** a afirmação com uma janela ao
+redor da frase, para que ela se sustente sozinha; aqui a janela é curta e cortada
+no limite da frase, porque uma janela larga faz todo número do parágrafo herdar o
+sentido do primeiro.
+
+**Comparar contra turnos anteriores** é o que os avaliadores multi-turno chamam
+de *commitment*. O [SKG-Eval][skg] monta um grafo incremental do diálogo e roda
+uma cascata de detectores de contradição, e o mais confiável deles para o nosso
+caso é a **discordância numérica**: relações iguais, valores diferentes. É
+robusto justamente por comparar valores simbólicos em vez de similaridade de
+texto. De lá vem também o **filtro de revisão autorizada**, que separa uma
+atualização pedida pelo usuário de uma inconsistência do modelo, e a distinção
+entre propriedade **exclusiva** e **aditiva**: um prato tem um custo, mas pode
+ter várias referências de mercado.
+
+Há discussão aberta sobre quando decompor ajuda e quando atrapalha, e sobre como
+pontuar a qualidade da própria decomposição
+([Decomposition Dilemmas][decomp], [DecMetrics][decmetrics]).
+
+**A adaptação.** Nesses trabalhos a evidência é a web aberta, então a extração
+precisa de um modelo e a verificação precisa de busca, e o custo por resposta é
+alto o bastante para virar decisão de produto. Aqui a evidência são os resultados
+das próprias ferramentas desta sessão: um preço saiu de
+`pricing_price_scenarios` ou não saiu. Por isso o pipeline inteiro é
+determinístico, cabe em `test_claims.py` sem banco nem servidor, e roda em toda
+mensagem sem custar uma chamada de modelo.
+
+[veriscore]: https://arxiv.org/html/2406.19276
+[skg]: https://arxiv.org/html/2605.16650
+[decomp]: https://arxiv.org/html/2411.02400v1
+[decmetrics]: https://arxiv.org/html/2509.04483
+
+**Nota de honestidade sobre estas referências.** Li o VeriScore e o SKG-Eval em
+detalhe e tirei deles as decisões acima. Os outros dois apareceram no
+levantamento e são citados como leitura relacionada, não como base do desenho.
+FActScore e SAFE são citados pelo método que popularizaram, que chega aqui
+através da descrição desses trabalhos.
+
+### O que esta camada não faz
+
+Ela pergunta se a cifra existe em algum resultado de ferramenta e se bate com o
+que foi prometido. **Não** pergunta se está no lugar certo da frase: um número
+certo usado para a coisa errada passa. Também não julga texto sem número, que é
+onde mora a maior parte de uma conversa.
+
+Para isso continua existindo o juiz, que lê o rascunho, e ele é a única parte
+paga desta pilha.
+
 ### Calibrar os degraus
 
 O que resta da falha 3, e o mais caro. Registrar desfecho (o prato foi aceito?
