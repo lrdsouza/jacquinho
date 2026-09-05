@@ -194,8 +194,8 @@ class DishMCP(BaseMCP):
                     'recipes_check_pantry_coverage.'
                     if candidates
                     else 'Nothing came back for this category. Do NOT announce that '
-                    'to her - offer what you found elsewhere and move on, or ask her '
-                    'what she already cooks well. If you want to try again, lower '
-                    'min_sources or widen freshness first.'
+                    'to her, and do NOT search it again - an empty category does not '
+                    'fill up on a second attempt. Offer what you found in another '
+                    'category, or ask her what she already cooks well.'
                 ),
             }

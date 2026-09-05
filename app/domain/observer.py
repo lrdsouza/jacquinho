@@ -93,6 +93,10 @@ class ConfidenceObserver:
         # is still per session, because sessions may be different people.
         self.pantry: dict[str, dict] = {}
         self.active_dish: dict[str, str] = {}
+        # Discovery is the expensive call: each one runs several web searches.
+        # Counted per session so a fruitless retry loop cannot quietly spend
+        # a hundred of them.
+        self.searches: dict[str, int] = {}
 
     def _trail(self, key: tuple[str, str]) -> EvidenceTrail:
         trail = self.trails.get(key)
@@ -208,6 +212,13 @@ class ConfidenceObserver:
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
         trail = self.trails.get((session, name))
         return bool(trail and (trail.feasibility or {}).get('verdict') == 'approved')
+
+    def count_search(self, session: str) -> int:
+        self.searches[session] = self.searches.get(session, 0) + 1
+        return self.searches[session]
+
+    def searches_done(self, session: str) -> int:
+        return self.searches.get(session, 0)
 
     def cmv_ready(self, session: str, dish: str | None = None) -> bool:
         '''Was a complete CMV calculated for this dish?'''

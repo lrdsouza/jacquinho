@@ -29,6 +29,13 @@ class ConfidenceMiddleware(Middleware):
     # every local run. Named so other code can ask the observer the same thing.
     SESSION_FALLBACK = 'local'
 
+    # Each discovery runs several web searches. A real conversation spent twenty
+    # of them in one turn - the first two found dishes, the next eighteen came
+    # back empty, and the turn ended with no reply at all. Searching is not free
+    # and an empty result is an answer, not an invitation to try again.
+    SEARCH_TOOL = 'dishes_discover_dishes'
+    SEARCH_BUDGET = 5
+
     NEEDS_GATE = {
         'pricing_price_scenarios': 'nenhum preço sai antes do gate de viabilidade',
         'menu_add_dish': 'nenhum prato entra no cardápio antes do gate',
@@ -149,6 +156,17 @@ class ConfidenceMiddleware(Middleware):
                 'exige, e só volte aqui quando o veredito for approved. Ler o perfil '
                 'da cozinha não conta: ler não é verificar.'
             )
+
+        if name == self.SEARCH_TOOL:
+            done = self.observer.searches_done(session)
+            if done >= self.SEARCH_BUDGET:
+                raise ToolError(
+                    f'Recusado: já foram {done} buscas nesta conversa. Trabalhe com '
+                    'o que você achou - recipes_next_candidate lista o que está '
+                    'aberto - ou pergunte a ela o que ela já cozinha bem. Uma '
+                    'categoria que voltou vazia não fica cheia na décima tentativa.'
+                )
+            self.observer.count_search(session)
 
         needs_cost = self.NEEDS_CMV.get(name)
         if needs_cost and not self.observer.cmv_ready(session, dish):

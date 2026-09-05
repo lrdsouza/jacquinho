@@ -124,6 +124,23 @@ cenoura em vez de cravar um número.
 **Ele adapta em vez de recusar.** Sem forno, ofereceu a versão de frigideira do
 prato dela em vez de "não dá".
 
+### O que a segunda rodada achou
+
+**Vinte descobertas num turno só.** As duas primeiras acharam pratos; as outras
+dezoito voltaram vazias e ele continuou tentando — cerca de cento e vinte buscas
+web, e o turno **terminou sem resposta nenhuma**. O `next_step` do resultado
+vazio convidava a tentar de novo, e ele aceitou o convite. Agora há teto de cinco
+buscas por conversa e o texto diz o contrário: categoria vazia não fica cheia na
+décima tentativa. Depois da correção: duas descobertas e uma resposta com três
+pratos.
+
+**Falou dela na terceira pessoa.** *"Ela tem despensa boa"* — narrando um
+relatório com ela na sala.
+
+**O badge mentia para menos.** Dizia "sem preço de mercado" minutos depois de o
+mercado ter sido pesquisado, porque o agente monta o pacote de evidências à mão
+e omitiu o campo. O observador tinha a trilha inteira.
+
 ### O que foi ruim
 
 **Respondia em inglês no primeiro "oi".** A persona estava nas `instructions` do

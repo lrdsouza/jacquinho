@@ -141,3 +141,20 @@ async def test_assessment_fills_gaps_from_what_was_observed(server):
     signals = {s['signal']: s['score'] for s in report.data['deterministic']['signals']}
     assert signals['feasibility'] == 1.0
     assert signals['cost'] > 0
+
+
+@pytest.mark.asyncio
+async def test_discovery_has_a_budget(server):
+    """One real turn spent twenty discoveries - about a hundred web searches -
+    and ended with no reply at all."""
+    from fastmcp.exceptions import ToolError
+
+    async with Client(server) as client:
+        for _ in range(5):
+            await client.call_tool(
+                'dishes_discover_dishes', {'category': 'main_course', 'queries': 2}
+            )
+        with pytest.raises(ToolError, match='buscas'):
+            await client.call_tool(
+                'dishes_discover_dishes', {'category': 'dessert', 'queries': 2}
+            )
