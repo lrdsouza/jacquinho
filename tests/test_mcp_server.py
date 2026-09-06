@@ -872,3 +872,56 @@ async def test_an_extra_ingredient_has_to_go_through_the_recipe(built, server):
         )
     assert slipped.data['ok'] is False
     assert 'oregano' in slipped.data['what_you_passed_differs_by']['joined_the_recipe']
+
+
+@pytest.mark.asyncio
+async def test_the_cost_comes_with_the_breakdown_she_can_check(built, server):
+    """A total on its own is a number she has to take on faith."""
+    import uuid
+
+    dish = f'Prato Aberto {uuid.uuid4().hex[:6]}'
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+        )
+        result = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish, 'portions': 8,
+             'lines': [{'ingredient': 'Carne moída (patinho)', 'quantity': 100,
+                        'unit': 'g'},
+                       {'ingredient': 'Queijo mussarela', 'quantity': 50,
+                        'unit': 'g'}]},
+        )
+    data = result.data
+    assert data['breakdown_for_her'][0].startswith('100 g de Carne moída')
+    assert 'R$ 2,80' in data['breakdown_for_her'][0]
+    # Biggest first: the first lines explain most of the number.
+    assert data['breakdown_for_her'] == sorted(
+        data['breakdown_for_her'],
+        key=lambda line: -float(line.rsplit('R$ ', 1)[1].replace(',', '.')),
+    )
+    assert data['cost_per_portion_for_her'] == 'custo por porção: R$ 4,80'
+    assert 'CMV' not in data['next_step'] or 'Never say "CMV"' in data['next_step']
+
+
+@pytest.mark.asyncio
+async def test_a_recipe_that_serves_six_is_divided_by_the_tool(built, server):
+    """'1 kg de carne, serve 6' becomes 166 g per portion here, not in prose."""
+    import uuid
+
+    dish = f'Prato Rendimento {uuid.uuid4().hex[:6]}'
+    async with Client(server) as client:
+        await client.call_tool(
+            'kitchen_check_feasibility',
+            {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+        )
+        whole = await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish, 'portions': 6, 'recipe_yields': 6,
+             'lines': [{'ingredient': 'Carne moída (patinho)', 'quantity': 1,
+                        'unit': 'kg'}]},
+        )
+    # 1 kg for six portions is 166,7 g each, at R$ 28,00/kg.
+    assert whole.data['cmv_per_portion'] == 4.67
+    assert '166' in whole.data['breakdown_for_her'][0]

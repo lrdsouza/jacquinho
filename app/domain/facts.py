@@ -41,6 +41,7 @@ FACT_MAP: dict[str, tuple[tuple[str, ClaimKind, bool], ...]] = {
         ('cmv_per_portion', ClaimKind.COST, True),
         ('shopping_cost', ClaimKind.BUDGET, True),
         ('must_buy[].estimated_cost', ClaimKind.BUDGET, False),
+        # Every line of the breakdown she is read out loud.
         ('ingredients[].cost', ClaimKind.COST, False),
         ('budget.remaining_after', ClaimKind.BUDGET, False),
     ),

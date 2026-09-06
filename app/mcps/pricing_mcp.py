@@ -72,6 +72,33 @@ class PricingMCP(BaseMCP):
     )
 
     @staticmethod
+    def _in_her_words(amount: str, ingredient: str, cost: float) -> str:
+        """One line of the cost, as she would say it out loud.
+
+        A total on its own is a number she has to take on faith. "100 g de carne
+        moída: R$ 2,80" is a number she can check against her own shopping, and
+        checking is the whole point of showing it.
+
+        Grams and litres are for recipes; people say "meio quilo" and "um copo
+        de leite". This keeps the unit but scales it to what reads naturally.
+        """
+        try:
+            value, unit = amount.split(' ', 1)
+            quantity = float(value)
+        except ValueError:
+            return f'{amount} de {ingredient}: R$ {cost:.2f}'.replace('.', ',')
+
+        if unit == 'kg' and quantity < 1:
+            written = f'{quantity * 1000:g} g'
+        elif unit == 'l' and quantity < 1:
+            written = f'{quantity * 1000:g} ml'
+        elif unit == 'un':
+            written = f'{quantity:g}' + (' unidade' if quantity == 1 else ' unidades')
+        else:
+            written = f'{quantity:g} {unit}'
+        return f'{written} de {ingredient}: R$ {cost:.2f}'.replace('.', ',')
+
+    @staticmethod
     def _cost_a_purchase(line, priced, portions: int, to_buy: list) -> tuple:
         """Split a researched package price into a CMV share and a shopping line.
 
@@ -207,8 +234,9 @@ class PricingMCP(BaseMCP):
         @self.mcp.tool
         def calculate_cmv(
             dish: Annotated[str, Field(description='Dish name.')],
-            lines: Annotated[list[RecipeLine], Field(description='Ingredients for ONE portion.')],
-            portions: Annotated[int, Field(ge=1, description='Portions produced per batch.')] = 1,
+            lines: Annotated[list[RecipeLine], Field(description='Ingredients as the recipe writes them. Per portion by default; if the recipe gives totals, pass recipe_yields and these are the totals.')],
+            portions: Annotated[int, Field(ge=1, description='Portions she will produce per batch.')] = 1,
+            recipe_yields: Annotated[int, Field(ge=0, description='How many portions the recipe itself yields. Pass it when `lines` are the recipe totals, and the division is done here instead of in your head.')] = 0,
             researched_prices: Annotated[list[PurchasedItem], Field(description='Prices you looked up for ingredients the pantry does not have, one per ingredient, as a package.')] = [],
         ) -> dict:
             '''Cost one portion, splitting what she has from what she must buy.
@@ -246,6 +274,18 @@ class PricingMCP(BaseMCP):
                         'Se for outro prato, use o nome do outro prato.'
                     ),
                 }
+
+            # A recipe found on the web says "1 kg de carne, serve 6". Dividing
+            # that by six is arithmetic, and arithmetic done in the model's head
+            # is exactly what this server exists to prevent. Pass the yield and
+            # the division happens here, where it can be shown.
+            if recipe_yields > 1:
+                lines = [
+                    line.model_copy(
+                        update={'quantity': line.quantity / recipe_yields}
+                    )
+                    for line in lines
+                ]
 
             used, to_buy, unknown, questions = [], [], [], []
             cmv = 0.0
@@ -342,6 +382,13 @@ class PricingMCP(BaseMCP):
 
             shopping_cost = sum(entry['estimated_cost'] for entry in to_buy)
             complete = not questions and not unknown
+            # The itemised cost, ready to read to her. Biggest first, because
+            # the first two lines usually explain most of the number and the
+            # centavos at the end are noise.
+            breakdown = [
+                self._in_her_words(entry['amount'], entry['ingredient'], entry['cost'])
+                for entry in sorted(used, key=lambda e: -e['cost'])
+            ]
             # A cost she has already heard is a promise. Recalculating is fine;
             # changing the number in silence leaves her with two prices in her
             # head. It happened in the flagship transcript of this repository:
@@ -406,6 +453,13 @@ class PricingMCP(BaseMCP):
                 'recipe_now_settled': bool(complete and dish),
                 'portions_per_batch': portions,
                 'cmv_per_portion': round(cmv, 2) if complete else None,
+                # The same number, named the way she names it. 'CMV' is
+                # consultancy vocabulary and she never asked for a consultant.
+                'cost_per_portion_for_her': (
+                    f'custo por porção: R$ {cmv:.2f}'.replace('.', ',')
+                    if complete else None
+                ),
+                'breakdown_for_her': breakdown if complete else [],
                 'calculation_complete': complete,
                 'ingredients': used,
                 'must_buy': to_buy,
@@ -414,10 +468,13 @@ class PricingMCP(BaseMCP):
                 'not_found': unknown,
                 'open_questions': questions,
                 'next_step': (
-                    'Run market_research_dish_prices for this dish, then call '
-                    'price_scenarios with the CMV and that reference band. Commit the '
-                    'shopping with budget_reserve_purchase only after she says she '
-                    'will buy it. You are not buying anything: she is.'
+                    'Show her `breakdown_for_her` before the total: a cost she can '
+                    'check against her own shopping is worth more than a number she '
+                    'has to believe. Never say "CMV" to her. Then run '
+                    'market_research_dish_prices for this dish, and price_scenarios '
+                    'with the cost and that reference band. Reserve the shopping with '
+                    'budget_reserve_purchase only after she says she will buy it: '
+                    'you are not buying anything, she is.'
                     if complete
                     else 'Do NOT price yet. Take open_questions back to the conversation.'
                 ),

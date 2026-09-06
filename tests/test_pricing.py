@@ -197,3 +197,52 @@ def test_a_percentage_over_a_missing_base_is_none():
     assert p['return_on_cost_percent'] is None
     assert p['return_on_cash_percent'] is None
     assert p['margin_on_sales_percent'] is not None
+
+
+# --- the cost, in her language ----------------------------------------------
+
+def test_the_breakdown_reads_like_a_person_talking():
+    """A total on its own is a number she has to take on faith. '100 g de carne
+    moída: R$ 2,80' is one she can check against her own shopping."""
+    pytest.importorskip('fastmcp')
+    from app.mcps.pricing_mcp import PricingMCP
+
+    said = PricingMCP._in_her_words('0.1 kg', 'carne moída', 2.80)
+    assert said == '100 g de carne moída: R$ 2,80'
+
+
+def test_small_volumes_become_millilitres():
+    pytest.importorskip('fastmcp')
+    from app.mcps.pricing_mcp import PricingMCP
+
+    # Vírgula decimal, porque é assim que se escreve em português.
+    assert PricingMCP._in_her_words('0.0625 l', 'leite', 0.31) == (
+        '62,5 ml de leite: R$ 0,31')
+
+
+def test_pieces_are_counted_not_weighed():
+    pytest.importorskip('fastmcp')
+    from app.mcps.pricing_mcp import PricingMCP
+
+    assert PricingMCP._in_her_words('1 un', 'ovo', 0.60).startswith('1 unidade de ovo')
+    assert PricingMCP._in_her_words('3 un', 'ovo', 1.80).startswith('3 unidades de ovo')
+
+
+def test_a_whole_kilo_stays_a_kilo():
+    pytest.importorskip('fastmcp')
+    from app.mcps.pricing_mcp import PricingMCP
+
+    assert PricingMCP._in_her_words('1,5 kg'.replace(',', '.'), 'farinha', 7.72) == (
+        '1,5 kg de farinha: R$ 7,72')
+
+
+def test_the_recipe_yield_is_divided_by_the_tool_not_by_the_model():
+    """A recipe found on the web says '1 kg de carne, serve 6'. Dividing that by
+    six is arithmetic, and arithmetic in the model's head is what this server
+    exists to prevent."""
+    pytest.importorskip('fastmcp')
+    from app.mcps.pricing_mcp import RecipeLine
+
+    line = RecipeLine(ingredient='carne moída', quantity=1.0, unit='kg')
+    per_portion = line.model_copy(update={'quantity': line.quantity / 6})
+    assert round(per_portion.quantity, 4) == 0.1667

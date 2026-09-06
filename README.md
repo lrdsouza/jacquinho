@@ -10,7 +10,7 @@
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 ![Servidores MCP](https://img.shields.io/badge/servidores%20MCP-11-success)
 ![Ferramentas](https://img.shields.io/badge/ferramentas-58-success)
-![Testes](https://img.shields.io/badge/testes-245-success)
+![Testes](https://img.shields.io/badge/testes-252-success)
 
 Um sous-chef de IA para a **Dona Maria**, cozinheira que está abrindo o primeiro
 delivery dela, o *Sabor da Maria*. Ela sabe cozinhar. O que ela não sabe é quais
@@ -66,99 +66,93 @@ isso **antes** de ela gastar um centavo.
 ```
 Dona Maria ▸ oi! quero fazer lasanha ao forno pra vender de marmita
 
-Jacquinho  ▸ Oi, Dona Maria! Dei uma olhada na sua despensa e ela está bem
-             recheada — tem carne moída, mussarela, molho de tomate na mão
-             (tomate, cebola, alho), e macarrão. Dá pra fazer uma lasanha boa!
-             Antes de eu seguir com a lasanha ao forno: seu forno funciona
-             bem, assa por igual?
+Jacquinho  ▸ Lasanha à bolonhesa ao forno é uma ótima pedida pra marmita!
+             Antes de eu olhar a receita direitinho e ver as contas, preciso
+             saber uma coisa: você tem forno em casa? Ele assa por igual, sem
+             deixar parte crua e parte queimada?
 
-Dona Maria ▸ nao tenho forno nao, so um cooktop de 4 bocas
+Dona Maria ▸ nao tenho forno nao, so um cooktop de 4 bocas. topo a de panela,
+             tenho cacarola grande, so refogo, faco molho branco de olho,
+             rende 8 marmitas. me diz o custo aberto e por quanto vender
 
-Jacquinho  ▸ Dona Maria, a lasanha ao forno não vai dar, porque você não tem
-             forno, só o cooktop de 4 bocas. Mas dá pra fazer sua lasanha de
-             outro jeito: lasanha de panela, montada e cozida no fogão mesmo,
-             com as mesmas camadas de carne moída, molho e mussarela
-             derretendo na tampa da panela. Fica igual de gostosa e você não
-             perde o prato.
-             Topa fazer essa versão?
-
-Dona Maria ▸ topo a de panela. tenho cacarola grande e funda, so refogo, nao
-             frito por imersao, e faco molho branco de olho. rende 8 marmitas.
-             me diz o custo e por quanto vender
-
-Jacquinho  ▸ Fechei a conta da sua lasanha de panela: cada marmita sai a
-             R$ 7,72.
-             A massa de lasanha é o único item que você precisa comprar — um
-             pacote de 500g por R$ 12,99 dá certinho pras 8 marmitas, e ainda
-             sobra R$ 67,01 dos seus R$ 80 pra próxima fornada.
-             Marmita parecida está saindo por R$ 14,98 por aí, mas eu só achei
-             essa referência, então trate como indicativo, não como o preço do
-             mercado todo.
-             O preço mínimo pra não perder dinheiro é R$ 8,58 (a plataforma
-             fica com 10% do que você cobrar). Se você vender a R$ 15,90:
-             sobram R$ 14,31 no seu bolso depois da plataforma, e o lucro por
-             marmita fica em R$ 6,59.
-             Quanto você quer cobrar?
-
-Dona Maria ▸ vou de 15,90 mesmo. eu compro a massa amanha, pode reservar.
-             fecha no cardapio e me diz o resultado da fornada
-
-Jacquinho  ▸ Fechei no cardápio: lasanha de panela a R$ 15,90.
-             Deixei reservado R$ 12,99 pra massa de lasanha que você vai
-             comprar amanhã — sobram R$ 67,01 do seu orçamento pra próxima
-             fornada.
-             Numa fornada de 8 marmitas: você vende por R$ 127,20, a
-             plataforma fica com R$ 12,72, os ingredientes usados custam
-             R$ 61,76, e sobram R$ 52,72 no seu bolso — isso é uns 41 centavos
-             de lucro em cada real vendido. Pra essa fornada você desembolsa
-             R$ 12,99 de compra, e o resto do estoque já fica pronto pras
-             próximas.
+Jacquinho  ▸ Oi, Dona Maria!
+             Lasanha à bolonhesa ao forno tá fora, viu — porque você não tem
+             forno, só o cooktop de 4 bocas. Mas dá pra fazer sua lasanha na
+             panela mesmo: monta em camadas com o molho bolonhês e o molho
+             branco de olho, tampa a caçarola grande e cozinha no fogo baixo.
+             Fica com o mesmo gostinho, só muda o jeito de cozinhar.
+             Fechei a conta do custo. Cada marmita fica em R$ 7,53 pra você
+             fazer. As três que mais pesam: 80g de carne moída (R$ 2,24), 50g
+             de mussarela (R$ 2,00) e o tomate (R$ 0,67). Depois vem a massa
+             que você vai comprar (R$ 0,64) e o resto dos temperos e do molho
+             branco fechando a conta.
+             Pra fazer a fornada de 8 marmitas, você vai gastar uns R$ 29,24
+             comprando massa de lasanha, orégano, manjericão e pimenta-do-reino
+             — o resto você já tem em casa. Isso cabe tranquilo no seu
+             orçamento, sobrando R$ 50,76 pra próxima fornada.
+             Abaixo de R$ 8,37 por marmita você paga pra vender, então esse é o
+             seu piso.
+             Marmita parecida está saindo entre R$ 14,98 e R$ 28,00 por aí —
+             achei poucas referências de preço, então trate isso como
+             indicativo, não como faixa fechada de mercado. Com esses números:
+             vendendo a R$ 15,90 → sobram R$ 6,78 por marmita pra você
+             vendendo a R$ 23,90 → sobram R$ 13,98 por marmita
+             vendendo a R$ 28,90 → sobram R$ 18,48 por marmita
+             Qual desses preços você quer colocar, ou prefere outro valor?
 ```
 
-### O R$ 7,72 é auditável, e aqui está a auditoria
+### A conta é aberta, e por isso pode ser conferida
 
-O CMV não é uma opinião do modelo: é a receita que o servidor fechou,
-multiplicada pelos custos unitários derivados da planilha dela
-(`preço pago ÷ quantidade comprada`).
+Repare no que ele **não** faz: dar um total e pedir fé. Cada linha da conta sai
+com a gramatura e o preço, ordenada pela que mais pesa, porque as duas ou três
+primeiras explicam quase todo o número e os centavos do fim são ruído.
+
+Ela compra carne, sabe quanto pagou pelo quilo, e reconhece o R$ 2,24. Se algum
+item estiver errado, é assim que ela descobre, e descobrir agora é melhor que
+descobrir vendendo.
+
+O custo unitário vem do cruzamento das duas abas da planilha dela
+(`preço pago ÷ quantidade comprada`), e a conta bate ao centavo:
 
 | Ingrediente | Por marmita | Custo unitário | Custo |
 |---|---:|---:|---:|
-| Carne moída (patinho) | 100 g | R$ 28,00/kg | R$ 2,80 |
+| Carne moída (patinho) | 80 g | R$ 28,00/kg | R$ 2,24 |
 | Queijo mussarela | 50 g | R$ 40,00/kg | R$ 2,00 |
-| Massa de lasanha *(compra)* | 62,5 g | R$ 25,98/kg | R$ 1,62 |
-| Tomate | 75 g | R$ 8,00/kg | R$ 0,60 |
-| Leite integral | 62,5 ml | R$ 5,00/L | R$ 0,31 |
-| Manteiga | 5 g | R$ 40,00/kg | R$ 0,20 |
-| Cebola | 18,7 g | R$ 4,00/kg | R$ 0,07 |
-| Alho | 2,5 g | R$ 20,00/kg | R$ 0,05 |
-| Farinha de trigo | 5 g | R$ 5,15/kg | R$ 0,03 |
-| Óleo de soja | 3,7 ml | R$ 9,00/L | R$ 0,03 |
-| Sal | 1,3 g | R$ 1,85/kg | R$ 0,00 |
-| | | **CMV** | **R$ 7,72** |
+| Tomate | ~84 g | R$ 8,00/kg | R$ 0,67 |
+| Massa de lasanha *(compra)* | fração do pacote | pesquisado | R$ 0,64 |
+| *…e o resto do molho e dos temperos* | | | R$ 1,98 |
+| | | **por marmita** | **R$ 7,53** |
 
-A receita fica gravada em `recipe_costing` e **fecha na primeira conta
-completa**: passar uma lista diferente para o mesmo prato depois disso é
-recusado. Só reabre quando **ela** muda o prato, e reabrir exige a fala dela.
+E **nenhuma sigla**: "cada marmita fica em R$ 7,53 pra você fazer", "abaixo de
+R$ 8,37 você paga pra vender". Ela é cozinheira, não consultora. Decisão
+[50](docs/decisoes.md#50-a-conta-é-aberta-em-português-e-a-divisão-é-da-ferramenta).
 
-O resto também confere: piso `7,72 / 0,90 = 8,58`,
-`15,90 × 0,90 − 7,72 = 6,59`, `80,00 − 12,99 = 67,01`,
-`8 × 15,90 = 127,20`, taxa `12,72`, `8 × 7,72 = 61,76`,
-`127,20 − 12,72 − 61,76 = 52,72`, margem `41%`.
+Quando a receita da web vem em porções, como *"1 kg de carne, serve 6"*, quem divide
+é a ferramenta, não o modelo de cabeça. A gramatura da receita é o que determina
+o valor por porção, e o que falta comprar é estimado sobre a mesma base: a
+**fração** que a fornada consome entra no custo, a **embalagem inteira** entra na
+lista de compras.
 
-**E o servidor sabe disso sozinho.** Os dois turnos com números foram julgados
-na fronteira do turno, afirmação por afirmação:
+O resto confere: piso `7,53 / 0,90 = 8,37`, `15,90 × 0,90 − 7,53 = 6,78`,
+`23,90 × 0,90 − 7,53 = 13,98`, `28,90 × 0,90 − 7,53 = 18,48`,
+`80,00 − 29,24 = 50,76`.
 
-```
-jacquinho.claims {"score":1.0,"verdict":"tudo confere","verifiable":11,"grounded":11,"contradictions":0}
-jacquinho.claims {"score":1.0,"verdict":"tudo confere","verifiable":8,"grounded":8,"contradictions":0}
-```
-
-O estado que ficou nos bancos, consultável com `psql` sem subir modelo nenhum:
+**E o servidor confere sozinho.** A mensagem foi julgada na fronteira do turno,
+afirmação por afirmação:
 
 ```
-menu_items      lasanha de panela | cmv 7.72 | preço 15.90 | recebe 14.31 | lucro 6.59
-recipe_costing  receita fechada, 8 porções | compras: 1 pacote, R$ 12.99
-budget_entries  1 pacote de massa de lasanha 500g | R$ 12.99  → restam R$ 67,01
+jacquinho.claims {"score":1.0,"verdict":"tudo confere","verifiable":16,"grounded":16,"contradictions":0}
+```
+
+Dezesseis afirmações, cada uma ligada ao campo de saída do MCP que a produziu.
+Abrir a conta multiplicou o que pode ser **conferido**, em vez de multiplicar o
+que precisa ser acreditado.
+
+O estado que ficou nos bancos, consultável com `psql`:
+
+```
+recipe_costing  lasanha de panela | receita fechada, 8 porções | custo 7.53
+                compras: R$ 29.24
 recipe_blocks   lasanha ao forno | forno | ativo  ← volta no dia em que ela tiver um
 ```
 
@@ -229,7 +223,7 @@ Outras conversas, com o diagnóstico de cada falha, estão em
 
 ## As decisões que sustentam isso
 
-As quarenta e nove decisões de arquitetura, cada uma com motivo e consequência,
+As cinquenta decisões de arquitetura, cada uma com motivo e consequência,
 estão em **[docs/decisoes.md](docs/decisoes.md)**. Estas cinco são as que
 respondem o desafio.
 
@@ -391,6 +385,10 @@ onde existe verificação. Decisão [3](docs/decisoes.md#3-o-procedimento-vai-co
 
 ## Onde cada exigência do desafio foi cumprida
 
+O enunciado chama o custo de **CMV**, e esta tabela usa o termo dele. Na conversa
+com a Dona Maria a sigla nunca aparece: lá é "cada marmita custa R$ 7,53 pra você
+fazer".
+
 | Enunciado | O que ele pede | Onde vive no código |
 |---|---|---|
 | **2.1** | Pesquisar receitas reais na internet | `recipes_search_recipes`, `dishes_discover_dishes` |
@@ -460,7 +458,7 @@ torto.
 | Documento | Conteúdo |
 |---|---|
 | [docs/arquitetura.md](docs/arquitetura.md) | Componentes, camadas, fluxogramas e diagramas de sequência |
-| [docs/decisoes.md](docs/decisoes.md) | As 49 decisões de arquitetura, com motivo e consequência |
+| [docs/decisoes.md](docs/decisoes.md) | As 50 decisões de arquitetura, com motivo e consequência |
 | [docs/dialogos.md](docs/dialogos.md) | Oito conversas reais: quatro que deram certo, quatro que deram errado |
 | [docs/metricas.md](docs/metricas.md) | Como a confiança é calculada, o pipeline de afirmações, e as referências |
 | [docs/modelo-de-dados.md](docs/modelo-de-dados.md) | Esquema do Postgres, chaves do Redis, normalização de unidades |

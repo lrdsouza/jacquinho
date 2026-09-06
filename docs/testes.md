@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-245-success)
+![Unitários](https://img.shields.io/badge/testes-252-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,18 +38,18 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**245 testes, 14 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**252 testes, 14 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
-| `test_mcp_server.py` | 41 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
+| `test_mcp_server.py` | 43 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
 | `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
 | `test_units.py` | 15 | Unidade e embalagem: `balde 2kg` são dois quilos |
 | `test_search_and_consensus.py` | 15 | Recência, domínios distintos, extração de preço |
-| `test_pricing.py` | 23 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
+| `test_pricing.py` | 28 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
 | `test_observer.py` | 17 | Trilha por sessão e por prato |
 | `test_claims.py` | 20 | Decompor a mensagem, o que é conferível, o que contradiz o turno anterior |
 | `test_facts.py` | 9 | O mapa das saídas de MCP, e que cada campo mapeado existe de verdade |
@@ -562,6 +562,28 @@ antes da viabilidade é a sequência que o desafio manda evitar.
 E repetiu a mesma pergunta quando ela perguntou *"dá pra fazer ou não?"*. Ela não
 tinha respondido, então não é o caso de perguntar duas vezes o que ela já disse,
 mas do lado dela é uma parede.
+
+---
+
+### A conta aberta, e a divisão que o modelo fazia de cabeça
+
+Um total sozinho é um número que ela tem que acreditar. `breakdown_for_her`
+devolve uma linha por ingrediente, em português e ordenada pela que mais pesa,
+e o agente lê as primeiras antes do total.
+
+O ganho é medível e foi medido: a mensagem com a conta aberta foi julgada com
+**16 afirmações conferidas e 16 com lastro**, contra 8 a 12 nas mensagens que só
+davam o total. Abrir a conta multiplica o que pode ser conferido, porque cada
+linha vem de `ingredients[].cost`, que está no mapa de saídas.
+
+**E a divisão pelo rendimento saiu da cabeça do modelo.** Uma receita da web diz
+"1 kg de carne, serve 6"; dividir por seis parece trivial e é exatamente o tipo
+de conta que este servidor tira do modelo. Com `recipe_yields`, as quantidades
+vão como a receita escreve e a divisão acontece na ferramenta.
+
+Uma nota sobre os testes de formatação: dois falharam na primeira execução
+porque eu escrevi as expectativas com ponto decimal, e a implementação escreve
+`62,5 ml`. A implementação estava certa e o teste é que estava em inglês.
 
 ---
 

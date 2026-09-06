@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-49-6E56CF)
+![Registros](https://img.shields.io/badge/registros-50-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -1537,3 +1537,46 @@ encontra.
 **Observabilidade.** `recipe_blocks` passa a mostrar o prato certo, e a diferença
 é verificável numa linha de `psql` ao fim de qualquer consultoria em que um prato
 tenha caído.
+
+---
+
+## 50. A conta é aberta, em português, e a divisão é da ferramenta
+
+**Decisão.** `pricing_calculate_cmv` devolve `breakdown_for_her`: uma linha por
+ingrediente, na língua dela e ordenada pela que mais pesa. Devolve também
+`cost_per_portion_for_her`, o mesmo número sem a sigla. E aceita
+`recipe_yields`, para dividir a receita pelo rendimento dela em vez de o modelo
+dividir de cabeça.
+
+**Motivo.** Três coisas diferentes, e as três são sobre a mesma pessoa.
+
+*Um total sozinho é um número que ela tem que acreditar.* "R$ 7,53 por marmita"
+não dá para conferir. "80 g de carne moída, R$ 2,24" dá: ela compra carne, sabe
+quanto pagou, e reconhece o número. Se algum item estiver errado, é assim que ela
+descobre, e descobrir agora é infinitamente melhor que descobrir vendendo.
+
+*A sigla é vocabulário de consultoria.* Ela é cozinheira e nunca pediu um
+consultor. `CMV` sai da conversa e vira "cada marmita custa R$ 7,53 pra você
+fazer"; `break-even` vira "abaixo de R$ 8,37 você paga pra vender"; margem vira
+"de cada real que entra, ficam X centavos com você". A sigla continua nos campos
+internos, onde é precisa e não confunde ninguém.
+
+*O rendimento da receita é uma divisão, e divisão é aritmética.* Uma receita da
+web diz "1 kg de carne, serve 6". Dividir por seis parece trivial, e é
+exatamente o tipo de conta que este servidor existe para tirar da cabeça do
+modelo. Com `recipe_yields`, as quantidades vão como a receita escreve e a
+divisão acontece onde pode ser mostrada.
+
+**Consequência.** A ordenação por peso não é enfeite: as duas ou três primeiras
+linhas explicam quase todo o número, e os centavos do fim são ruído. Ler a lista
+inteira em voz alta seria pior que dar só o total.
+
+Cada linha do detalhamento passa pela conferência de afirmações como qualquer
+outra cifra, porque `ingredients[].cost` está no mapa de saídas. Numa gravação de
+verificação, a mensagem com a conta aberta foi julgada com **16 afirmações
+conferidas e 16 com lastro**: abrir a conta multiplicou o que pode ser conferido
+em vez de multiplicar o que precisa ser acreditado.
+
+**Observabilidade.** O detalhamento é o mesmo dado que já ia para o log em
+`ingredients[]`, agora também numa forma que serve para falar. Não há segunda
+fonte de verdade.
