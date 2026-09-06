@@ -63,6 +63,38 @@ Todo start reconstrói a imagem do MCP. São cerca de cinco segundos com cache
 quente, e em troca uma edição em `app/` nunca fica rodando contra uma imagem
 antiga, que é uma falha sem nenhum sinal.
 
+**A primeira execução é diferente**, e mostra a construção na tela. Ela baixa o
+`python:3.13-slim` e instala as dependências, o que leva alguns minutos numa rede
+comum. Nas seguintes o build volta a ser silencioso, porque com cache quente não
+há o que dizer.
+
+### Windows
+
+O `bin/jacquinho` é um script bash e não roda em PowerShell nem no `cmd`. O
+caminho suportado é **WSL2 com o Docker Desktop no backend WSL**, onde tudo
+funciona como no Linux, inclusive o `jacquinho login`: ele já usa `--no-browser`
+e imprime a URL para você colar no navegador do Windows.
+
+Duas armadilhas que valem saber antes de culpar o programa:
+
+**O repositório precisa estar dentro do sistema de arquivos do WSL**, em
+`~/jacquinho` e não em `/mnt/c/...`. O caminho `/mnt/c` atravessa uma ponte entre
+sistemas de arquivos, e o build, que copia o contexto inteiro e instala pacotes,
+fica de dez a vinte vezes mais lento ali. É a diferença entre alguns minutos e
+uma tarde.
+
+**No Git Bash e no MSYS2 duas coisas quebram.** O chat, porque o Hermes sobe uma
+interface interativa e o MinTTY não é um console do Windows, então o Docker
+responde `the input device is not a TTY`; o contorno é prefixar com `winpty`. E o
+`jacquinho reset`, porque o MSYS traduz o caminho `/d` do contêiner para um
+caminho do Windows antes de o Docker ver; o contorno é `MSYS_NO_PATHCONV=1`. Os
+dois contornos funcionam, e nenhum é necessário no WSL2.
+
+Os contêineres em si são indiferentes ao host: `redis:7-alpine`,
+`postgres:17-alpine`, a imagem do MCP e a do agente são todas Linux. Os hooks de
+fronteira de turno rodam **dentro** do contêiner do Hermes, então o shell da sua
+máquina não os alcança.
+
 O `reset` apaga três coisas:
 
 | Onde | O que sai |

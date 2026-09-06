@@ -32,10 +32,15 @@ bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 warn() { printf '\033[33m%s\033[0m\n' "$1" >&2; }
 die()  { printf '\033[31m%s\033[0m\n' "$1" >&2; exit 1; }
 
+# Two invocations of the same thing. COMPOSE is quiet, for the dozens of calls
+# whose output is noise; COMPOSE_LOUD keeps the progress, for the one call that
+# can take minutes and has to prove it is alive.
 if docker compose version >/dev/null 2>&1; then
     COMPOSE=(docker compose --progress quiet -f "$COMPOSE_FILE")
+    COMPOSE_LOUD=(docker compose -f "$COMPOSE_FILE")
 elif command -v docker-compose >/dev/null 2>&1; then
     COMPOSE=(docker-compose -f "$COMPOSE_FILE")
+    COMPOSE_LOUD=(docker-compose -f "$COMPOSE_FILE")
 else
     die 'Docker Compose not found. Install Docker Desktop, or the docker-compose-plugin.'
 fi
@@ -67,14 +72,32 @@ ensure_env() {
 services_up() {
     ensure_env "${1:-}"
     # Rebuild on every start, so editing app/ can never leave a stale image
-    # running while the code on disk says otherwise. Quiet, because with a warm
-    # cache there is nothing to report: about five seconds and no output.
-    printf 'Building'
-    if ! "${COMPOSE[@]}" build --quiet jacquinho-mcp >/dev/null 2>&1; then
-        printf '\n'
-        die 'The MCP image failed to build. Run: docker compose -f '"$COMPOSE_FILE"' build'
+    # running while the code on disk says otherwise.
+    #
+    # The first build is a different animal from the rest: it pulls
+    # python:3.13-slim and installs every dependency, which takes minutes. Every
+    # build after that is five seconds of cache. Hiding the output is right for
+    # the second case and wrong for the first, where it turns a long download
+    # into a screen that says 'Building' and nothing else, with no way to tell a
+    # slow build from a hung one. So the cold build shows its work.
+    if ! docker image inspect jacquinho-mcp:local >/dev/null 2>&1; then
+        bold ''
+        bold 'Primeira execucao: construindo a imagem do MCP.'
+        bold 'Isso baixa o Python e as dependencias, e leva alguns minutos.'
+        bold 'Da proxima vez sao cinco segundos de cache.'
+        bold ''
+        "${COMPOSE_LOUD[@]}" build jacquinho-mcp \
+            || die 'The MCP image failed to build.'
+        printf 'Building ok\n'
+    else
+        printf 'Building'
+        if ! "${COMPOSE[@]}" build --quiet jacquinho-mcp >/dev/null 2>&1; then
+            printf '\n'
+            die 'The MCP image failed to build. Run: docker compose -f '"$COMPOSE_FILE"' build'
+        fi
+        printf ' ok\n'
     fi
-    printf ' ok\nStarting Redis, Postgres and the MCP server'
+    printf 'Starting Redis, Postgres and the MCP server'
     "${COMPOSE[@]}" up -d redis postgres jacquinho-mcp >/dev/null 2>&1
     for _ in $(seq 1 40); do
         if [ "$("${COMPOSE[@]}" ps --format '{{.Service}} {{.Health}}' \
