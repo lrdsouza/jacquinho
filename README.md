@@ -10,7 +10,7 @@
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 ![Servidores MCP](https://img.shields.io/badge/servidores%20MCP-11-success)
 ![Ferramentas](https://img.shields.io/badge/ferramentas-59-success)
-![Testes](https://img.shields.io/badge/testes-276-success)
+![Testes](https://img.shields.io/badge/testes-277-success)
 
 Um sous-chef de IA para a **Dona Maria**, cozinheira que está abrindo o primeiro
 delivery dela, o *Sabor da Maria*. Ela sabe cozinhar. O que ela não sabe é quais
@@ -59,10 +59,10 @@ que valem `grep` estão em **[docs/operacao.md](docs/operacao.md)**.
 
 ## Uma consultoria que deu certo
 
-Transcrição real, bancos zerados. Dois pratos, e o segundo encontra a despensa
-como o primeiro a deixou. Nada foi reescrito: as falas estão palavra por palavra,
-e o que está entre colchetes são turnos de cozinha inteiros que ficaram de fora
-para o exemplo caber.
+Transcrição real, bancos zerados. Dois pratos, o segundo encontra a despensa como
+o primeiro a deixou, e no fim ela ouve quanto sobra no bolso dela. Nada foi
+reescrito: as falas estão palavra por palavra, e o que está entre colchetes são
+turnos de cozinha inteiros que ficaram de fora para o exemplo caber.
 
 ```
 Dona Maria ▸ oi! vou começar a vender marmita por delivery. quero fazer
@@ -139,7 +139,65 @@ Jacquinho  ▸ Cada porção leva:
              - vendendo a R$ 25,90 → sobram R$ 16,61 por porção pra você
              - vendendo a R$ 29,90 → sobram R$ 20,21 por porção pra você
              Qual preço você quer colocar?
+
+Dona Maria ▸ vou de 25,90. reserva a compra e coloca no cardápio
+
+Dona Maria ▸ então fecha pra mim: vendendo as duas fornadas inteiras nesses
+             preços, quanto eu ganho no fim?
+
+Jacquinho  ▸ Fechando as duas fornadas juntas, nos preços que você escolheu:
+             Escondidinho de carne moída (8 marmitas a R$ 24,90):
+             - vende R$ 199,20
+             - a plataforma fica com R$ 19,92
+             - os ingredientes custam R$ 40,00
+             - sobram R$ 139,28 no seu bolso
+             (esse preço do escondidinho ainda é baseado em pouca referência de
+             mercado, então trate como indicativo)
+             Macarrão à bolonhesa (18 marmitas a R$ 25,90):
+             - vende R$ 466,20
+             - a plataforma fica com R$ 46,62
+             - os ingredientes custam R$ 120,60
+             - sobram R$ 298,98 no seu bolso
+             Somando tudo (26 marmitas): você vende R$ 665,40, a plataforma
+             fica com R$ 66,54, os ingredientes custam R$ 160,60, e sobram
+             R$ 438,26 no seu bolso — ou seja, 66 centavos de cada real que
+             entra ficam com você.
+             Dessas duas fornadas, ainda falta você desembolsar R$ 57,41 em
+             compras (carne moída, parmesão, cenoura e pimenta-do-reino), e
+             sobra estoque de ingrediente pras próximas fornadas.
 ```
+
+### O fechamento fala do dia dela, não da marmita
+
+Uma marmita que deixa R$ 16,61 é uma informação. A pergunta que ela faz de
+verdade é se o dia valeu a pena, e essa só tem resposta com a **quantidade**, que
+é dela e que nenhuma ferramenta pode inventar. Com as 26 marmitas das duas
+fornadas, a conta que ela fez a vida toda de cabeça sai conferida:
+
+| | Escondidinho | Bolonhesa | Juntas |
+|---|---:|---:|---:|
+| Marmitas | 8 × R$ 24,90 | 18 × R$ 25,90 | 26 |
+| Ela vende | R$ 199,20 | R$ 466,20 | **R$ 665,40** |
+| Plataforma leva 10% | R$ 19,92 | R$ 46,62 | R$ 66,54 |
+| Ingrediente usado | R$ 40,00 | R$ 120,60 | R$ 160,60 |
+| **Sobra no bolso dela** | R$ 139,28 | R$ 298,98 | **R$ 438,26** |
+
+Os R$ 438,26 são `665,40 − 66,54 − 160,60`, e os 66% são margem **sobre a
+venda**, não retorno sobre custo: uma porcentagem que não passa de 100 e por isso
+continua acreditável.
+
+E os dois custos ficam **separados de propósito**. R$ 160,60 é o que a comida
+custa, despensa que ela já tinha incluída; R$ 57,41 é o que ainda sai do bolso
+dela para comprar o que falta. Somar os dois cobraria duas vezes a mesma
+despensa.
+
+Cada linha dessa tabela tem um campo de ferramenta atrás dela, inclusive a taxa
+de cada prato — e isso é cicatriz. A taxa só voltava como total, a mensagem lê
+prato por prato, e o agente subtraía na prosa; a conferência de cifras marcou os
+R$ 19,92 e os R$ 46,62 como sem lastro. Estavam certos, e estar certo não é o
+critério: conta feita na mensagem é conta que ninguém pode conferir, e a errada
+de amanhã tem a mesma cara. Decisão
+[40](docs/decisoes.md#40-o-fechamento-fala-do-dia-não-da-marmita).
 
 ### O estoque dela acaba, e ela ouve para onde foi
 

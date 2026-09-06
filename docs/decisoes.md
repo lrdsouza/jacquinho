@@ -1192,6 +1192,16 @@ Os dois custos ficam separados de propósito: o que a comida custa, incluindo o
 que ela já tinha, e o que ainda precisa sair do bolso dela. Somar os dois conta
 duas vezes a despensa que ela já pagou.
 
+**Cada linha do fechamento tem um campo atrás dela.** A taxa da plataforma só
+voltava como total, e a mensagem de fechamento lê prato por prato — então o
+agente subtraía por prato na prosa. Numa gravação com dois pratos no cardápio, a
+conferência automática de cifras marcou **R$ 19,92 e R$ 46,62 como sem lastro**:
+os dois estavam certos, e estar certo não é o critério. Conta feita na mensagem
+é conta que ninguém pode conferir, e a que aparece amanhã com o número errado
+tem exatamente a mesma cara. `dishes[]` passou a devolver `platform_fee_paid`,
+`after_platform_fee` e `production_cost` por prato, e os três entraram no mapa de
+saídas tipadas.
+
 **Observabilidade.** Percentual sobre base inexistente volta `None`, não zero:
 uma porcentagem sobre nada não é infinito, é uma pergunta sobre dado faltando.
 

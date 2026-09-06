@@ -437,7 +437,44 @@ Jacquinho  ▸ Cada porção leva:
              Qual preço você quer colocar?
 
 Dona Maria ▸ vou de 25,90. reserva a compra e coloca no cardápio
+
+Dona Maria ▸ então fecha pra mim: vendendo as duas fornadas inteiras nesses
+             preços, quanto eu ganho no fim?
+
+Jacquinho  ▸ Fechando as duas fornadas juntas, nos preços que você escolheu:
+             Escondidinho de carne moída (8 marmitas a R$ 24,90):
+             - vende R$ 199,20
+             - a plataforma fica com R$ 19,92
+             - os ingredientes custam R$ 40,00
+             - sobram R$ 139,28 no seu bolso
+             (esse preço do escondidinho ainda é baseado em pouca referência de
+             mercado, então trate como indicativo)
+             Macarrão à bolonhesa (18 marmitas a R$ 25,90):
+             - vende R$ 466,20
+             - a plataforma fica com R$ 46,62
+             - os ingredientes custam R$ 120,60
+             - sobram R$ 298,98 no seu bolso
+             Somando tudo (26 marmitas): você vende R$ 665,40, a plataforma
+             fica com R$ 66,54, os ingredientes custam R$ 160,60, e sobram
+             R$ 438,26 no seu bolso — ou seja, 66 centavos de cada real que
+             entra ficam com você.
+             Dessas duas fornadas, ainda falta você desembolsar R$ 57,41 em
+             compras (carne moída, parmesão, cenoura e pimenta-do-reino), e
+             sobra estoque de ingrediente pras próximas fornadas.
 ```
+
+**O fechamento é sobre o dia, não sobre a marmita.** Toda cifra vem de
+`menu_expected_return`, e todas batem: `8 × 24,90 = 199,20` com taxa `19,92` e
+custo `8 × 5,00 = 40,00`, sobrando `139,28`; `18 × 25,90 = 466,20` com taxa
+`46,62` e custo `18 × 6,70 = 120,60`, sobrando `298,98`; somando,
+`665,40 − 66,54 − 160,60 = 438,26`, e `438,26 / 665,40 = 66%` de margem **sobre a
+venda**. Os dois custos ficam separados de propósito: R$ 160,60 é o que a comida
+custa, com a despensa que ela já tinha incluída, e R$ 57,41 é o que ainda sai do
+bolso dela — somar os dois cobraria duas vezes a mesma despensa.
+
+A ressalva do escondidinho reaparece aqui, na língua dela, porque o preço daquele
+prato continua apoiado em pouca referência de mercado. Ela some quando não há
+ressalva a fazer, que é como uma ressalva deveria se comportar.
 
 **Por que está certo.** O estado depois da conversa:
 

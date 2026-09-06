@@ -308,3 +308,25 @@ def test_the_folded_line_adds_up_to_the_total():
         float(line.rsplit('R$ ', 1)[1].replace(',', '.')) for line in lines
     )
     assert shown == pytest.approx(total, abs=0.02)
+
+
+def test_the_closing_gives_the_platform_cut_per_dish():
+    """The closing message reads dish by dish, so every line of it needs a
+    field behind it. Without this the agent subtracted the fee in prose -
+    correctly, and uncheckably: the figure audit flagged R$ 19,92 and R$ 46,62
+    as numbers no tool had produced."""
+    from app.domain.money import launch_projection
+
+    projection = launch_projection([
+        {'dish': 'escondidinho', 'portions': 8, 'cmv': 5.00, 'price': 24.90,
+         'she_receives': 22.41, 'profit': 17.41},
+        {'dish': 'bolonhesa', 'portions': 18, 'cmv': 6.70, 'price': 25.90,
+         'she_receives': 23.31, 'profit': 16.61},
+    ], cash_to_spend=57.41)
+
+    fees = {row['dish']: row['platform_fee_paid'] for row in projection['dishes']}
+    assert fees == {'escondidinho': 19.92, 'bolonhesa': 46.62}
+    # And the per-dish cuts add up to the one she is told at the end.
+    assert sum(fees.values()) == pytest.approx(projection['platform_fee_paid'])
+    assert projection['profit'] == pytest.approx(438.26)
+    assert projection['portions_total'] == 26

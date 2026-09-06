@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-276-success)
+![Unitários](https://img.shields.io/badge/testes-277-success)
 ![Suítes](https://img.shields.io/badge/suítes-15-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,13 +38,13 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**276 testes, 15 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**277 testes, 15 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
 | `test_mcp_server.py` | 46 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio, não gasta o dinheiro dela e não usa carne que ela já gastou |
-| `test_pricing.py` | 31 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
+| `test_pricing.py` | 32 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
 | `test_pantry.py` | 28 | Semeadura, custo unitário, casamento de nomes, e o estoque finito que baixa e volta |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
@@ -632,6 +632,18 @@ faria a lista de compras do prato seguinte sair curta em sete porções de carne
 Só apareceu porque a frase que ela lê ficou absurda: *"o escondidinho levou
 125 g"*, depois de ela ter cozinhado oito marmitas. O argumento perdeu o padrão e
 ganhou uma conferência contra as palavras dela.
+
+**A taxa que o agente dividiu de cabeça.** A conversa foi fechada com um turno a
+mais — *"vendendo as duas fornadas inteiras nesses preços, quanto eu ganho no
+fim?"* — e a mensagem de fechamento saiu certa em todas as contas. A conferência
+automática de cifras discordou de duas: `R$ 19,92` e `R$ 46,62`, a taxa da
+plataforma de cada prato. `menu_expected_return` só devolvia a taxa **total**, e
+a mensagem lê prato por prato, então o agente subtraiu na prosa. Os dois números
+estavam certos; estar certo não é o critério, porque a conta errada de amanhã tem
+a mesma cara. `dishes[]` passou a carregar `platform_fee_paid`,
+`after_platform_fee` e `production_cost`, e os três entraram no mapa de saídas.
+A correção é verificada por teste unitário, não por regravação: a transcrição
+gravada continua sendo a que aconteceu.
 
 **Uma consequência na suíte.** A conferência lê a última fala dela sobre fornada,
 e o Redis é compartilhado: um "faço 18 marmitas" deixado pela conversa anterior

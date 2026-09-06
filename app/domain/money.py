@@ -59,12 +59,21 @@ def launch_projection(
         price = float(line.get('price') or 0.0)
         receives = float(line.get('she_receives') or 0.0)
         per_portion = float(line.get('profit') or 0.0)
+        revenue = round(price * portions, 2)
+        received = round(receives * portions, 2)
         rows.append({
             'dish': line.get('dish', ''),
             'portions': portions,
             'production_cost': round(cmv * portions, 2),
-            'revenue': round(price * portions, 2),
-            'after_platform_fee': round(receives * portions, 2),
+            'revenue': revenue,
+            'after_platform_fee': received,
+            # The platform's cut for THIS dish. It was only ever returned as a
+            # total, and the closing message reads dish by dish - so the agent
+            # subtracted per dish in prose, and the figure audit caught two
+            # numbers no tool had produced. They were right, and being right is
+            # not the standard: arithmetic in a message is arithmetic nobody
+            # can check.
+            'platform_fee_paid': round(revenue - received, 2),
             'profit': round(per_portion * portions, 2),
             'profit_per_portion': round(per_portion, 2),
         })

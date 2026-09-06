@@ -102,6 +102,12 @@ FACT_MAP: dict[str, tuple[tuple[str, ClaimKind, bool], ...]] = {
         ('profit', ClaimKind.PROFIT, False),
         ('dishes[].profit', ClaimKind.PROFIT, False),
         ('dishes[].revenue', ClaimKind.PRICE, False),
+        # The closing message reads dish by dish, so every line of it needs a
+        # field behind it. Without these three the agent subtracted the fee in
+        # prose - correctly, and uncheckably.
+        ('dishes[].platform_fee_paid', ClaimKind.BUDGET, False),
+        ('dishes[].after_platform_fee', ClaimKind.RECEIPT, False),
+        ('dishes[].production_cost', ClaimKind.COST, False),
     ),
     'menu_build_launch_menu': (
         ('items[].cmv', ClaimKind.COST, True),
