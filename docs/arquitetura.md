@@ -229,7 +229,7 @@ saldo do orçamento para que uma estimativa reflita o que já foi decidido, e
 do que ainda precisa sair do bolso dela.
 
 Uma escrita cruzada também: `menu` escreve o consumo na despensa. O estoque dela
-é finito e baixa quando o prato entra no cardápio, não quando é orçado — o mesmo
+é finito e baixa quando o prato entra no cardápio, não quando é orçado, e o mesmo
 prato é orçado várias vezes, inclusive quando ela recusa. As quantidades vêm do
 cadeado da receita, já resolvidas em unidade base na hora do cálculo, para que
 aceitar o prato não precise resolver os nomes uma segunda vez. Ver a decisão 51.

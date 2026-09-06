@@ -329,7 +329,7 @@ docker exec jacquinho-postgres psql -U jacquinho -d jacquinho -c "
 
 E é aqui que se **muda** esse dado, que é uma das razões práticas de o estoque
 morar no Postgres: repor o que ela comprou é um `UPDATE` de uma linha, e montar
-um cenário de demonstração é outro. O consumo é só-adição — para devolver o que
+um cenário de demonstração é outro. O consumo é só-adição: para devolver o que
 um prato levou, apague as linhas dele, que é exatamente o que
 `menu_remove_dish` e `pricing_reopen_recipe` fazem.
 

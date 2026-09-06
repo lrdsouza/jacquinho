@@ -31,9 +31,10 @@ ferramenta, nunca da memória do modelo**.
 - [Começando](#começando)
 - [Uma consultoria que deu certo](#uma-consultoria-que-deu-certo)
 - [Uma conversa que deu errado](#uma-conversa-que-deu-errado)
-- [As decisões que sustentam isso](#as-decisões-que-sustentam-isso)
-- [Onde cada exigência do desafio foi cumprida](#onde-cada-exigência-do-desafio-foi-cumprida)
-- [O que eu não fiz, e por quê](#o-que-eu-não-fiz-e-por-quê)
+- [Decisões de arquitetura](#decisões-de-arquitetura)
+- [O que pode melhorar](#o-que-pode-melhorar)
+- [O sistema em números](#o-sistema-em-números)
+- [O que eu deixei de fora, e por quê](#o-que-eu-deixei-de-fora-e-por-quê)
 - [Documentação](#documentação)
 
 ---
@@ -167,73 +168,11 @@ Jacquinho  ▸ Fechando as duas fornadas juntas, nos preços que você escolheu:
              sobra estoque de ingrediente pras próximas fornadas.
 ```
 
-### O fechamento fala do dia dela, não da marmita
+### O que essa conversa prova
 
-Uma marmita que deixa R$ 16,61 é uma informação. A pergunta que ela faz de
-verdade é se o dia valeu a pena, e essa só tem resposta com a **quantidade**, que
-é dela e que nenhuma ferramenta pode inventar. Com as 26 marmitas das duas
-fornadas, a conta que ela fez a vida toda de cabeça sai conferida:
-
-| | Escondidinho | Bolonhesa | Juntas |
-|---|---:|---:|---:|
-| Marmitas | 8 × R$ 24,90 | 18 × R$ 25,90 | 26 |
-| Ela vende | R$ 199,20 | R$ 466,20 | **R$ 665,40** |
-| Plataforma leva 10% | R$ 19,92 | R$ 46,62 | R$ 66,54 |
-| Ingrediente usado | R$ 40,00 | R$ 120,60 | R$ 160,60 |
-| **Sobra no bolso dela** | R$ 139,28 | R$ 298,98 | **R$ 438,26** |
-
-Os R$ 438,26 são `665,40 − 66,54 − 160,60`, e os 66% são margem **sobre a
-venda**, não retorno sobre custo: uma porcentagem que não passa de 100 e por isso
-continua acreditável.
-
-E os dois custos ficam **separados de propósito**. R$ 160,60 é o que a comida
-custa, despensa que ela já tinha incluída; R$ 57,41 é o que ainda sai do bolso
-dela para comprar o que falta. Somar os dois cobraria duas vezes a mesma
-despensa.
-
-Cada linha dessa tabela tem um campo de ferramenta atrás dela, inclusive a taxa
-de cada prato — e isso é cicatriz. A taxa só voltava como total, a mensagem lê
-prato por prato, e o agente subtraía na prosa; a conferência de cifras marcou os
-R$ 19,92 e os R$ 46,62 como sem lastro. Estavam certos, e estar certo não é o
-critério: conta feita na mensagem é conta que ninguém pode conferir, e a errada
-de amanhã tem a mesma cara. Decisão
-[40](docs/decisoes.md#40-o-fechamento-fala-do-dia-não-da-marmita).
-
-### O estoque dela acaba, e ela ouve para onde foi
-
-A frase que faz esta conversa valer é *"o escondidinho levou 560 g e sobraram
-940 g"*. Um "faltam 860 g" solto parece erro de planilha, e o que ela faz com um
-erro de planilha é duvidar do número em vez de comprar a carne.
-
-Nada disso é lembrança do modelo. Quando o escondidinho entrou no cardápio, a
-fornada dele saiu da despensa, e o Postgres guarda para onde:
-
-```
- dish                         | ingredient_key         | quantity | portions
-------------------------------+------------------------+----------+----------
- escondidinho de carne moída  | carne moida patinho    |   0.5600 |        8
- macarrão à bolonhesa         | carne moida patinho    |   1.8000 |       18
- macarrão à bolonhesa         | queijo parmesao ralado |   0.3600 |       18
-```
-
-`1,5 − 0,56 = 0,94`, e `1,8 − 0,94 = 0,86` — os 860 g que ela precisa comprar,
-a R$ 28,00 o quilo que ela mesma pagou, dão os R$ 24,08. O parmesão conta a mesma
-história sem que ninguém tenha pedido. **A fornada é de 18 porque ela disse 18**:
-`portions` não tem valor padrão, e um número diferente do que ela falou é
-recusado. O como e o porquê estão
-[mais abaixo](#o-estoque-dela-é-finito-e-baixa-quando-ela-aceita-o-prato).
-
-### A conta é aberta, e por isso pode ser conferida
-
-Repare no que ele **não** faz: dar um total e pedir fé. Cada linha sai com a
-gramatura e o preço, **em lista**, ordenada pela que mais pesa — e a cauda vira
-uma linha só, porque onze marcadores terminando em "uma pitada de sal: R$ 0,00"
-são piores que dar apenas o total: ela para de ler antes da linha que teria
-questionado.
-
-Ela compra carne, sabe quanto pagou pelo quilo, e reconhece o R$ 2,80. O custo
-unitário vem do cruzamento das duas abas da planilha dela
-(`preço pago ÷ quantidade comprada`), e a conta bate ao centavo:
+**A conta é aberta, e por isso pode ser conferida.** Cada linha sai com a
+gramatura e o preço, em lista, ordenada pela que mais pesa, e a cauda vira uma
+linha só. Ela compra carne, sabe quanto pagou pelo quilo, e reconhece o R$ 2,80:
 
 | Ingrediente | Por marmita | Custo unitário | Custo |
 |---|---:|---:|---:|
@@ -246,97 +185,154 @@ unitário vem do cruzamento das duas abas da planilha dela
 | *…e o resto* | | | R$ 0,16 |
 | | | **por marmita** | **R$ 6,70** |
 
-As opções de preço saem na mesma forma, e pelo mesmo motivo: uma por linha, para
-ela descer a coluna e escolher. `25,90 × 0,90 − 6,70 = 16,61`, e o piso
-`6,70 / 0,90 = 7,44`.
+As opções de preço saem na mesma forma, uma por linha, para ela descer a coluna e
+escolher. O piso é `6,70 / 0,90 = 7,44` e o lucro em cima do preço que ela pegou
+é `25,90 × 0,90 − 6,70 = 16,61`. E nenhuma sigla em nenhuma frase: ela é
+cozinheira, não consultora.
 
-E **nenhuma sigla**: "cada marmita custa R$ 6,70 pra você fazer", "abaixo de
-R$ 7,44 você paga pra vender". Ela é cozinheira, não consultora. Decisão
-[50](docs/decisoes.md#50-a-conta-é-aberta-em-português-e-a-divisão-é-da-ferramenta).
+**O estoque baixou, e ela ouviu para onde foi.** Quando o escondidinho entrou no
+cardápio, a fornada dele saiu da despensa, e o Postgres guarda para onde:
 
-Quando a receita da web vem em porções, como *"1 kg de carne, serve 6"*, quem
-divide é a ferramenta, não o modelo de cabeça. A gramatura da receita determina o
-valor por porção, e o que falta comprar é estimado sobre a mesma base: a
-**fração** que a fornada consome entra no custo, a **embalagem inteira** entra na
-lista de compras — daí o pacote de 1 kg de cenoura ao lado dos 160 g de parmesão.
+```
+ dish                         | ingredient_key         | quantity | portions
+------------------------------+------------------------+----------+----------
+ escondidinho de carne moída  | carne moida patinho    |   0.5600 |        8
+ macarrão à bolonhesa         | carne moida patinho    |   1.8000 |       18
+ macarrão à bolonhesa         | queijo parmesao ralado |   0.3600 |       18
+```
 
-**E o servidor confere sozinho.** A mensagem foi julgada na fronteira do turno,
-afirmação por afirmação, cada uma ligada ao campo de saída do MCP que a produziu:
+`1,5 − 0,56 = 0,94`, e `1,8 − 0,94 = 0,86`: os 860 g que faltam, a R$ 28,00 o
+quilo que ela mesma pagou, dão os R$ 24,08. O parmesão conta a mesma história sem
+que ninguém tenha pedido, e a fornada é de 18 porque ela disse 18.
+
+**O fechamento fala do dia dela, não da marmita.** Uma marmita que deixa R$ 16,61
+é uma informação; a pergunta que ela faz é se o dia valeu a pena, e essa só tem
+resposta com a quantidade, que é dela:
+
+| | Escondidinho | Bolonhesa | Juntas |
+|---|---:|---:|---:|
+| Marmitas | 8 × R$ 24,90 | 18 × R$ 25,90 | 26 |
+| Ela vende | R$ 199,20 | R$ 466,20 | **R$ 665,40** |
+| Plataforma leva 10% | R$ 19,92 | R$ 46,62 | R$ 66,54 |
+| Ingrediente usado | R$ 40,00 | R$ 120,60 | R$ 160,60 |
+| **Sobra no bolso dela** | R$ 139,28 | R$ 298,98 | **R$ 438,26** |
+
+Os R$ 438,26 são `665,40 − 66,54 − 160,60`, e os 66% são margem sobre a **venda**,
+não retorno sobre custo: uma porcentagem que não passa de 100 e por isso continua
+acreditável. Os dois custos ficam separados de propósito: R$ 160,60 é o que a
+comida custa, com a despensa que ela já tinha; R$ 57,41 é o que ainda sai do
+bolso dela. Somar os dois cobraria duas vezes a mesma despensa.
+
+**E o servidor confere sozinho.** Toda mensagem entregue é decomposta na
+fronteira do turno e cada afirmação é ligada ao campo de saída do MCP que a
+produziu:
 
 ```
 jacquinho.claims {"dish":"macarrao a bolonhesa","score":1.0,"verdict":"tudo confere","verifiable":23,"grounded":23,"contradictions":0}
 ```
 
-Vinte e três afirmações, vinte e três com lastro. Abrir a conta multiplicou o que
+Vinte e três afirmações, vinte e três com lastro. Abrir a conta multiplica o que
 pode ser **conferido**, em vez de multiplicar o que precisa ser acreditado.
 
 ## Uma conversa que deu errado
 
-Vale mais que a de cima, porque mostra onde o sistema ainda falha. Gravada do
-mesmo jeito, no mesmo build.
+Gravada do mesmo jeito, no mesmo build. Vale mais que a de cima, porque mostra
+onde o sistema ainda incomoda.
 
 ```
 Dona Maria ▸ quero vender pudim de leite condensado, minha amiga disse que
              vende muito
 
-Jacquinho  ▸ Pudim de leite condensado é uma boa pedida mesmo, sai bem em
-             delivery.
-             Dei uma olhada: leite, ovos e açúcar você já tem na despensa. Só
-             falta o leite condensado, que não está na sua lista — mas isso é
-             fácil, já deixo separado no orçamento quando chegar a hora. ← ERRADO
-             Antes de fechar o prato, preciso entender sua cozinha. Me conta:
-             você tem forno, e ele assa bem, por igual?
+Jacquinho  ▸ Pudim de leite condensado é uma ótima escolha: você já tem quase
+             tudo aí na despensa — açúcar, leite integral, ovos. Só falta mesmo
+             o leite condensado, que é baratinho de comprar.      ← INCOMPLETO
+             Esse pudim vai ao forno, em banho-maria, por 1h30. Você tem forno
+             que funciona bem e assa por igual?
 
 Dona Maria ▸ meu forno acende mas nao esquenta direito, as vezes queima embaixo
 
-Jacquinho  ▸ Pudim de leite condensado do jeito tradicional não vai dar, porque
-             seu forno não esquenta por igual e ainda queima embaixo — ia
-             arriscar o pudim assado.
-             Mas dá pra fazer pudim de panela: você cozinha ele em banho-maria
-             direto no fogão, numa panela com tampa, sem precisar do forno.
-             Você topa fazer esse, o de panela? E me conta: seu fogão dá conta
-             de manter fogo baixo por bastante tempo sem apagar?
+Jacquinho  ▸ Dona Maria, o pudim de leite condensado do jeito que eu tinha
+             pensado — assado no forno, em banho-maria por 1h30 — não vai dar
+             certo do jeito que seu forno está: ele não esquenta direito e
+             ainda queima embaixo, então numa assada longa dessas o pudim sai
+             queimado na base e mal cozido por cima.
+             Mas dá pra fazer o mesmo pudim sem usar o forno: pudim de panela,
+             direto no fogão, numa panela com tampa e fogo bem baixo.
+             Quer que eu já veja como fica essa versão de panela pra você?
 
 Dona Maria ▸ e ai, da pra fazer ou nao?
 
-Jacquinho  ▸ Pudim de panela dá pra fazer sim, só falta eu confirmar uma coisa
-             antes de fechar: seu fogão consegue manter fogo baixo por bastante
-             tempo sem apagar?                                        ← ERRADO
+Jacquinho  ▸ O pudim assado no forno, do jeito clássico, não vai dar: seu forno
+             não assa por igual, queima embaixo, e a receita pede uma hora e
+             meia de banho-maria.                                    ← ERRADO
+             Mas dá pra fazer o seu pudim, só que de panela: no fogão mesmo,
+             em banho-maria, numa panela com tampa. Fica cremoso igualzinho.
+             Quer que eu já veja o que falta comprar e quanto fica o custo
+             desse jeito?
+
+Dona Maria ▸ eu ja disse que quero. me diz o custo logo
+
+Jacquinho  ▸ Bora fechar o pudim de panela, do jeito que dá pra fazer no seu
+             fogão, sem forno.
+             Só falta eu confirmar uma coisa da sua cozinha antes de te dar a
+             conta certinha: você tem liquidificador e uma forma de pudim aí
+             em casa?                                                ← ERRADO
 ```
 
-**Dois erros, e nenhum deles é de conta.**
+### Por que falhou
 
-O primeiro é de ordem: ele oferece guardar dinheiro no orçamento **antes** de
-saber se ela consegue fazer o prato. Não chega a reservar nada, e o portão
-impediria se tentasse, mas prometer a compra antes da viabilidade é exatamente a
-sequência que o desafio manda evitar.
+**Ela fez uma pergunta fechada e recebeu o turno anterior de novo.** *"Dá pra
+fazer ou não?"* pede uma palavra. O que voltou foi a mesma explicação do forno,
+o mesmo convite ao pudim de panela e a mesma pergunta no fim. Nada ali está
+errado como fato, e do lado dela é uma parede: ela leu duas vezes o que já
+tinha entendido e continua sem saber se pode começar.
 
-O segundo é de condução: ela pergunta *"dá pra fazer ou não?"* e recebe de volta
-a mesma pergunta do turno anterior. Ela não tinha respondido, então não é o caso
-de perguntar duas vezes o que ela já disse, mas do lado dela é uma parede.
+A causa é conhecida e está no desenho. O servidor sabe onde a conversa está,
+porque o `conversation_state` viaja em toda resposta de ferramenta, mas ele não
+sabe o que a **última frase dela** pediu. Reconhecer "isso é uma pergunta de sim
+ou não, responda em uma linha" é leitura de intenção, e leitura de intenção é
+exatamente o que este projeto não delega a regra determinística nem confia ao
+modelo sem conferência.
 
-**O que funcionou, e é o motivo de a conversa não ter virado prejuízo.** O
-*"acende mas não esquenta direito"* não virou um sim: um sim com hesitação dentro
-é recusado, e o forno ficou `confirmed_no`. O prato morto foi fechado em voz
-alta, com o motivo, e a fronteira do turno confirmou a entrega:
+**Quatro turnos, nenhuma conta.** Cada turno termina numa pergunta, e a última
+delas chega depois de ela dizer *"me diz o custo logo"*. O portão está certo:
+pudim de panela pede liquidificador e forma, e ninguém deveria mandar ela
+comprar leite condensado para descobrir na cozinha que falta a forma. Mas o
+portão pergunta um item por vez, e cada versão nova da receita traz exigência
+nova. Correção e paciência estão em conflito aqui, e hoje a correção ganha
+sozinha, sem ninguém medir o custo disso.
+
+**E o "baratinho" não tem lastro.** No primeiro turno, o leite condensado é
+"baratinho de comprar" antes de qualquer pesquisa de preço. A conferência
+automática de cifras não pega isso, porque ela confere **números** contra as
+saídas das ferramentas, e adjetivo não é número. É um limite honesto da camada:
+ela impede um R$ inventado, não uma impressão de preço.
+
+### O que funcionou, e é o motivo de não ter virado prejuízo
+
+O *"acende mas não esquenta direito"* não virou um sim. Um sim com hesitação
+dentro é recusado, o forno ficou `confirmed_no`, e o prato morto foi anunciado
+em voz alta com o motivo. A fronteira do turno confirmou a entrega:
 
 ```
 jacquinho.verdict {"dish":"pudim de leite condensado","delivered":true,"kind":"ruled_out"}
 ```
 
-Se aquela mensagem **não** tivesse contado a ela, a dívida reabriria e o turno
-seguinte começaria com todas as ferramentas de seguir em frente recusadas. É a
-garantia que este projeto consegue dar, dita sem exagero: **não dá para desdizer
-um turno ruim; dá para recusar esquecê-lo.**
+Enquanto essa frase não chega até ela, o próximo turno começa com todas as
+ferramentas de seguir em frente recusadas. É a garantia que este projeto
+consegue dar, dita sem exagero: **não dá para desdizer um turno ruim; dá para
+recusar esquecê-lo.**
 
-Outras conversas, com o diagnóstico de cada falha, estão em
+Mais conversas, boas e ruins, com o diagnóstico de cada uma, estão em
 **[docs/dialogos.md](docs/dialogos.md)**.
 
-## As decisões que sustentam isso
+## Decisões de arquitetura
 
-As cinquenta e três decisões de arquitetura, cada uma com motivo e
-consequência, estão em **[docs/decisoes.md](docs/decisoes.md)**. Estas seis são
-as que respondem o desafio.
+O desafio deixou cinco coisas a critério de quem implementa: modelo, context
+files, tools/MCP, estrutura de memória e skills. As sete decisões abaixo
+respondem essas cinco e carregam junto as exigências do enunciado, porque foram
+elas que decidiram como cada exigência é cumprida. As cinquenta e três decisões,
+com motivo e consequência, estão em **[docs/decisoes.md](docs/decisoes.md)**.
 
 ### Ferramentas MCP, e nenhuma skill
 
@@ -344,24 +340,157 @@ as que respondem o desafio.
 
 Uma skill é instrução: texto que o modelo lê e, se tudo correr bem, segue. Uma
 ferramenta é execução: código que roda e devolve um valor que o modelo não
-produziu. A diferença aparece exatamente onde este trabalho não pode falhar,
-porque ela vai gastar dinheiro em cima da resposta.
+escolheu. A diferença aparece quando o modelo está errado, que é o único momento
+em que uma garantia importa.
 
-|  | Skill | Ferramenta MCP |
-|---|---|---|
-| "sempre calcule o CMV" | o modelo escreve um número plausível | `pricing_calculate_cmv` multiplica e devolve `0,20 × 14,00 = 2,80` |
-| "não deixe ela comprar sem checar a cozinha" | um pedido educado | `budget_reserve_purchase` é **recusado** até o portão aprovar |
-| "diga o quanto você confia" | o modelo estima | o middleware pontua a evidência sem ninguém pedir |
+Escrever numa skill *"nunca precifique um prato antes de confirmar o
+equipamento"* funciona quase sempre. Quando não funciona, não sobra rastro:
+ninguém consegue mostrar que a instrução foi lida e ignorada. O mesmo enunciado
+como ferramenta é `kitchen_check_feasibility`, que devolve `safe_to_shop: false`
+e fecha as ferramentas de compra até a pergunta ser respondida. O prato não é
+precificado porque a ferramenta recusa, não porque o modelo lembrou.
 
-O caso extremo é o preço: sem uma faixa de mercado observada, `price_scenarios`
-**não devolve preço de venda nenhum**, por mais que se peça. Uma skill só
-conseguiria pedir isso educadamente.
+Por isso o procedimento inteiro do enunciado virou ferramenta: a busca de
+receitas reais na internet (`recipes_search_recipes`, com consenso entre fontes),
+a coleta de opinião dela sobre cada candidata (`menu_record_feedback`), o
+levantamento de utensílios, equipamentos, técnicas e restrições
+(`kitchen_elicitation_gaps`, sobre um catálogo de 26 itens que cresce durante a
+conversa), o CMV, os cenários de preço e o orçamento de R$ 80,00.
 
-O outro lado, dito por justiça: ferramenta custa esquema, validação e caminho de
-erro para cada argumento; skill custa um parágrafo. Para comportamento sem certo
-e errado computável, a ferramenta é peso morto. É por isso que a **voz** mora em
-texto, e não em ferramenta. Decisões [3](docs/decisoes.md#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode)
-e [4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills).
+Onze servidores, um por área do problema, montados sob um **único endpoint
+HTTP**. A separação é de responsabilidade, não de rede: cada servidor é dono de
+um pedaço do estado, e uma tabela tem um dono só. Decisões
+[2](docs/decisoes.md#2-um-endpoint-http-onze-servidores-montados) e
+[4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills).
+
+### O `SOUL.md` carrega a voz, e só a voz
+
+O Hermes trata texto vindo de um servidor MCP como **dado não confiável**, com um
+scanner de injeção por cima, e não injeta as `instructions` do servidor no system
+prompt. Persona escrita ali simplesmente não chega ao modelo. É essa restrição do
+runtime, e não estilo, que define o que mora em cada lugar.
+
+Então `hermes/SOUL.md` contém **só o que nenhuma ferramenta consegue impor**:
+idioma, quem fala primeiro, o que ela nunca deve ler, como dizer um preço sem
+dizer "CMV", como quebrar a mensagem em partes. A ideia central que organiza o
+arquivo inteiro:
+
+> **Ela contratou um sous-chef, não um relatório.** Ele fala *com* ela, não
+> *sobre* ela. Não narra a própria busca, não menciona ferramenta, não devolve a
+> pergunta que a despensa já responde, e nunca pergunta duas vezes o que ela já
+> respondeu.
+
+O procedimento não está lá. Que ferramenta chamar, em que ordem, o que exige o
+quê: isso viaja no campo `next_step` de cada resultado, junto do dado, onde
+existe verificação. Uma regra escrita onde não pode ser imposta é um conselho, e
+conselho o modelo às vezes segue. Decisão
+[3](docs/decisoes.md#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode).
+
+### Redis para a conversa, Postgres para o que ela decidiu
+
+O agente recebe sempre a mesma coisa: os **20 últimos turnos mais 1 resumo** de
+tudo que veio antes deles. O custo em tokens por turno fica limitado por
+construção, e nada é perdido, porque o corte é do que o agente segura e não do
+que fica guardado. O resumo é reescrito pelo próprio agente quando 20 turnos
+novos se acumulam, sem um segundo modelo no circuito.
+
+Isso é o que é **quente**, e vive no Redis, que é onde uma lista com corte por
+tamanho e uma chave com validade são operações nativas. O que a conversa
+**decidiu** vive no Postgres. A régua que separa os dois é simples: vai para o
+Redis quando perdê-lo custa contexto; vai para o Postgres quando perdê-lo custa
+uma pergunta repetida ou dinheiro gasto duas vezes.
+
+Três razões pelas quais o perfil da cozinha não podia ficar na conversa. Um
+bloqueio é uma **relação**, não um valor: a lasanha saiu por causa do forno, e
+quando o forno aparece os pratos voltam com um `UPDATE ... WHERE blocking_item =
+'forno' RETURNING`. A janela de 20 turnos **descarta**, e um perfil descartado faz
+a próxima consultoria recomeçar perguntando tudo. E *"o que ela ainda não
+respondeu"* é uma **consulta**, não uma dedução: `unknown` é um estado guardado,
+com as palavras dela ao lado. Decisões
+[18](docs/decisoes.md#18-o-redis-guarda-a-conversa-20-turnos-mais-1-resumo) e
+[19](docs/decisoes.md#19-o-postgres-guarda-os-dados-da-dona-maria); o esquema
+inteiro está em [docs/modelo-de-dados.md](docs/modelo-de-dados.md).
+
+### O preço da porção nasce da gramatura da receita
+
+O enunciado define o custo como a soma de `quantidade usada × custo unitário`, e
+a palavra que carrega o peso ali é **quantidade**. Uma estimativa por prato é um
+chute com aparência de conta; a gramatura da receita é o que torna o número
+conferível.
+
+Então a receita entra na ferramenta como ela é escrita, ingrediente por
+ingrediente, com quantidade e unidade: `100 g de carne moída`, `17 ml de azeite`,
+`1 ovo`. O custo unitário sai do cruzamento das duas abas da planilha dela,
+`preço pago ÷ quantidade comprada`, com a embalagem resolvida: um balde de 2 kg
+por R$ 82,00 vira R$ 41,00 o quilo, não R$ 82,00 o balde.
+
+Quando a receita da web vem por rendimento, *"1 kg de carne, serve 6"*, a divisão
+acontece **na ferramenta**, com `recipe_yields`. Dividir por seis parece trivial,
+e é exatamente o tipo de conta que sai da cabeça do modelo para poder ser
+mostrada.
+
+O que falta comprar é estimado sobre a mesma base, e separado em dois números que
+não são o mesmo: a **fração** que a fornada consome entra no custo da porção, a
+**embalagem inteira** entra na lista de compras. Ela não compra 40 g de leite
+condensado, compra uma lata; e cobrar a lata inteira de uma fornada que usa uma
+colherada infla o custo de todo prato que deixa sobra.
+
+Daí saem, em Python e não no modelo, o piso `P ≥ CMV / 0,90`, o lucro
+`0,90 × P − CMV` e os cenários de preço ancorados no mercado observado, sempre
+dois ou três, para **ela** escolher. Decisões
+[1](docs/decisoes.md#1-o-cálculo-vive-fora-do-modelo-de-linguagem),
+[39](docs/decisoes.md#39-um-ingrediente-de-fora-tem-dois-custos-e-a-ferramenta-separa-os-dois)
+e [50](docs/decisoes.md#50-a-conta-é-aberta-em-português-e-a-divisão-é-da-ferramenta).
+
+### O estoque é finito, e só baixa quando ela aceita o prato
+
+Ela tem **1,5 kg** de patinho. Não patinho à vontade. Um segundo prato que
+calcula em cima da geladeira que o primeiro já esvaziou produz uma lista de
+compras curta, e ela chega na cozinha com metade da carne que a fornada pede.
+
+**O estoque é uma subtração, não um número guardado.** O que a planilha semeou,
+menos o que os pratos já aceitos consumiram. A linha de `pantry_items` nunca é
+reescrita; o consumo mora em `pantry_usage`, só-adição, uma linha por ingrediente
+por prato.
+
+```sql
+-- o que ela ainda tem, em uma consulta
+SELECT i.ingredient,
+       i.stock_quantity - COALESCE(sum(u.quantity), 0) AS sobra
+  FROM pantry_items i
+  LEFT JOIN pantry_usage u ON u.ingredient_key = i.ingredient_key
+ GROUP BY i.ingredient, i.stock_quantity;
+```
+
+Só-adição porque o que ela precisa ouvir não é o saldo, é para onde a carne foi.
+*"Você tinha 1,5 kg, o escondidinho levou 560 g e sobraram 940 g"* é uma frase
+que ela confere contra a própria geladeira; *"faltam 860 g"* parece erro de
+planilha, e o que ela faz com um erro de planilha é duvidar do número em vez de
+comprar a carne.
+
+**E só baixa no aceite dela, nunca no cálculo.** Orçar um prato é uma pergunta;
+colocá-lo no cardápio é uma decisão. O mesmo prato é orçado várias vezes, e às
+vezes ela recusa no fim: se cada orçamento baixasse o estoque, a despensa
+esvaziaria por conta de perguntas. Quem escreve é `menu_add_dish`, no instante em
+que ela escolheu. As quantidades vêm da receita fechada, já resolvidas em unidade
+base na hora do custo, para que aceitar o prato não precise resolver os nomes uma
+segunda vez.
+
+**E volta sozinho.** Tirar o prato do cardápio devolve o que ele tinha levado.
+Reabrir a receita porque ela mudou de ideia também, porque o que aquela versão
+consumia era de um prato que não vai mais ser feito. Nada disso depende de o
+modelo lembrar de um segundo passo.
+
+A fornada é o número dela: `portions` não tem valor padrão, e uma quantidade
+diferente da que ela falou é recusada com a frase dela devolvida. Um padrão que
+está errado sete vezes em oito é pior que um argumento faltando, porque a chamada
+passa e ninguém percebe.
+
+Aqui está a vantagem prática do Postgres, bem concreta: o estoque é um dado que o
+operador precisa poder mexer, para repor o que ela comprou ou montar um cenário.
+É um `UPDATE` de uma linha, conferível na hora com um `SELECT`. Decisões
+[51](docs/decisoes.md#51-o-estoque-dela-é-finito-e-baixa-quando-o-prato-entra-no-cardápio)
+e [52](docs/decisoes.md#52-a-fornada-é-o-número-dela-e-não-tem-valor-padrão).
 
 ### O que ela tem é estado, e muda quando ela muda de ideia
 
@@ -378,12 +507,14 @@ flowchart LR
     Y --> OK["safe_to_shop = true"]
 ```
 
-`unknown` é uma pergunta, nunca um sim. Um "sim" hesitante também não é sim: um
-forno que ela tem *"mas queima embaixo"* volta como pergunta, porque o detalhe
-que a desqualifica ficaria na nota, e a nota é o único lugar que o portão não lê.
+`unknown` é uma pergunta, nunca um sim, e é isso que impede a sequência que o
+enunciado manda evitar: comprar primeiro e descobrir depois. Um sim hesitante
+também não é sim: um forno que ela tem *"mas queima embaixo"* volta como
+pergunta, porque o detalhe que o desqualifica ficaria na nota, e a nota é o único
+lugar que o portão não lê.
 
-E um "não" nunca é definitivo. Quando um prato cai por falta de equipamento, ele
-é **arquivado contra aquele equipamento**, não descartado:
+E um não nunca é definitivo. Quando um prato cai por falta de equipamento, ele é
+**arquivado contra aquele equipamento**, não descartado:
 
 ```
 ela não tem forno  →  lasanha ao forno bloqueada por 'forno'
@@ -394,263 +525,149 @@ ela ganha um forno →  a lasanha volta sozinha, e ela é avisada
 ```
 
 A volta não depende de o modelo lembrar: gravar o `confirmed_yes` levanta os
-bloqueios daquele item na mesma chamada. Se a receita de um prato aceito mudar
+bloqueios daquele item na mesma chamada. E se a receita de um prato aceito mudar
 porque **ela** pediu, tudo que pendurava nela é refeito: buscar a receita, rodar
 o portão, recalcular custo e preço. Decisões
 [7](docs/decisoes.md#7-capacidades-têm-três-estados-e-silêncio-não-é-consentimento),
 [30](docs/decisoes.md#30-o-prato-morto-é-fechado-pela-ferramenta-não-pelo-lembrete),
-[49](docs/decisoes.md#49-o-prato-arquivado-é-o-que-morreu-não-o-que-sobrou),
 [35](docs/decisoes.md#35-um-sim-com-mas-dentro-não-é-um-sim) e
 [43](docs/decisoes.md#43-a-receita-de-um-prato-fecha-uma-vez).
 
-### O estoque dela é finito, e baixa quando ela aceita o prato
-
-Ela tem **1,5 kg** de patinho. Não patinho à vontade. Se o segundo prato calcula
-em cima da geladeira que o primeiro já esvaziou, a lista de compras sai curta — e
-ela chega na cozinha com metade da carne que a fornada pede. É o que acontece na
-conversa lá em cima, e é por isso que ela ouve *"o escondidinho levou 560 g e
-sobraram 940 g"* em vez de *"faltam 860 g"*.
-
-**O estoque é uma subtração, não um número guardado.** O que a planilha semeou,
-menos o que os pratos já aceitos consumiram. `pantry_items` nunca é reescrita;
-o consumo mora em `pantry_usage`, uma linha por ingrediente por prato.
-
-```sql
--- o que ela ainda tem, em uma consulta
-SELECT i.ingredient,
-       i.stock_quantity - COALESCE(sum(u.quantity), 0) AS sobra
-  FROM pantry_items i
-  LEFT JOIN pantry_usage u ON u.ingredient_key = i.ingredient_key
- GROUP BY i.ingredient, i.stock_quantity;
-```
-
-**Só-adição, e não um `UPDATE` no saldo.** Um `UPDATE` guarda quanto sobrou e
-joga fora o porquê. O que ela precisa ouvir não é o saldo, é para onde a carne
-foi. Com o consumo ao lado do estoque semeado, a frase inteira é uma consulta;
-com um saldo só, o porquê teria sido jogado fora na primeira escrita.
-
-**Baixa no aceite, nunca no cálculo.** Orçar um prato é uma pergunta; colocá-lo
-no cardápio é uma decisão. O mesmo prato é orçado várias vezes, e às vezes ela
-recusa no fim — se cada orçamento baixasse o estoque, a despensa esvaziaria por
-conta de perguntas. Quem escreve é `menu_add_dish`.
-
-**As quantidades vêm da receita fechada.** `pricing_calculate_cmv` já resolveu
-cada linha para unidade base ao calcular o custo, e guarda isso no cadeado da
-receita. O aceite lê de lá: re-derivar a partir dos nomes seria resolver o mesmo
-fato duas vezes, e duas resoluções são duas chances de discordar.
-
-**E volta sozinho.** Tirar o prato do cardápio devolve o que ele tinha levado.
-Reabrir a receita porque ela mudou de ideia também — o que aquela versão
-consumia era de um prato que não vai mais ser feito. Nada disso depende de o
-modelo lembrar de um segundo passo.
-
-**Uma linha por ingrediente, e o prato é dono das dela.** A receita da bolonhesa
-pede tomate duas vezes, o fresco e o que vira molho: o consumo é somado antes de
-ser escrito, senão a história vira *"levou 1,02 kg e levou 1,8 kg"*. E aceitar o
-mesmo prato de novo substitui as linhas dele em vez de comer a despensa duas
-vezes.
-
-**E a fornada é o número dela.** `portions` diz quantas marmitas saem de uma
-fornada, e é essa quantidade que sai da despensa. O argumento nasceu com `= 1` e
-o agente pegou o padrão: ela tinha aberto a conversa com *"faço 8 marmitas por
-fornada"* e o prato foi custeado para uma fornada de uma — o custo por porção
-certo, e a despensa perdendo um oitavo do que a fornada come. Hoje o argumento é
-obrigatório, e um número diferente do que ela falou é recusado com a frase dela
-devolvida. Um padrão errado sete vezes em oito é pior que um argumento faltando:
-faltando, a chamada falha e alguém decide; com padrão, ela passa e ninguém vê.
-Decisão [52](docs/decisoes.md#52-a-fornada-é-o-número-dela-e-não-tem-valor-padrão).
-
-**A vantagem prática do Postgres, bem concreta.** O estoque é um dado que o
-operador precisa poder mexer: repor o que ela comprou, corrigir o que a planilha
-trouxe errado, montar um cenário para demonstração. É um `UPDATE` de uma linha,
-conferível na hora com um `SELECT`.
-
-```sql
--- ela comprou mais meio quilo de patinho
-UPDATE pantry_items SET stock_quantity = stock_quantity + 0.5
- WHERE ingredient_key = 'carne moida patinho';
-```
-
-Guardado junto do estado de conversa, seria um blob que só o código sabe abrir.
-Decisão [51](docs/decisoes.md#51-o-estoque-dela-é-finito-e-baixa-quando-o-prato-entra-no-cardápio).
-
 ### Confiança por afirmação atômica, tipada pela saída do MCP
 
-Uma nota por mensagem não diz nada: uma mensagem tem várias afirmações e elas não
-têm o mesmo lastro. Toda mensagem entregue é decomposta e cada afirmação é
-julgada sozinha:
+Uma nota por mensagem não diz nada, porque uma mensagem tem várias afirmações e
+elas não têm o mesmo lastro. Toda mensagem entregue é decomposta e cada afirmação
+é julgada sozinha:
 
-```mermaid
-flowchart LR
-    M["a mensagem que ela recebeu"] --> D["decompor em<br/>afirmações atômicas"]
-    D --> F{"é conferível?"}
-    F -->|"pergunta, conselho"| N["fora da conta"]
-    F -->|"afirma um número"| G{"qual saída de MCP<br/>produziu isso?"}
-    G -->|nenhuma| U["sem lastro"]
-    G -->|"uma, e do tipo certo"| C{"bate com o que<br/>ela já ouviu?"}
-    C -->|sim| OK["confere"]
-    C -->|"ela pediu a mudança"| R["revisado"]
-    C -->|não| X["<b>contradiz</b><br/>zera a mensagem"]
+```
+"custa R$ 7,53 por marmita, e vendendo a R$ 23,90 sobram R$ 13,98"
+        │                              │                    │
+     COST 7.53                    PRICE 23.90          PROFIT 13.98
+        └── pricing_calculate_cmv  └── price_scenarios  └── price_scenarios
+            .cmv_per_portion           .scenarios[]        .scenarios[]
+                                       .selling_price      .profit_per_portion
 ```
 
-Três escolhas fazem isso funcionar:
+O modelo `AtomicClaim` é Pydantic, e a tipagem é a garantia: uma afirmação
+carrega o tipo (`COST`, `PRICE`, `PROFIT`, `RECEIPT`, `PANTRY`, `BUDGET`), o
+valor e a fonte. Sem tipo, R$ 13,98 de lucro conferiria contra um R$ 13,98 de
+compra que passou pela conversa por acaso.
 
-**A identidade da afirmação vem da saída de MCP que a produziu**, não das
-palavras ao redor do número. Um mapa declarativo liga cada campo de saída a um
-tipo: `pricing_calculate_cmv.cmv_per_portion` é custo,
-`menu_add_dish.price` é preço, `market_research_dish_prices.reference.median` é
-mercado. Ler o tipo da frase é tentador e errado: *"sobram R$ 63,91 dos seus
-R$ 80"* é orçamento, e todas as pistas que o classificariam como lucro estão ali.
+**E o lastro vem da saída do MCP, não de um saco de números.** Um mapa declara,
+campo por campo, qual saída de qual ferramenta estabelece qual tipo de afirmação:
+`pricing_calculate_cmv.cmv_per_portion` é um custo,
+`menu_expected_return.dishes[].platform_fee_paid` é uma taxa. Duas distinções
+fazem o trabalho:
 
-**Saída, nunca argumento.** Uma ferramenta é evidência do que **calcula**. O que
-ela recebe é o modelo conversando consigo mesmo, e contar isso fecha um círculo
-com nada dentro. Os números que chegaram como argumento são subtraídos, em toda
-chamada.
+*Saída, nunca argumento.* Uma ferramenta é evidência do que ela **calcula**. O que
+ela **recebe** é o modelo falando consigo mesmo, e contar isso fecha um círculo
+com nada dentro.
 
-**Lastro não é compromisso.** `price_scenarios` devolve três preços: são
-candidatos, e nenhum é o preço do prato. Só o que foi para o cardápio compromete.
-Um valor só vira promessa quando **chega até ela**, e uma contradição com o que
-ela já ouviu **zera** a mensagem, sem média: ouvir dois custos diferentes para o
-mesmo prato não é oitenta por cento certo.
+*Ter lastro não é comprometer.* `price_scenarios` devolve três preços, e nenhum
+deles é o preço do prato. Só o que foi para o cardápio compromete. Marcar os três
+como promessa transformaria "aqui estão três opções" em três contradições no
+turno seguinte.
 
-Os tipos são modelos Pydantic e o pipeline é determinístico, então roda em toda
-mensagem sem custar uma chamada de modelo. O método, com as referências
-científicas que o embasam, está em
-[docs/metricas.md](docs/metricas.md#afirmações-atômicas-o-pipeline-por-mensagem);
-as decisões, em [45](docs/decisoes.md#45-a-confiança-de-uma-mensagem-é-a-soma-das-afirmações-dela)
-e [47](docs/decisoes.md#47-as-afirmações-são-conferidas-contra-a-saída-do-mcp-que-as-produziu).
+Uma cifra que nenhuma saída produziu zera a afirmação. Uma que contradiz o que
+ela já ouviu zera a mensagem inteira, porque dois preços na cabeça dela é pior
+que um preço vago. O pipeline roda na fronteira do turno, sobre a mensagem que
+saiu, e escreve uma linha no log:
 
-### Redis para a conversa, Postgres para o que ela decidiu
+```
+jacquinho.claims {"score":1.0,"verdict":"tudo confere","verifiable":23,"grounded":23,"contradictions":0}
+```
 
-O agente recebe sempre os **20 últimos turnos mais um resumo** de tudo antes
-deles. O custo em tokens por turno fica limitado por construção, e os turnos
-antigos continuam gravados: o corte é do que o agente segura, não do que se
-guarda. O resumo é reescrito pelo próprio agente quando 20 turnos novos se
-acumulam, sem um segundo modelo no circuito.
-
-Isso é o que é **quente**, e vive no Redis. O que a conversa **decidiu** vive no
-Postgres, e a régua que separa os dois é simples: vai para o Redis quando perdê-lo
-custa contexto; vai para o Postgres quando perdê-lo custa uma pergunta repetida
-ou dinheiro gasto duas vezes.
-
-Três razões pelas quais o perfil da cozinha não podia ficar na conversa. Um
-bloqueio é uma **relação**, não um valor: a lasanha saiu *por causa do* forno, e
-quando o forno aparece os pratos voltam com um `UPDATE ... WHERE blocking_item =
-'forno' RETURNING`. A janela de 20 turnos **descarta**, e um perfil descartado
-faz a próxima consultoria recomeçar perguntando tudo. E *"o que ela ainda não
-respondeu"* é uma **consulta**, não uma dedução: `unknown` é um estado guardado.
-
-Decisões [18](docs/decisoes.md#18-o-redis-guarda-a-conversa-20-turnos-mais-1-resumo)
-e [19](docs/decisoes.md#19-o-postgres-guarda-os-dados-da-dona-maria). O esquema
-inteiro está em [docs/modelo-de-dados.md](docs/modelo-de-dados.md).
-
-### A voz mora no `SOUL.md`, porque não pode morar em outro lugar
-
-O Hermes trata texto vindo de um servidor MCP como **dado não confiável**, com
-um scanner de injeção sobre ele, e não injeta as `instructions` do servidor no
-system prompt. Persona escrita ali simplesmente não chega ao modelo.
-
-Por isso `hermes/SOUL.md` existe, e por isso ele contém **só** o que não pode ser
-verificado: idioma, quem fala primeiro, postura, e as regras de voz que nenhuma
-ferramenta consegue impor. A ideia central que o organiza:
-
-> **Ela contratou um sous-chef, não um relatório.** Ele fala *com* ela, não
-> *sobre* ela. Não narra a própria busca, não menciona ferramenta, não devolve a
-> pergunta que a despensa já responde, e nunca pergunta duas vezes o que ela já
-> respondeu.
-
-Uma regra de voz, porém, tinha como ser medida — e por isso foi. Ela lê no
-celular com a panela no fogo: receita, custo, compras, mercado e preço soldados
-num parágrafo é um parágrafo que ela passa o olho, e o que estava no meio se
-perde, em geral a pergunta. Então a resposta vai **em partes**, uma por linha, com
-a pergunta sozinha na última. O que se mede é empilhamento, não comprimento — uma
-resposta longa para uma pergunta grande é uma boa resposta. `message_pacing`
-volta em `confidence_assess_answer` dizendo em quantas partes o rascunho está e
-onde é a costura, sem nunca reescrever nada: prosa quebrada por regra soa
-quebrada, e o agente já sabe onde os próprios parágrafos terminam. Decisão
-[53](docs/decisoes.md#53-a-mensagem-vai-em-partes-e-o-tamanho-não-é-o-problema).
-
-E o que ela lê em lista **é** lista: a conta da porção e as opções de preço saem
-com um item por linha, na mesma forma. Corridos dentro de um parágrafo, seis
-ingredientes e seis valores viram uma coisa que ela passa o olho, e a linha que
-ela questionaria é justamente a que some. A cauda é dobrada, não escondida — *"e
-o resto (cebola, leite, alho, sal): R$ 0,14"* —, porque onze marcadores
-terminando em "uma pitada de sal: R$ 0,00" são piores que dar só o total.
-
-O procedimento (que ferramenta chamar, em que ordem, o que exige o quê) **não**
-está lá. Está nas descrições das ferramentas e no `next_step` de cada resultado,
-onde existe verificação. Decisão [3](docs/decisoes.md#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode).
+O método vem da literatura de verificação factual, adaptado: decomposição atômica
+do FActScore e do SAFE, o filtro de "só o que é verificável" do VeriScore, e o
+registro de compromissos entre turnos do SKG-Eval. Nada disso vira selo na
+mensagem dela, que é cozinheira e não avaliadora deste sistema: o que chega até
+ela é a ressalva em português, dentro da frase. Decisões
+[45](docs/decisoes.md#45-a-confiança-de-uma-mensagem-é-a-soma-das-afirmações-dela)
+e [47](docs/decisoes.md#47-as-afirmações-são-conferidas-contra-a-saída-do-mcp-que-as-produziu);
+a matemática está em [docs/metricas.md](docs/metricas.md).
 
 ---
 
-## Onde cada exigência do desafio foi cumprida
+## O que pode melhorar
 
-O enunciado chama o custo de **CMV**, e esta tabela usa o termo dele. Na conversa
-com a Dona Maria a sigla nunca aparece: lá é "cada marmita custa R$ 7,53 pra você
-fazer".
+Quatro coisas, na ordem em que eu faria.
 
-| Enunciado | O que ele pede | Onde vive no código |
-|---|---|---|
-| **2.1** | Pesquisar receitas reais na internet | `recipes_search_recipes`, `dishes_discover_dishes` |
-| **2.1** | Apresentar candidatas e pedir feedback dela | `menu_record_feedback` |
-| **2.2** | Utensílios, equipamentos, técnicas, restrições | catálogo de 26 itens, `kitchen_next_questions` |
-| **2.2** | **Não deixar comprar e descobrir depois** | `kitchen_elicitation_gaps`, `safe_to_shop` |
-| **2.3** | O que ela já tem, e em que quantidade | `recipes_check_pantry_coverage`, `pantry_what_is_left` (o estoque baixa a cada prato aceito) |
-| **2.3** | O que falta comprar, o custo, e se cabe | `pricing_calculate_cmv`, `budget_check_purchase` |
-| **2.4** | CMV = Σ (quantidade usada × custo unitário) | `pricing_calculate_cmv`, aritmética em Python |
-| **2.4** | Custo unitário = preço pago ÷ quantidade comprada | `PantrySheet`, `UnitConverter` |
-| **2.4** | Incluir compras complementares no CMV | `researched_prices`, pela fração usada |
-| **2.4** | Ela recebe `0,90 × P`; piso `P ≥ CMV / 0,90` | `net_share`, `break_even` |
-| **2.4** | Lucro `0,90 × P − CMV` | `profit` |
-| **2.4** | **2–3 cenários, e ela decide** | `pricing_price_scenarios` |
-| **3** | Orçamento de R$ 80,00 para complementos | `budget_reserve_purchase` |
+**Um servidor MCP de condução, para responder o que ela perguntou.** É a falha
+da conversa lá em cima, e é uma falha de lógica de diálogo, não de conta. O
+`conversation_state` diz onde a consultoria está; ninguém classifica o que a
+**última frase dela** pediu. Um servidor `dialogue_*` com uma ferramenta que tipa
+o turno dela (pergunta fechada, pedido de ação, resposta a uma pergunta pendente,
+desistência) e devolve a forma da resposta devida dá ao portão de mensagem o que
+falta: ele mede se o rascunho está empilhado e não mede se ele responde. O
+mecanismo é o mesmo do veredito do prato morto, que é a garantia mais sólida
+deste sistema: uma dívida da conversa que fecha as ferramentas de seguir em
+frente até ser paga.
 
-Três coisas fora do enunciado, que a conversa mostrou serem necessárias: dizer
-**o quanto confia** no que está falando, fechar com **o resultado da fornada**,
-que é a pergunta que ela de fato faz, e tratar a quantidade em estoque como
-**finita** — o enunciado dá a coluna, e um segundo prato que ignora o que o
-primeiro comeu manda ela para a cozinha com metade da carne.
+**Perguntar em bloco, e por prioridade.** O portão pergunta um item por vez, e
+cada versão nova da receita traz exigência nova; quatro turnos sem número é o
+resultado. `kitchen_elicitation_gaps` já sabe quais respostas faltam e quais
+bloqueiam a compra: falta ordenar por impacto e devolver o conjunto mínimo que
+destrava o próximo passo, para ela responder três coisas de uma vez e ver a
+conta. É a mesma tensão entre correção e paciência que aparece na conversa que
+deu errado, atacada do lado da correção, que é o lado que dá para medir.
 
-As **cinco escolhas** que o enunciado deixou a meu critério (modelo, context
-files, tools/MCP, estrutura de memória, skills) estão respondidas uma a uma em
-[docs/decisoes.md](docs/decisoes.md#as-cinco-escolhas-que-o-enunciado-deixou-em-aberto).
+**Latência.** Um turno leva de sessenta a noventa segundos, e a maior parte é
+busca na web em série: descoberta de pratos, receitas, preço de mercado. As
+chamadas são independentes e podem ir em paralelo; um cache por domínio e prato
+no Redis, com validade de horas, corta a repetição entre turnos da mesma
+consultoria. Nada disso muda o resultado, só o tempo que ela espera olhando a
+tela.
+
+**Calibrar a nota com desfecho.** A confiança hoje **ordena** respostas: é
+melhor que nada e não mede probabilidade de coisa nenhuma, e isso está escrito
+onde alguém possa tropeçar. Calibrar exige registrar o que aconteceu depois (o
+prato foi aceito? o preço se sustentou? a compra coube?) e mover os limiares com
+esse dado. É o que transforma a nota de heurística ordenada em medida.
 
 ---
 
-## O que eu não fiz, e por quê
+## O sistema em números
 
-Escopo cortado de propósito. O motivo importa mais que o item.
+| | |
+|---|---|
+| **Servidores MCP** | 11, montados sob um único endpoint HTTP: `chat`, `pantry`, `dishes`, `recipes`, `kitchen`, `market`, `economy`, `budget`, `pricing`, `confidence`, `menu` |
+| **Ferramentas** | 59, distribuídas nesses 11 servidores |
+| **Decisões de arquitetura** | 53, cada uma com motivo e consequência |
+| **Testes** | 277 na última rodada, em 15 suítes |
+| **Modelo** | `claude-sonnet-5`, com OAuth de uma conta Anthropic Pro |
+| **Armazenamento** | Redis 7 para a conversa, Postgres 17 para o que ela decidiu |
+
+A distribuição das ferramentas por servidor: `recipes` e `kitchen` com 10 cada,
+`menu` e `chat` com 7, `dishes` com 6, `pantry` com 5, `confidence` e `budget`
+com 4, `pricing` com 3, `economy` com 2 e `market` com 1. A assimetria é do
+problema: descobrir e qualificar receitas tem mais passos distintos do que
+consultar um índice de inflação. A lista completa, com argumentos e o que cada
+resultado significa, está em
+[docs/referencia-mcp.md](docs/referencia-mcp.md).
+
+---
+
+## O que eu deixei de fora, e por quê
 
 **Nenhum cálculo passa por modelo.** CMV, preço mínimo, lucro, saldo e projeção
 de inflação são Python. Um modelo a quem se pede para multiplicar preços devolve
 um número plausível, e plausível é indistinguível de correto até alguém gastar
 dinheiro em cima.
 
-**Não persisti a conversa entre sessões, só o que ela decidiu.** Reconstituir o
-diálogo de semanas atrás não ajuda ninguém; saber que ela não tem forno, sim.
+**Nada de memória vetorial nem RAG.** A despensa tem 37 linhas. Busca semântica
+sobre isso é infraestrutura para um problema que `SELECT` resolve, e traz uma
+classe de erro nova: recuperar o ingrediente parecido em vez do certo.
 
-**Não construí memória vetorial nem RAG.** A despensa tem 37 linhas. Busca
-semântica sobre isso é infraestrutura para um problema que `SELECT` resolve, e
-traz uma classe de erro nova: recuperar o ingrediente parecido em vez do certo.
+**Nenhum segundo modelo como juiz.** O enunciado pede um agente, e dois
+provedores no circuito é uma dependência e uma conta a mais. O avaliador é o
+mesmo modelo sob uma régua mais dura, num turno próprio.
 
-**Não coloquei um segundo modelo como juiz.** O enunciado pede um agente, e dois
-provedores no circuito é uma dependência e uma conta a mais.
+**Sessões simultâneas não são isoladas de verdade.** Correto para uma consultoria
+por vez, que é o caso de uso; insuficiente para várias pessoas ao mesmo tempo.
 
-**Não calibrei os limiares de confiança.** Calibrar exige registrar desfecho (o
-prato foi aceito? o preço se sustentou?) e não há esse dado. A nota **ordena**
-respostas; não mede probabilidade de nada, e isso está escrito onde alguém possa
-tropeçar nela.
-
-**Não isolei sessões simultâneas de verdade.** Correto para uma consultoria por
-vez, que é o caso de uso; insuficiente para várias pessoas ao mesmo tempo.
-
-**Não usei um plugin em Python do Hermes.** Ele poderia reescrever a mensagem que
-está saindo. Um servidor escrevendo direto para a Dona Maria é uma garantia pior
-que a de recusar esquecer.
-
-**Não fiz teste automatizado de diálogo.** Cada execução custa uma chamada de
+**Não há teste automatizado de diálogo.** Cada execução custa uma chamada de
 modelo e o julgamento do resultado é humano. A simulação é manual, e o que ela
-achou está em [docs/dialogos.md](docs/dialogos.md), inclusive o que continua
+encontra está em [docs/dialogos.md](docs/dialogos.md), inclusive o que continua
 torto.
 
 ---
@@ -661,12 +678,12 @@ torto.
 |---|---|
 | [docs/arquitetura.md](docs/arquitetura.md) | Componentes, camadas, fluxogramas e diagramas de sequência |
 | [docs/decisoes.md](docs/decisoes.md) | As 53 decisões de arquitetura, com motivo e consequência |
-| [docs/dialogos.md](docs/dialogos.md) | Nove conversas reais: cinco que deram certo, quatro que deram errado |
+| [docs/dialogos.md](docs/dialogos.md) | Conversas reais: cinco que deram certo e quatro modos de falha |
 | [docs/metricas.md](docs/metricas.md) | Como a confiança é calculada, o pipeline de afirmações, e as referências |
 | [docs/modelo-de-dados.md](docs/modelo-de-dados.md) | Esquema do Postgres, chaves do Redis, normalização de unidades |
 | [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 59 ferramentas, os prompts e os recursos |
 | [docs/operacao.md](docs/operacao.md) | Execução, credenciais, depuração, modos de falha |
-| [docs/testes.md](docs/testes.md) | A suíte automatizada e o que cada rodada de simulação achou |
+| [docs/testes.md](docs/testes.md) | A suíte automatizada e o que a simulação manual cobre |
 
 ### Estrutura
 

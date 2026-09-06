@@ -4,23 +4,23 @@
 ![Bancos](https://img.shields.io/badge/bancos-zerados%20a%20cada%20rodada-success)
 
 Transcrições reais, copiadas palavra por palavra, cada uma gravada com os bancos
-zerados. São a única parte da documentação que ainda usa travessão, porque é
-fala da Dona Maria e do agente, não texto meu.
+zerados. São a única parte da documentação que usa travessão, porque é fala da
+Dona Maria e do agente, não texto meu.
 
-Cinco que deram certo e quatro que deram errado. As que deram errado valem
-mais: cada uma virou um teste automatizado, uma decisão de arquitetura, ou as
-duas coisas. O caso principal e um caso de falha ficam no
-[README](../README.md); estes são os outros.
+Cinco conversas que deram certo, e quatro **modos de falha**: cada um com a
+conversa que o expõe e com o mecanismo que existe para impedi-lo. Os modos de
+falha valem mais, porque cada um explica uma decisão de arquitetura melhor do que
+a decisão explica a si mesma. O caso principal e uma conversa com problemas
+abertos ficam no [README](../README.md); estes são os outros.
 
 **Como reproduzir.** `jacquinho reset`, depois `jacquinho`, e digitar as falas da
-Dona Maria. O estado depois de cada conversa foi conferido com `psql`, e os
-números conferidos à mão contra a taxa de plataforma de 10%.
+Dona Maria. O estado depois de cada conversa é conferido com `psql`, e os números
+conferidos à mão contra a taxa de plataforma de 10%.
 
 **Uma conversa por vez.** Rodar duas ao mesmo tempo contra a mesma instância
 invalida as duas: o `state.db` do Hermes é SQLite e a escrita colide, e o prato
 em jogo vaza de uma conversa para a outra porque o isolamento de sessão cai numa
-chave fixa. Aconteceu aqui, numa gravação que foi descartada por isso, e é a
-demonstração concreta do limite que está anotado no README.
+chave fixa. É a demonstração concreta do limite anotado no README.
 
 ## Índice
 
@@ -229,12 +229,12 @@ Esse continua aberto.
 
 ---
 
-# As que deram errado
+# Os modos de falha
 
 ## Errado 1 · O forno que ninguém perguntou
 
-**O erro mais caro que este agente já cometeu.** Banco zerado, primeira
-mensagem, e ele entrega a consultoria inteira num turno só.
+**O modo de falha mais caro que este sistema pode ter.** Banco zerado, primeira
+mensagem, e o agente entrega a consultoria inteira num turno só.
 
 ```
 Dona Maria ▸ oi! quero fazer lasanha ao forno pra vender de marmita
@@ -250,20 +250,20 @@ Jacquinho  ▸ Prontinho, Dona Maria! A lasanha ao forno passou no teste da sua
              Qual desses preços você quer cobrar?
 ```
 
-**O que aconteceu.** Ela nunca foi perguntada sobre o forno. O agente gravou
-sozinho `forno = confirmed_yes`, e mais `fogao`, `montar_camadas` e
-`gratinar_forno`: quatro respostas que ela não deu. Depois precificou uma lasanha
-assada para uma cozinha que não a assa.
+**A falha.** Ela nunca foi perguntada sobre o forno. O agente grava sozinho
+`forno = confirmed_yes`, e mais `fogao`, `montar_camadas` e `gratinar_forno`:
+quatro respostas que ela não deu. Depois precifica uma lasanha assada para uma
+cozinha que não a assa.
 
-**Por que aconteceu.** O portão funcionou perfeitamente. Ele confere o perfil, e
-o perfil dizia sim. O defeito estava um passo antes: o único registro do que ela
-tinha dito vivia no contexto do modelo, e o servidor não tinha como discordar.
-O Redis, que a documentação descreve como a memória da conversa, ficou **vazio**
-a consultoria inteira.
+**Por que o portão não segura.** Ele funciona perfeitamente: confere o perfil, e
+o perfil diz sim. O buraco está um passo antes. Se o único registro do que ela
+disse vive no contexto do modelo, o servidor não tem como discordar, e o Redis
+que a documentação descreve como memória da conversa atravessa a consultoria
+**vazio**.
 
-**O que mudou.** Um `confirmed_*` passou a exigir `her_words`, procuradas na
-transcrição. E como a transcrição era escrita pelo próprio agente, o que fechou
-o buraco de vez foi capturá-la fora do modelo, no hook de início de turno. Ver
+**O que impede isso.** Um `confirmed_*` exige `her_words`, procuradas na
+transcrição. E como uma transcrição escrita pelo próprio agente não vale de
+prova, ela é capturada fora do modelo, no hook de início de turno. Ver
 [decisoes.md](decisoes.md), itens 32 e 33.
 
 ---
@@ -281,22 +281,22 @@ Jacquinho  ▸ Fechado! A Lasanha de panela entrou no seu cardápio a R$ 23,90.
              fornada.
 ```
 
-**O que aconteceu.** Ele não comprou. Não tem carteira, não tem cartão, não vai
-ao mercado.
+**A falha.** Ele não comprou. Não tem carteira, não tem cartão, não vai ao
+mercado.
 
-**Por que aconteceu.** Não foi deslize de redação. A ferramenta se chamava
-`commit_purchase`, a descrição dizia *"spend against the budget"*, e o argumento
-que faltava era justamente o que tornaria a decisão dela: nada era pedido à Dona
-Maria para tirar dinheiro do orçamento da Dona Maria. Um modelo lendo "gastar"
-escreve "gastei", e está sendo coerente com o que leu.
+**Por que não é deslize de redação.** Uma ferramenta chamada `commit_purchase`,
+com descrição dizendo *"spend against the budget"*, produz essa frase. Um modelo
+lendo "gastar" escreve "gastei", e está sendo coerente com o que leu. E o
+argumento que falta é justamente o que tornaria a decisão dela: nada é pedido à
+Dona Maria para tirar dinheiro do orçamento da Dona Maria.
 
 **Por que importa.** Ela pode não ir ao mercado achando que já está feito, não
 conferir preço achando que já foi pago, e o custo por marmita, calculado sobre
 uma referência, passa a parecer valor apurado.
 
-**O que mudou.** `budget_reserve_purchase`, exigindo as palavras dela. O caminho
-da compra não tinha nenhum teste, que é por que a redação envelheceu sem ninguém
-notar. Ver [decisoes.md](decisoes.md), item 36.
+**O que impede isso.** A ferramenta se chama `budget_reserve_purchase`, guarda
+uma reserva e não um gasto, e exige as palavras dela concordando. Ver
+[decisoes.md](decisoes.md), item 36.
 
 ---
 
@@ -310,19 +310,19 @@ Jacquinho  ▸ Fechado! Estrogonofe de carne moída entrou no cardápio a R$ 19,
              bolso por marmita vendida.
 ```
 
-**O que aconteceu.** O certo é R$ 5,27, e estava gravado em `menu_items` na
-mesma chamada: `19,90 − 10% = 17,91`, menos `12,64` dá `5,27`. Ele subtraiu
-custo de preço em prosa e esqueceu a taxa da plataforma, num turno em que ele
-mesmo já tinha dito 5,27 uma mensagem antes.
+**A falha.** O certo é R$ 5,27, e está gravado em `menu_items` na mesma
+chamada: `19,90 − 10% = 17,91`, menos `12,64` dá `5,27`. O agente subtrai custo
+de preço em prosa e esquece a taxa da plataforma, num turno em que ele mesmo já
+tinha dito 5,27 uma mensagem antes.
 
-**Por que aconteceu.** `confidence_audit_figures` faz exatamente essa conferência
-desde o começo, e chamá-la era opcional. Uma ferramenta que o agente precisa
-lembrar de chamar é uma ferramenta que não roda quando mais importa.
+**Por que uma ferramenta opcional não resolve.** `confidence_audit_figures` faz
+exatamente essa conferência, e enquanto chamá-la for escolha do agente ela não
+roda quando mais importa.
 
-**O que mudou.** A conferência passou a rodar sozinha no fim do turno, contra
-todos os números que qualquer ferramenta produziu na sessão. Isso exigiu guardar
-mais que a trilha de evidências, que tem seis compartimentos e não guarda nem
-preço nem cardápio, ou seja, justamente as cifras que ela usa para decidir. Ver
+**O que impede isso.** A conferência roda sozinha no fim do turno, contra todos
+os números que qualquer ferramenta produziu na sessão. Isso exige guardar mais
+que a trilha de evidências, que tem seis compartimentos e não guarda nem preço
+nem cardápio, ou seja, justamente as cifras que ela usa para decidir. Ver
 [decisoes.md](decisoes.md), item 37.
 
 Como tudo que mora na fronteira do turno, isso não desfaz a mensagem: torna o
@@ -347,23 +347,20 @@ Jacquinho  ▸ Sobre o camarão na moranga: esse aqui não entra do jeito
              forno. É o que decide isso.
 ```
 
-**O que aconteceu.** *"o que decidiu isso"* é o rótulo interno que o servidor
-usa para dizer ao agente o que falta na frase. Ele foi copiado para dentro da
-mensagem dela, nas duas vezes.
+**A falha.** *"o que decidiu isso"* é o rótulo interno que o servidor usa para
+dizer ao agente o que falta na frase. Ele acaba copiado para dentro da mensagem
+dela, e por duas fontes diferentes: a lista `missing_from_your_message` do
+`kitchen_announce_verdict`, e o próprio `SOUL.md`, que trazia a mesma expressão
+nas instruções de como fechar um prato.
 
-**Por que aconteceu, duas vezes.** Na primeira, a fonte era a lista de
-`missing_from_your_message` do `kitchen_announce_verdict`. Reescrevi os rótulos e
-achei que estava resolvido. Na segunda, a fonte era o próprio `SOUL.md`, que
-trazia a mesma expressão no passo 2 das instruções de como fechar um prato.
+**A regra que sai disso.** Um rótulo lido por um modelo prestes a escrever para
+ela é um rascunho, queira-se ou não. Texto interno tem de ser escrito de um jeito
+que fique **obviamente errado** se for colado.
 
-A lição é a mesma nas duas: **um rótulo lido por um modelo prestes a escrever
-para ela é um rascunho, queira-se ou não.** Texto interno tem de ser escrito de
-um jeito que fique obviamente errado se for colado.
-
-**O que mudou.** Os rótulos viraram instruções em voz imperativa
+**O que impede isso.** Os rótulos são instruções em voz imperativa
 (*"explique a ela, com suas palavras, que isto foi o motivo: forno"*), e o passo
-do `SOUL.md` virou uma frase de exemplo em português corrente, com o aviso
-explícito de que a lista descreve o que ela precisa entender e não é para
+correspondente do `SOUL.md` é uma frase de exemplo em português corrente, com o
+aviso explícito de que a lista descreve o que ela precisa entender e não é para
 copiar.
 
 ---
@@ -470,7 +467,7 @@ custo `8 × 5,00 = 40,00`, sobrando `139,28`; `18 × 25,90 = 466,20` com taxa
 `665,40 − 66,54 − 160,60 = 438,26`, e `438,26 / 665,40 = 66%` de margem **sobre a
 venda**. Os dois custos ficam separados de propósito: R$ 160,60 é o que a comida
 custa, com a despensa que ela já tinha incluída, e R$ 57,41 é o que ainda sai do
-bolso dela — somar os dois cobraria duas vezes a mesma despensa.
+bolso dela. Somar os dois cobraria duas vezes a mesma despensa.
 
 A ressalva do escondidinho reaparece aqui, na língua dela, porque o preço daquele
 prato continua apoiado em pouca referência de mercado. Ela some quando não há
@@ -491,7 +488,7 @@ segue a mesma conta com o preço que ela pagou, `42,90` o quilo, e conta a mesma
 história sem que ninguém tenha pedido. O orçamento também fecha:
 `80,00 − 8,99 = 71,01` e `71,01 − 48,42 = 22,59`.
 
-Nenhuma dessas linhas foi escrita quando o prato foi **orçado** — só quando ela
+Nenhuma dessas linhas foi escrita quando o prato foi **orçado**, só quando ela
 aceitou.
 
 **A frase é a coisa toda.** Um "faltam 860 g de carne" solto parece erro de
@@ -503,7 +500,7 @@ sido jogado fora. Ver [decisoes.md](decisoes.md), item 51.
 
 **A fornada é de 18 porque ela disse 18.** `portions` não tem valor padrão. Numa
 gravação anterior desta mesma conversa ele tinha `= 1`, o agente pegou o padrão, e
-o escondidinho — que ela tinha aberto a conversa dizendo que rende 8 marmitas —
+o escondidinho, que ela tinha aberto a conversa dizendo que rende 8 marmitas,
 foi custeado para uma fornada de uma. O custo por porção saiu certo e todo o
 resto saiu errado: a despensa perdeu 125 g de patinho em vez de 1 kg, e a frase
 que ela lia era *"o escondidinho levou 125 g"* depois de ela ter cozinhado oito
@@ -513,7 +510,7 @@ marmitas. Ver [decisoes.md](decisoes.md), item 52.
 escondidinho veio com onze marcadores, terminando em *"uma pitada de sal:
 R$ 0,00"*. Nada errado, e pior que dar só o total: ela para de ler antes da linha
 que teria questionado. Agora a lista para quando já explicou o número, e o resto
-vira uma linha com os ingredientes nomeados — que é justamente a linha que ela
+vira uma linha com os ingredientes nomeados, que é justamente a linha que ela
 citou de volta quando perguntou da cebola.
 
 **Duas ressalvas na língua dela**, e nenhum selo: *"achei poucas referências,

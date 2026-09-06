@@ -205,14 +205,13 @@ respostas, e a que elas caem é invariavelmente o sim. O risco inteiro que se
 está administrando é ela comprar ingredientes para um prato que não consegue
 produzir.
 
-**As chaves são canônicas, não texto livre.** A primeira versão aceitava qualquer
-string em `item`, e o agente gravava `forno de 45l`. O portão então procurava
-`forno`, não achava, e devolvia `unknown`, enquanto ler o perfil dava a
-resposta. O atalho ficava melhor que o caminho certo, e o agente naturalmente
-pegava o atalho. Agora `record_capability` resolve o que chega para uma chave do
-catálogo (`forno de 45l` → `forno`, o detalhe indo para `note`) e recusa o que
-não mapeia, apontando para `register_requirement`. Um portão que não encontra o
-que foi gravado não é um portão.
+**As chaves são canônicas, não texto livre.** Com `item` livre, o agente grava
+`forno de 45l`, o portão procura `forno`, não acha, e devolve `unknown` enquanto
+o perfil já tem a resposta. O atalho passa a ser melhor que o caminho certo, e
+um agente pega o atalho. Então `record_capability` resolve o que chega para uma
+chave do catálogo (`forno de 45l` vira `forno`, e o detalhe vai para `note`) e
+recusa o que não mapeia, apontando para `register_requirement`. Um portão que não
+encontra o que foi gravado não é um portão.
 
 **Observabilidade.** `unknown` é uma lacuna contável, não uma ausência silenciosa.
 `elicitation_coverage` devolve a fração do catálogo já respondida, o que
@@ -375,13 +374,12 @@ e ele não conseguir pular.
 do fluxo. Por isso a nota determinística volta na hora e sozinha basta para
 barrar: uma resposta que já falhou nela nunca chega a pagar o turno do juiz.
 
-**A confiança não pode depender de o agente pedir.** A primeira versão era uma
-ferramenta que o agente devia chamar antes de falar. Medido numa conversa real:
-onze chamadas ao MCP, **zero avaliações**. Um modelo pequeno com cinquenta e duas
-ferramentas não lembra de chamar mais uma antes de cada mensagem, e uma
+**A confiança não depende de o agente pedir.** Como ferramenta que o agente
+deve chamar antes de falar, ela é pulada: um modelo com cinquenta e nove
+ferramentas na mão não lembra de chamar mais uma antes de cada mensagem, e uma
 instrução que pode ser pulada não é garantia.
 
-Então o servidor virou observador. Um middleware intercepta toda chamada, guarda
+Por isso o servidor é observador. Um middleware intercepta toda chamada, guarda
 as que carregam evidência (gate, CMV, consenso, mercado, inflação) e recalcula
 a nota depois de cada uma, escrevendo uma linha no log. `jacquinho confidence`
 lê esse log ao lado do chat. Nada depende de o agente lembrar.
@@ -391,37 +389,36 @@ própria camada de confiança: o que pode ser conferido não fica como pedido.
 
 **E é visível para quem opera.** Toda avaliação constrói um badge:
 `〔preço: confiança alta · CMV completo · 4 fontes〕`. Ele vai para o log, para
-`answer_assessments` e para `jacquinho confidence` — e para nenhum outro lugar.
+`answer_assessments` e para `jacquinho confidence`, e para nenhum outro lugar.
 O relatório que chega ao agente é o mesmo relatório **menos** esse campo.
 
-Durante um tempo ele ia também para a Dona Maria, colado no fim de cada
-mensagem, e a justificativa parecia boa: ela deveria saber quão firme é a
-resposta. Lendo as transcrições de fora, o erro fica evidente. Ela é cozinheira
-abrindo um delivery, não avaliadora deste sistema, e "inflação antiga" não é uma
-ressalva na língua dela, é vocabulário interno vazando para dentro da conversa.
-Um selo que aparece em toda mensagem também é um selo que ela aprende a ignorar.
+Colá-lo no fim da mensagem dela tem uma justificativa que parece boa, a de que
+ela deveria saber quão firme é a resposta, e não sobrevive à leitura de fora. Ela
+é cozinheira abrindo um delivery, não avaliadora deste sistema, e "inflação
+antiga" não é ressalva na língua dela: é vocabulário interno vazando para dentro
+da conversa. Um selo que aparece em toda mensagem também é um selo que ela
+aprende a ignorar.
 
 O que ela precisa saber continua sendo dito, dentro da frase e com as palavras
 dela: *"achei só uma referência de preço, então trate como indicativo"*. Some
 quando não há ressalva a fazer, que é como uma ressalva deveria se comportar.
 O relatório devolve isso pronto em `caveat_for_her`, no máximo duas linhas e só
-para os sinais que saíram fracos — uma mensagem que ressalva sobre tudo não
+para os sinais que saíram fracos, porque uma mensagem que ressalva sobre tudo não
 ressalva sobre nada.
 
-**Tirar a instrução não bastou; tirar o campo bastou.** Duas vezes o texto que
-mandava colar o selo foi reescrito, e duas vezes o selo reapareceu embaixo de uma
-mensagem sobre lasanha. É o que um agente faz com uma instrução dentro de um
-resultado de ferramenta: obedece. Enquanto existisse um campo chamado `badge`
-com uma linha formatada dentro, ele continuaria sendo colado. Então o campo sai
-do payload antes de o relatório deixar o servidor, e o que sobra não tem como
-vazar. É a mesma lição das outras decisões deste documento, aplicada a nós
-mesmos: uma regra escrita onde não pode ser imposta é um conselho.
+**O campo sai do payload, e não só a instrução.** Não basta pedir ao agente que
+não cole o selo. Enquanto existir um campo chamado `badge` com uma linha
+formatada dentro de um resultado de ferramenta, ele acaba colado, porque é isso
+que um agente faz com o que parece pronto para uso. Então o campo é removido
+antes de o relatório deixar o servidor, e o que sobra não tem como vazar. É a
+mesma lição das outras decisões deste documento aplicada a nós mesmos: uma regra
+escrita onde não pode ser imposta é um conselho.
 
-**A confiança é da afirmação, não do pipeline.** A primeira versão pontuava toda
-mensagem contra os cinco sinais (gate, CMV, consenso, mercado, inflação) e o
-resultado era 0,00 na conversa inteira. Faz sentido: "você tem 37 ingredientes"
-não precisa de preço de mercado. Marcar isso como zero não dizia nada sobre a
-frase e tudo sobre um medidor apontado para o lugar errado.
+**A confiança é da afirmação, não do pipeline.** Pontuar toda mensagem contra os
+cinco sinais (gate, CMV, consenso, mercado, inflação) dá 0,00 na conversa
+inteira, e com razão: "você tem 37 ingredientes" não precisa de preço de
+mercado. Uma nota assim não diz nada sobre a frase e tudo sobre um medidor
+apontado para o lugar errado.
 
 Cada mensagem afirma um tipo de coisa, e cada tipo se apoia em evidência
 diferente:
@@ -675,38 +672,35 @@ subir um servidor, o que era o próprio sintoma de estar no lugar errado.
 
 ---
 
-## 23. As falhas da métrica são corrigidas onde dá, e escritas onde não dá
+## 23. Os limites da métrica ficam escritos ao lado do número
 
-**Decisão.** As seis falhas conhecidas da camada de confiança foram atacadas, e
-cada uma tem o estado registrado: corrigida, parcial ou explicitada. As que
-permanecem estão escritas com o motivo.
+**Decisão.** A camada de confiança tem seis limites conhecidos, cada um com o
+alcance registrado, e os que não têm solução estão escritos com o motivo.
 
-| Falha | Estado |
+| Limite | Alcance |
 |---|---|
-| O observador não lê a mensagem | Mitigada: o cardápio exige avaliação |
-| Afirmação inferida da última ferramenta | Corrigida: declarada tem precedência |
-| Degraus arbitrários | Explicitados como ordinais, não calibrados |
-| Sessão global | Parcial: trilha por sessão e prato, chave ainda fixa |
-| Trilha só cresce | Corrigida: por prato, despensa compartilhada |
-| `pantry` binário | Corrigida: cobertura vira a nota |
+| O observador não lê a mensagem | Fecha o que é cifra, deterministicamente; o resto depende do juiz |
+| Uma nota de sinal por mensagem | A granularidade fina vem da decomposição por afirmação |
+| Degraus ordinais | Ordenam respostas; o valor absoluto não é probabilidade |
+| Chave de sessão fixa | Correta para uma conversa por vez, aberta para várias |
+| Trilha por prato | A despensa é a exceção deliberada, porque é sobre a cozinha |
+| `pantry` mede cobertura | Sem conferir a receita, o sinal só diz que a despensa foi lida |
 
 **Motivo.** Uma métrica cujos limites não estão documentados vira número mágico:
 alguém lê 0,85 e acredita que significa 85% de alguma coisa. Não significa. Os
-degraus ordenam respostas corretamente e o valor absoluto não é probabilidade de
+degraus ordenam respostas corretamente, o valor absoluto não é probabilidade de
 nada, e isso precisa estar escrito ao lado do número.
 
-**Consequência.** Duas correções vieram de tentar corrigir, não de planejar. A
-trilha por prato revelou que `kitchen_check_feasibility` **não tinha argumento
-`dish`**: a aprovação caía numa trilha sem nome e o prato era recusado no
-cardápio sem explicação. E o isolamento por sessão revelou que `ctx.session_id`
-é um UUID novo a cada requisição: cada chamada caía numa trilha própria e nada
-acumulava.
+**Consequência.** Duas restrições de implementação saem daí e valem registro,
+porque não são óbvias antes de tentar. A trilha por prato exige que
+`kitchen_check_feasibility` receba `dish`: sem isso a aprovação cai numa trilha
+sem nome e o prato é recusado no cardápio sem explicação. E o isolamento por
+sessão não pode usar `ctx.session_id`, que é um UUID novo a cada requisição, o
+que faria cada chamada cair numa trilha própria sem nada acumular.
 
-**Observabilidade.** O que sobrou está em `docs/metricas.md` com o residual de
-cada falha, não como lista de desejos mas como limite conhecido do que a nota
-mede.
-
----
+**Observabilidade.** O detalhe de cada limite está em
+[metricas.md](metricas.md#limites-conhecidos), não como lista de desejos mas como
+fronteira conhecida do que a nota mede.
 
 ---
 
@@ -716,10 +710,10 @@ mede.
 que prato está em jogo, se o portão passou, se o CMV foi calculado, se o mercado
 foi pesquisado, e qual é a próxima ação.
 
-**Motivo.** Nove turnos de conversa real mostraram o defeito dominante: o agente
-perde o fio e volta a oferecer o que ela já escolheu. Não por má vontade: nada
-à frente dele dizia onde as coisas estavam. Dizer uma vez, num texto que ele
-pode não reler, não é o mesmo que dizer em toda chamada.
+**Motivo.** O defeito dominante numa conversa longa é o agente perder o fio e
+voltar a oferecer o que ela já escolheu. Não é má vontade: sem nada à frente dele
+dizendo onde as coisas estão, ele depende de reler o próprio contexto. Dizer uma
+vez, num texto que ele pode não reler, não é o mesmo que dizer em toda chamada.
 
 **Consequência.** É a mesma regra do projeto inteiro aplicada à condução: o que
 pode ser conferido não fica como pedido. O middleware já mantinha a trilha por
@@ -737,14 +731,14 @@ silenciada aí é exatamente como isso passa despercebido.
 portão aprovado **e** CMV completo para aquele prato; cardápio exige, além
 disso, que uma avaliação tenha ocorrido.
 
-**Motivo.** Metade das ferramentas nunca era chamada numa conversa real. CMV,
-mercado, feedback, memória. Instruir não bastou. A alavanca que já havia
-funcionado para o portão foi estendida: cada exigência transforma uma sugestão
-numa garantia, e só nas ferramentas que mexem no dinheiro dela ou vão para um cardápio.
+**Motivo.** Uma ferramenta que o agente pode pular é uma ferramenta que ele
+pula, e as puladas são sempre as mesmas: CMV, mercado, feedback, memória. Cada
+exigência transforma uma sugestão numa garantia, e só nas ferramentas que mexem
+no dinheiro dela ou colocam um prato no cardápio.
 
-**Consequência.** O caminho certo passou a ser o único caminho, em vez do mais
-trabalhoso. Foi isso que fez o agente pular o portão antes: ler o perfil dava
-resposta e rodar o portão dava trabalho.
+**Consequência.** O caminho certo é o único caminho, em vez do mais trabalhoso.
+Enquanto ler o perfil dá resposta e rodar o portão dá trabalho, o portão é
+pulado; a exigência tira essa escolha da mesa.
 
 ---
 
@@ -815,11 +809,11 @@ mesma trilha.
 **Decisão.** `dishes_discover_dishes` aceita cinco chamadas por sessão. A sexta
 é recusada pelo middleware, não desencorajada pela descrição.
 
-**Motivo.** Numa conversa gravada o agente chamou a busca vinte vezes seguidas e
-não respondeu nada à Dona Maria. Não foi capricho do modelo: o `next_step` da
-ferramenta convidava a tentar de novo quando o consenso vinha fraco, e consenso
-fraco é o caso comum. Cada chamada tornava a próxima mais atraente, e a única
-saída do laço era o modelo decidir sozinho que já bastava.
+**Motivo.** A descoberta de pratos é um laço que se realimenta: o `next_step`
+convida a tentar de novo quando o consenso vem fraco, e consenso fraco é o caso
+comum. Cada chamada torna a próxima mais atraente, e sem teto a única saída é o
+modelo decidir sozinho que já bastou, com a Dona Maria esperando na tela por um
+turno que faz cem buscas e não responde nada.
 
 Um teto resolve isso de um jeito que nenhuma redação resolve. A recusa carrega o
 que fazer em seguida, seja usar o que já foi achado ou perguntar a ela, em vez de
@@ -841,16 +835,16 @@ aparecem contadas, e o teto aparece como recusa, não como silêncio.
 mesmo e devolve o veredito como dado: `dish_now_ruled_out`, com o item que
 bloqueia e a frase pronta. Pedir a próxima pergunta faz o mesmo.
 
-**Motivo.** É o pior desfecho possível da conversa e aconteceu de verdade: a
-Dona Maria diz "não tenho forno", o agente grava, e segue perguntando outra
-coisa. Ela entregou exatamente a informação que mata a lasanha e não ouviu nada
-sobre a lasanha.
+**Motivo.** O pior desfecho possível da conversa é este: a Dona Maria diz "não
+tenho forno", o agente grava, respeita o bloqueio dali em diante e segue
+perguntando outra coisa. Ela entregou exatamente a informação que mata a lasanha
+e não ouviu nada sobre a lasanha.
 
-O `next_step` já mandava fechar o prato, com todas as letras. Não bastou:
-instrução que o modelo pode pular não é garantia, que é a lição que se repete
-neste documento inteiro. Então a gravação passou a fazer a checagem ela mesma.
-`next_questions` ganhou a mesma verificação porque pedir a próxima pergunta é
-precisamente o instante em que o agente ia mudar de assunto.
+Um `next_step` mandando fechar o prato, com todas as letras, não resolve:
+instrução que o modelo pode pular não é garantia, que é a lição repetida neste
+documento inteiro. Então a própria gravação faz a checagem. `next_questions` tem
+a mesma verificação porque pedir a próxima pergunta é precisamente o instante em
+que o agente mudaria de assunto.
 
 **Consequência.** O veredito chega como estrutura, não como conselho: prato,
 `verdict: rejected`, `blocked_by`, e a frase a dizer. Dois testes cobrem os dois
@@ -871,17 +865,17 @@ essa frase. Todas as ferramentas que significam seguir em frente são recusadas
 até que `kitchen_announce_verdict` receba o texto que ela vai ler, e esse texto
 é conferido: precisa nomear o prato dela e o que decidiu aquilo.
 
-**Motivo.** É o pior turno que este agente já produziu, e nenhum número estava
-errado: ela diz "não tenho forno", o servidor arquiva certo, e a resposta fala
-de outra coisa. Ela entregou o fato que matou o prato dela e não ouviu nada
-sobre o prato dela.
+**Motivo.** É o pior turno que este agente consegue produzir sem errar um único
+número: ela diz "não tenho forno", o servidor arquiva certo, e a resposta fala de
+outra coisa. Ela entregou o fato que matou o prato dela e não ouviu nada sobre o
+prato dela.
 
-Três tentativas, todas por redação. Um `next_step` mandando fechar o prato com
-todas as letras. Depois a frase pronta devolvida em `dish_now_ruled_out.say_now`.
-Depois a mesma checagem em `next_questions`, porque pedir a próxima pergunta é o
-instante em que ele mudava de assunto. Melhorou nas três, acertou em nenhuma:
-redação é conselho, e conselho o modelo pode pular. É a mesma lição que este
-documento repete desde a decisão 1.
+Redação não fecha esse buraco, e há três formas de tentar: um `next_step`
+mandando fechar o prato com todas as letras, a frase pronta devolvida em
+`dish_now_ruled_out.say_now`, e a mesma checagem em `next_questions`, que é o
+instante em que o agente mudaria de assunto. As três melhoram o comportamento e
+nenhuma o garante, porque redação é conselho, e conselho o modelo pode pular. É
+a lição que este documento repete desde a decisão 1.
 
 **Consequência.** Ler nunca é recusado: despensa, perfil, histórico e o próprio
 portão seguem abertos, porque conferir antes de falar é o que ele deveria estar
@@ -895,8 +889,8 @@ comparação, senão dizer "forno" passaria por ter nomeado "lasanha ao forno".
 
 Isso não garante que a frase conferida seja de fato enviada a ela; o servidor
 não vê a mensagem final. O que garante é que ela foi escrita, com o prato e o
-motivo dentro, antes de qualquer outra coisa acontecer, e na simulação isso foi
-suficiente, o que as três redações anteriores nunca foram.
+motivo dentro, antes de qualquer outra coisa acontecer. O elo que falta é fechado
+pelo gancho de fim de turno, na decisão 33, que enfim vê a mensagem entregue.
 
 **Observabilidade.** A dívida aparece em `conversation_state.deve_a_ela`, em toda
 resposta de ferramenta, e a recusa diz exatamente o que falta dizer.
@@ -909,22 +903,20 @@ resposta de ferramenta, e a recusa diz exatamente o que falta dizer.
 `confirmed_no`, e procura essa citação nas falas guardadas dela antes de aceitar.
 Sem conversa guardada, nada pode ser confirmado. `unknown` não exige citação.
 
-**Motivo.** Numa simulação com o banco zerado, o agente decidiu sozinho que ela
-tinha forno, fogão, sabia montar camadas e gratinar, sem perguntar nada. O
-portão aprovou em cima disso e precificou uma lasanha inteira, com margem e
-tudo, para uma cozinha que não a assa. O portão funcionou perfeitamente: ele
-confere o perfil, e o perfil dizia sim.
+**Motivo.** Sem essa exigência, nada impede o agente de decidir sozinho que ela
+tem forno, fogão e prática de gratinar, e de precificar uma lasanha inteira em
+cima disso. O portão continuaria funcionando perfeitamente: ele confere o perfil,
+e o perfil diria sim.
 
-O problema era de onde vinha o sim. O único registro do que ela tinha dito
-morava no contexto do modelo, e o servidor não tinha como discordar. "Silêncio
-não é consentimento" estava escrito na descrição da ferramenta desde o começo, o
-que o tornava exatamente o tipo de regra que este projeto já aprendeu a não
-confiar.
+O problema é de onde vem o sim. Se o único registro do que ela disse mora no
+contexto do modelo, o servidor não tem como discordar. "Silêncio não é
+consentimento" escrito na descrição da ferramenta é exatamente o tipo de regra em
+que este projeto não confia.
 
-**Consequência.** A conversa passa a ser gravada de verdade. Antes o Redis
-ficava vazio numa consultoria inteira, e a janela de contexto documentada não
-descrevia nada. A gravação vira dependência de uma coisa que o agente quer
-fazer, e por isso acontece.
+**Consequência.** A conversa é gravada de verdade, porque a gravação vira
+dependência de uma coisa que o agente quer fazer. Sem isso o Redis atravessaria
+uma consultoria inteira vazio, e a janela de contexto documentada não descreveria
+nada.
 
 Continua sendo possível inventar a citação junto com a resposta. A diferença é
 que agora inventar é um ato explícito, escrito, e auditável: a nota gravada
@@ -1036,15 +1028,16 @@ a exigir `her_words`, conferidas na transcrição capturada como qualquer
 capacidade da cozinha. O que a tabela guarda é o que **ela decidiu** gastar, não
 o que foi gasto.
 
-**Motivo.** Numa consultoria gravada, o agente disse a ela: *"Já comprei a massa
-de lasanha e os temperos que faltavam por R$ 30,85, dentro do seu orçamento de
-R$ 80."* Ele não comprou. Não tem carteira, não tem cartão, não vai ao mercado.
+**Motivo.** O agente não tem carteira, não tem cartão e não vai ao mercado, e a
+frase que ele não pode dizer é esta: *"Já comprei a massa de lasanha e os
+temperos que faltavam por R$ 30,85, dentro do seu orçamento de R$ 80."*
 
-Não foi um deslize de redação. A ferramenta se chamava `commit_purchase`, a
-descrição dizia *"spend against the budget"*, e o argumento que faltava era
-justamente aquele que tornaria a decisão dela: a ferramenta não pedia nada da
-Dona Maria para tirar dinheiro do orçamento da Dona Maria. Um modelo lendo
-"gastar" escreve "gastei", e está sendo coerente com o que leu.
+Impedir isso não é questão de redação. Uma ferramenta chamada `commit_purchase`,
+com descrição dizendo *"spend against the budget"*, produz exatamente essa frase,
+porque um modelo lendo "gastar" escreve "gastei" e está sendo coerente com o que
+leu. E o argumento que faltava era justamente o que tornaria a decisão dela: a
+ferramenta não pedia nada da Dona Maria para tirar dinheiro do orçamento da Dona
+Maria.
 
 O dano de acreditar nessa frase é concreto. Ela pode não ir ao mercado, achando
 que já está feito; pode não conferir preço, achando que já foi pago; e o custo
@@ -1142,13 +1135,13 @@ nela e a unidade. A ferramenta divide em dois números que não são o mesmo: a
 fração que a receita consome, que entra no CMV, e as embalagens inteiras que ela
 precisa comprar, que entram na lista de compras.
 
-**Motivo.** Antes, um ingrediente fora da despensa caía em `not_found` e ficava
-**fora do CMV**, com o cálculo marcado incompleto. Não havia caminho de volta:
-nenhum argumento aceitava um preço pesquisado. Então o modelo fazia a conta na
-mensagem, e o resultado apareceu numa consultoria gravada: uma lata de leite
-condensado, um pacote de chocolate em pó e um de granulado somaram R$ 29,86, e
-esse número foi tratado como o custo do lote. Não é. É o que ela paga no caixa;
-o brigadeiro come uma colherada de cada um.
+**Motivo.** Sem um argumento que aceite um preço pesquisado, um ingrediente fora
+da despensa cai em `not_found` e fica **fora do CMV**, com o cálculo marcado
+incompleto e nenhum caminho de volta. O modelo então faz a conta na mensagem, e o
+resultado é sempre a mesma troca: uma lata de leite condensado, um pacote de
+chocolate em pó e um de granulado somam R$ 29,86, e esse número vira "o custo do
+lote". Não é. É o que ela paga no caixa; o brigadeiro come uma colherada de cada
+um.
 
 A mesma conta feita direito dá R$ 0,98 por brigadeiro. A diferença entre os dois
 números é a diferença entre um preço de venda que fecha e um que não fecha.
@@ -1178,29 +1171,25 @@ percentual, mais a frase pronta em `say_it_like_this`.
 faz é se o dia valeu a pena, e essa precisa da quantidade, que é dela.
 
 **Consequência.** Três percentuais, e a escolha de qual vai na frase importa
-mais que o cálculo. A primeira versão liderava com **retorno sobre o custo de
-produção** e imprimiu *"um retorno de 1556%"* para um brigadeiro. É
-aritmeticamente verdadeiro e inútil: a base é a colherada que a fornada
-consome, não o que ela paga no caixa.
+mais que o cálculo. **Retorno sobre o custo de produção** dá números como
+*"1556%"* para um brigadeiro: aritmeticamente verdadeiro e inútil, porque a base
+é a colherada que a fornada consome e não o que ela paga no caixa.
 
-A frase passou a liderar com **margem sobre a venda**, que não pode passar de
-100 e por isso continua acreditável e comparável entre pratos: *"57 centavos de
-cada real vendido"*. Retorno sobre custo e retorno sobre desembolso continuam na
-resposta, rotulados, com um campo `careful_with` dizendo por que não citá-los.
+A frase lidera com **margem sobre a venda**, que não pode passar de 100 e por
+isso continua acreditável e comparável entre pratos: *"57 centavos de cada real
+vendido"*. Retorno sobre custo e retorno sobre desembolso vêm na resposta,
+rotulados, com um campo `careful_with` dizendo por que não citá-los.
 
 Os dois custos ficam separados de propósito: o que a comida custa, incluindo o
 que ela já tinha, e o que ainda precisa sair do bolso dela. Somar os dois conta
 duas vezes a despensa que ela já pagou.
 
-**Cada linha do fechamento tem um campo atrás dela.** A taxa da plataforma só
-voltava como total, e a mensagem de fechamento lê prato por prato — então o
-agente subtraía por prato na prosa. Numa gravação com dois pratos no cardápio, a
-conferência automática de cifras marcou **R$ 19,92 e R$ 46,62 como sem lastro**:
-os dois estavam certos, e estar certo não é o critério. Conta feita na mensagem
-é conta que ninguém pode conferir, e a que aparece amanhã com o número errado
-tem exatamente a mesma cara. `dishes[]` passou a devolver `platform_fee_paid`,
-`after_platform_fee` e `production_cost` por prato, e os três entraram no mapa de
-saídas tipadas.
+**Cada linha do fechamento tem um campo atrás dela.** A mensagem lê prato por
+prato, então cada prato precisa dos próprios números: `dishes[]` devolve
+`platform_fee_paid`, `after_platform_fee` e `production_cost`, e os três estão no
+mapa de saídas tipadas. Com apenas o total, a divisão por prato vira conta feita
+na prosa, e conta feita na mensagem é conta que ninguém pode conferir. A que
+estiver certa e a que estiver errada têm exatamente a mesma cara.
 
 **Observabilidade.** Percentual sobre base inexistente volta `None`, não zero:
 uma porcentagem sobre nada não é infinito, é uma pergunta sobre dado faltando.
@@ -1212,11 +1201,11 @@ uma porcentagem sobre nada não é infinito, é uma pergunta sobre dado faltando
 **Decisão.** Quando não há exigências lidas de uma receita, o arquivamento do
 prato morto usa os impedimentos que o próprio `check_feasibility` devolveu.
 
-**Motivo.** O arquivamento dependia de o agente ter passado por
-`kitchen_analyse_recipe_requirements`. Numa gravação ele foi direto ao
-`check_feasibility`: anunciou a lasanha morta corretamente, e `recipe_blocks`
-ficou **vazio**. A frase saiu certa e a garantia não existiu. No dia em que ela
-ganhasse um forno, não havia o que voltar.
+**Motivo.** Depender de o agente ter passado por
+`kitchen_analyse_recipe_requirements` é depender de um segundo passo. Quem vai
+direto ao `check_feasibility` anuncia a lasanha morta corretamente e deixa
+`recipe_blocks` **vazio**: a frase sai certa e a garantia não existe. No dia em
+que ela ganhar um forno, não há o que voltar.
 
 É a diferença entre uma garantia e um caminho feliz: dependia de qual das duas
 ferramentas o modelo escolheu, e as duas são legítimas.
@@ -1234,22 +1223,20 @@ mais específica. Dois testes de domínio cobrem os dois caminhos.
 turno marca quais custos apareceram na mensagem entregue; só esses contam como
 promessa.
 
-**Motivo.** A primeira versão desta decisão comparava com o histórico da
-ferramenta, e produziu um defeito pior que o silêncio que ela existia para
-corrigir. Numa conversa nova, na primeira vez que o agente falou de dinheiro, a
-mensagem abriu assim:
+**Motivo.** Comparar com o histórico da ferramenta produz um defeito pior que o
+silêncio que a comparação existe para corrigir:
 
 > *"Antes de mais nada: preciso corrigir um número. Eu tinha te dito que a
 > lasanha de panela custava R$ 9,90 por marmita."*
 
-Ele nunca disse isso. Dentro de um turno o prato é custeado várias vezes
-enquanto o agente resolve a receita, e só o último número é falado. Comparar com
-o histórico da ferramenta fez o agente **inventar uma lembrança da conversa** e
-pedir desculpa por um preço que ela nunca viu.
+Uma frase dessas sobre um número que ela nunca viu. Dentro de um turno o prato é
+custeado várias vezes enquanto o agente resolve a receita, e só o último número é
+falado; os anteriores existem apenas no histórico da ferramenta. Comparar contra
+eles faz o agente **inventar uma lembrança da conversa**.
 
-Silêncio sobre uma mudança é ruim. Uma memória falsa da conversa é pior: ela
-corrói exatamente a coisa que o resto do sistema existe para proteger, que é ela
-poder confiar no que ele diz ter dito.
+Silêncio sobre uma mudança é ruim. Uma memória falsa da conversa é pior: corrói
+exatamente a coisa que o resto do sistema existe para proteger, que é ela poder
+confiar no que ele diz ter dito.
 
 **Consequência.** Só o que passou pela fronteira do turno vira promessa, o que
 significa que a mesma máquina que já servia para conferir cifras e entregar
@@ -1270,11 +1257,11 @@ chamada seguinte com lista diferente é **recusada**, com a receita fechada e o
 custo dela devolvidos. Só `pricing_reopen_recipe` reabre, e ele exige as
 palavras dela.
 
-**Motivo.** Numa consultoria o custo da mesma lasanha andou sozinho: R$ 9,90,
-depois R$ 8,18, depois R$ 7,15. As três contas estavam certas. A aritmética
-nunca foi o problema: os **insumos** eram, porque o agente compunha uma lista de
-ingredientes um pouco diferente a cada chamada, e nada no sistema podia dizer
-qual daquelas listas *era* o prato.
+**Motivo.** Sem isso o custo da mesma lasanha anda sozinho ao longo da
+consultoria: R$ 9,90, depois R$ 8,18, depois R$ 7,15, com a conta certa nas três
+vezes. A aritmética nunca é o problema; os **insumos** são, porque o agente
+compõe uma lista de ingredientes um pouco diferente a cada chamada e nada no
+sistema pode dizer qual daquelas listas *é* o prato.
 
 A decisão 42 detecta a mudança e manda explicá-la a ela. Isso é o segundo melhor
 resultado. O melhor é o número não andar: **um prato tem uma receita**, e se ela
@@ -1411,19 +1398,17 @@ linha.
 gravados junto com a receita fechada. `budget_reserve_purchase` **recusa** um
 valor que não seja esse.
 
-**Motivo.** Numa consultoria, uma mensagem dizia que a massa de lasanha era a
-única coisa faltando e custava R$ 6,95. A mensagem de fechamento reservou
-R$ 12,00 "da massa de lasanha e orégano". O orégano apareceu do nada e o total
-nunca foi explicado.
+**Motivo.** Com `amount` livre, um turno diz que a massa de lasanha é a única
+coisa faltando e custa R$ 6,95, e o fechamento reserva R$ 12,00 "da massa de
+lasanha e orégano": o orégano aparece do nada e o total nunca é explicado. Um
+parâmetro livre num lugar onde existe resposta certa derivável é um convite a
+inventar.
 
-O `amount` era um parâmetro livre da ferramenta. Um parâmetro livre num lugar
-onde existe resposta certa é um convite a inventar, e o modelo aceitou.
-
-**E há um furo mais fundo aqui, que este caso expôs.** A conferência de cifras
-pergunta se alguma ferramenta produziu o número. `budget_reserve_purchase`
-recebia o `12.00` **do modelo** e o devolvia no resultado, então o número
-aparecia como "produzido por ferramenta". Argumento ecoado não é evidência, e
-tratá-lo como tal transforma a checagem em raciocínio circular.
+**E há um furo mais fundo aqui.** A conferência de cifras pergunta se alguma
+ferramenta produziu o número. Uma ferramenta que **recebe** o `12,00` do modelo e
+o devolve no resultado faz esse número aparecer como "produzido por ferramenta".
+Argumento ecoado não é evidência, e tratá-lo como tal transforma a checagem em
+raciocínio circular.
 
 A lição vale além deste caso: **uma ferramenta só serve de evidência para os
 valores que ela calcula**, não para os que recebe. Onde existe resposta certa
@@ -1496,17 +1481,17 @@ Dona Maria. Ele continua existindo, vai para o log e para
 `jacquinho confidence`, e quem o lê é quem opera o sistema. A ressalva que ela
 precisa ouvir passa a ser dita dentro da frase, com as palavras dela.
 
-**Motivo.** A justificativa original parecia boa: ela deveria saber quão firme é
-a resposta antes de agir. Lendo as transcrições de fora, o erro fica evidente.
-Toda mensagem terminava assim:
+**Motivo.** A justificativa de mostrar o selo a ela parece boa: ela deveria saber
+quão firme é a resposta antes de agir. O que ela leria é isto, no fim de toda
+mensagem:
 
 > 〔preço: confiança média · sem preço de mercado firme · inflação antiga ·
 > cozinha confere〕
 
 "Inflação antiga" não é uma ressalva na língua dela. É o vocabulário interno do
 avaliador vazando para dentro da conversa, na mesma família do
-`o que decidiu isso` que já tinha vazado duas vezes por outro caminho. Ela é
-cozinheira abrindo um delivery, não avaliadora deste sistema.
+`o que decidiu isso`. Ela é cozinheira abrindo um delivery, não avaliadora deste
+sistema.
 
 E há um problema de desenho além do vocabulário: um selo que aparece em **toda**
 mensagem é um selo que ela aprende a ignorar. Uma ressalva que nunca some deixa
@@ -1516,10 +1501,10 @@ de ser ressalva.
 referência de preço, então trate como indicativo, não como verdade absoluta"*,
 *"esse número de inflação é da última publicação, pode ter mudado"*. Aparece
 quando há o que ressalvar e some quando não há, que é como uma ressalva deveria
-se comportar. Na gravação seguinte à mudança, foi exatamente isso que saiu.
+se comportar.
 
-O que se perde é a garantia de formato: a ressalva agora é redigida pelo modelo,
-e portanto varia e pode faltar. O que se ganha é que, quando aparece, ela é
+O que se perde é a garantia de formato: a ressalva é redigida pelo modelo, e
+portanto varia e pode faltar. O que se ganha é que, quando aparece, ela é
 legível para a pessoa a quem se destina. E a medição não depende disso: quem
 quer saber a confiança de cada mensagem tem `jacquinho.claims` no log, que não
 depende de o modelo lembrar de nada.
@@ -1536,25 +1521,24 @@ devolvendo badge e nota, `answer_assessments` continua gravando, e o
 ela é aquele cujo veredito do portão nomeia **aquele item** como impedimento, e o
 mais recente quando há mais de um. Só na falta disso vale o prato em jogo.
 
-**Motivo.** O arquivamento usava o "prato em jogo", que é o último prato nomeado
-por uma ferramenta. Parece a mesma coisa e não é: quando ela responde *"não tenho
-forno"*, o agente muitas vezes já nomeou a substituição, e aí o prato em jogo é a
-lasanha **de panela**.
+**Motivo.** Arquivar contra o "prato em jogo", que é o último prato nomeado por
+uma ferramenta, parece a mesma coisa e não é. Quando ela responde *"não tenho
+forno"*, o agente muitas vezes já nomeou a substituição, e nesse instante o prato
+em jogo é a lasanha **de panela**.
 
-O resultado observado numa gravação foi o pior possível para uma garantia que o
-projeto anuncia: o bloqueio por falta de forno caiu sobre a versão que funciona,
-o agente teve de desbloqueá-la à mão para seguir, e a lasanha ao forno não ficou
-arquivada em lugar nenhum. No dia em que ela ganhasse um forno, não haveria o que
-voltar.
+O desfecho é o pior possível para uma garantia que o projeto anuncia: o bloqueio
+por falta de forno cai sobre a versão que funciona, o agente precisa
+desbloqueá-la à mão para seguir, e a lasanha ao forno não fica arquivada em lugar
+nenhum. No dia em que ela ganhar um forno, não há o que voltar.
 
 **Consequência.** A escolha passa a ser por evidência em vez de por proximidade
 temporal. O portão já sabe qual prato ele rejeitou e por quê; usar isso é mais
 barato e mais exato do que inferir pelo que foi nomeado por último.
 
-**Sobre a suíte.** Havia teste para o prato ser arquivado, e ele passava. Nos
-testes o prato em jogo **é** o prato morto, porque ninguém escreve um teste com o
-passo intermediário de o agente já ter sugerido a alternativa. A conversa real
-tinha um passo a mais que o teste não tinha, e é o tipo de lacuna que só simulação
+**Sobre a suíte.** Um teste de "o prato foi arquivado" passa mesmo com o critério
+errado, porque num teste o prato em jogo **é** o prato morto: ninguém escreve o
+passo intermediário de o agente já ter sugerido a alternativa. A conversa real tem
+um passo a mais que o teste não tem, e é o tipo de lacuna que só a simulação
 encontra.
 
 **Observabilidade.** `recipe_blocks` passa a mostrar o prato certo, e a diferença
@@ -1594,28 +1578,28 @@ divisão acontece onde pode ser mostrada.
 motivo. Corridos dentro de um parágrafo, seis ingredientes e seis valores viram
 uma coisa que ela passa o olho, e a linha que ela questionaria é justamente a que
 some. Em lista ela desce a coluna e para no item que não reconhece. As duas
-listas que ela lê numa conversa — o que a porção custa e por quanto vender — têm
+listas que ela lê numa conversa, o que a porção custa e por quanto vender, têm
 a mesma cara por isso; `price_scenarios` devolve `options_for_her` no mesmo
 formato.
 
 **Consequência.** A ordenação por peso não é enfeite: as duas ou três primeiras
 linhas explicam quase todo o número, e os centavos do fim são ruído. E o fim é
 **dobrado**, não mostrado: a partir do ponto em que a lista já explica 92% do
-número, ou depois de seis linhas, o resto vira uma linha só — *"e o resto
-(cebola, leite, alho, salsinha, sal): R$ 0,14"* — com os ingredientes nomeados e
+número, ou depois de seis linhas, o resto vira uma linha só, *"e o resto
+(cebola, leite, alho, salsinha, sal): R$ 0,14"*, com os ingredientes nomeados e
 os centavos somados.
 
-Isso saiu de uma gravação em que o escondidinho veio com onze marcadores,
-terminando em *"uma pitada de sal: R$ 0,00"*. Nada ali estava errado, e era pior
-que dar só o total: ela para de ler antes da linha que teria questionado. O que
-é dobrado continua contado — as linhas mostradas mais a dobrada somam o total —,
-só para de disputar a atenção dela com a carne moída.
+Sem isso, um escondidinho vem com onze marcadores terminando em *"uma pitada de
+sal: R$ 0,00"*. Nada ali está errado, e é pior que dar só o total: ela para de
+ler antes da linha que teria questionado. O que é dobrado continua contado, as
+linhas mostradas mais a dobrada somam o total, e só para de disputar a atenção
+dela com a carne moída.
 
 Cada linha do detalhamento passa pela conferência de afirmações como qualquer
-outra cifra, porque `ingredients[].cost` está no mapa de saídas. Numa gravação de
-verificação, a mensagem com a conta aberta foi julgada com **16 afirmações
-conferidas e 16 com lastro**: abrir a conta multiplicou o que pode ser conferido
-em vez de multiplicar o que precisa ser acreditado.
+outra cifra, porque `ingredients[].cost` está no mapa de saídas. Uma mensagem com
+a conta aberta chega a **vinte e três afirmações, vinte e três com lastro**:
+abrir a conta multiplica o que pode ser conferido em vez de multiplicar o que
+precisa ser acreditado.
 
 **Observabilidade.** O detalhamento é o mesmo dado que já ia para o log em
 `ingredients[]`, agora também numa forma que serve para falar. Não há segunda
@@ -1626,7 +1610,7 @@ fonte de verdade.
 **Decisão.** A quantidade em estoque de cada ingrediente deixa de ser um número
 fixo lido da planilha e passa a ser uma **derivação**: o que a planilha semeou,
 menos o que os pratos já aceitos consumiram. O consumo mora numa tabela própria
-em Postgres, `pantry_usage`, escrita só-adição — uma linha por ingrediente por
+em Postgres, `pantry_usage`, escrita só-adição: uma linha por ingrediente por
 prato, com a quantidade em unidade base, o prato que a levou e o carimbo de
 tempo. A linha de `pantry_items` nunca é reescrita.
 
@@ -1644,7 +1628,7 @@ CREATE TABLE pantry_usage (
 
 **Motivo.** A despensa dela não é um almoxarifado. São 1,5 kg de patinho, não
 patinho à vontade. Sem isso, o segundo prato calculava em cima de uma geladeira
-que o primeiro já tinha esvaziado, e a lista de compras saía curta — o erro que
+que o primeiro já tinha esvaziado, e a lista de compras saía curta, que é o erro
 custa caro, porque ela chega na cozinha com metade da carne que a fornada pede.
 
 *Por que só-adição, e não um `UPDATE` no estoque.* Porque a frase que ela precisa
@@ -1656,7 +1640,7 @@ escolha já feita no orçamento (decisão 36), pelo mesmo motivo.
 
 *Por que no aceite, e não no cálculo.* Orçar um prato é uma pergunta; colocá-lo
 no cardápio é uma decisão. `pricing_calculate_cmv` roda várias vezes por prato,
-inclusive para pratos que ela recusa — se cada orçamento baixasse o estoque, a
+inclusive para pratos que ela recusa. Se cada orçamento baixasse o estoque, a
 despensa esvaziava por conta de perguntas. Então quem escreve é `menu_add_dish`,
 no momento em que ela escolheu.
 
@@ -1667,7 +1651,7 @@ de lá. Re-derivar a partir dos nomes no aceite seria resolver o mesmo fato duas
 vezes, e duas resoluções são duas chances de discordar.
 
 **Consequência.** O caminho de volta existe e é automático. `menu_remove_dish`
-devolve o que o prato tinha levado, e `pricing_reopen_recipe` também — se a
+devolve o que o prato tinha levado, e `pricing_reopen_recipe` também: se a
 receita mudou, o que ela consumia era de um prato que não vai mais ser feito.
 Sem isso, desistir de uma lasanha deixaria a carne dela presa num prato que não
 existe mais.
@@ -1676,15 +1660,15 @@ O estoque nunca fica negativo: o que falta é uma linha de compra, não uma
 despensa com menos que nada dentro.
 
 **O que ela ouve.** `pricing_calculate_cmv` passa a devolver `pantry_already_spent`
-e, em cada item que falta, `why_short` — a frase pronta, com o prato que levou e
+e, em cada item que falta, `why_short`, a frase pronta, com o prato que levou e
 o quanto sobrou. `pantry_what_is_left` mostra o quadro inteiro com o histórico
 por ingrediente. A regra de voz correspondente está no SOUL.md: um "faltam 500 g"
 solto parece erro de planilha, e o que ela faz com um erro de planilha é duvidar
 do número em vez de comprar a carne.
 
-**Conferência.** As duas quantidades saem também como número puro —
+**Conferência.** As duas quantidades saem também como número puro,
 `ingredients[].stock_left_quantity`, `ingredients[].already_used_quantity` e
-`must_buy[].buy_quantity` — e entram no mapa de saídas tipadas (decisão 47) como
+`must_buy[].buy_quantity`, e entram no mapa de saídas tipadas (decisão 47) como
 afirmações de `PANTRY`. Assim "sobraram 500 g" é conferido contra uma cifra que
 uma ferramenta produziu, e não contra uma frase.
 
@@ -1701,14 +1685,13 @@ código sabe abrir.
 Maria disse em algum momento de quantas marmitas é a fornada dela, um número
 diferente é **recusado**, com a frase dela devolvida.
 
-**Motivo.** O argumento nasceu com `= 1`, e o agente pegou o padrão. Numa
-gravação de verificação ela abriu a conversa com *"faço 8 marmitas por fornada"*
-e o escondidinho foi custeado para uma fornada de uma: o custo por porção estava
-certo, e tudo o mais estava errado. A despensa perdeu **um oitavo** do que a
-fornada come — 125 g de patinho em vez de 1 kg — e a lista de compras do prato
-seguinte saiu curta em sete porções de carne. O sintoma apareceu na frase que ela
-lê: *"o escondidinho levou 125 g"*, quando ela tinha acabado de cozinhar oito
-marmitas.
+**Motivo.** Com valor padrão `= 1`, o agente pega o padrão. Ela abre a conversa
+com *"faço 8 marmitas por fornada"*, o escondidinho é custeado para uma fornada
+de uma, e o custo por porção sai certo enquanto tudo o mais sai errado: a
+despensa perde **um oitavo** do que a fornada come, 125 g de patinho em vez de
+1 kg, e a lista de compras do prato seguinte fica curta em sete porções de carne.
+O sintoma aparece na frase que ela lê, *"o escondidinho levou 125 g"*, logo
+depois de ela ter cozinhado oito marmitas.
 
 Um padrão que está errado sete vezes em cada oito é pior que um argumento
 faltando. Faltando, a chamada falha e o agente tem que decidir; com padrão, a
@@ -1719,33 +1702,33 @@ decisão, mas não força a decisão **certa**. O tamanho da fornada é um fato 
 como o forno e como o preço, e a fala dela está gravada fora do alcance do
 modelo. Então vale a mesma regra do resto do sistema: uma afirmação sobre o que
 ela disse é conferível contra o que ela disse. A conferência lê a fala mais
-recente em que ela nomeia uma fornada, por relógio e não por ordem de iteração —
-ela pode ter dito 12 num fôlego e 18 no seguinte, e a resposta é a última.
+recente em que ela nomeia uma fornada, por relógio e não por ordem de iteração,
+porque ela pode ter dito 12 num fôlego e 18 no seguinte, e a resposta é a última.
 
-**Consequência.** A suíte passou a limpar as falas capturadas antes de cada
-teste. Não é cosmético: com o Redis compartilhado, um "faço 18 marmitas" deixado
-pela conversa anterior decidiria o resultado de um teste que nunca falou em
-fornada. É o mesmo limite de isolamento de sessão já anotado no README, aparecendo
-onde dá para contorná-lo.
+**Consequência.** A suíte limpa as falas capturadas antes de cada teste. Não é
+cosmético: com o Redis compartilhado, um "faço 18 marmitas" deixado por outra
+conversa decidiria o resultado de um teste que nunca falou em fornada. É o mesmo
+limite de isolamento de sessão anotado no README, aparecendo onde dá para
+contorná-lo.
 
 ## 53. A mensagem vai em partes, e o tamanho não é o problema
 
-**Decisão.** Uma resposta se divide em partes — uma por linha, cada uma
-resolvendo uma coisa — e a pergunta, quando existe, vai sozinha na última.
+**Decisão.** Uma resposta se divide em partes, uma por linha, cada uma
+resolvendo uma coisa, e a pergunta, quando existe, vai sozinha na última.
 `confidence_assess_answer` devolve `message_pacing` com o rascunho medido:
 em quantas partes está, que assuntos cada parte resolve, quantas perguntas
 carrega e onde é a costura. `app/domain/pacing.py` faz a medida.
 
 **Motivo.** Ela lê no celular, com a panela no fogo. Receita, equipamento,
 custo, compras, mercado e preço soldados num parágrafo só é um parágrafo que ela
-passa o olho, e o que estava no meio se perde — em geral, a pergunta. O agente
+passa o olho, e o que estava no meio se perde, em geral a pergunta. O agente
 pergunta, ela não vê, e o turno seguinte abre cobrando uma decisão que ela nunca
 teve chance de tomar.
 
 O que se mede é **empilhamento, não comprimento**. Uma resposta longa para uma
 pergunta grande é uma boa resposta; o que quebra é soldar quatro decisões numa
-linha. Por isso o teto é por parte — no máximo dois assuntos e oitenta palavras
-em cada — e não pela mensagem inteira.
+linha. Por isso o teto é por parte, no máximo dois assuntos e oitenta palavras
+em cada, e não pela mensagem inteira.
 
 **Consequência.** A ferramenta nunca reescreve a mensagem. Quebrar prosa por
 regra produz prosa que soa quebrada, e o agente já sabe onde os próprios
@@ -1753,17 +1736,17 @@ parágrafos terminam: o que volta é a costura, no momento em que ele já está
 perguntando se o rascunho está pronto.
 
 `message_pacing` não entra na nota de confiança. Uma parede pode estar
-perfeitamente lastreada, e uma frase curta pode ser um chute — são dois defeitos
-diferentes e misturá-los apagaria os dois.
+perfeitamente lastreada, e uma frase curta pode ser um chute: são dois defeitos
+diferentes, e misturá-los apagaria os dois.
 
 **Onde a regra é imposta.** No rascunho, dentro de `confidence_assess_answer`.
 O limite de turno do runtime é conhecido: o Hermes entrega **uma** mensagem do
-assistente por turno, e só `pre_tool_call` pode bloquear — o gancho de fim de
-turno não tem como reescrever o que ela já leu. Então "partes" aqui são blocos
+assistente por turno, e só `pre_tool_call` pode bloquear, então o gancho de fim
+de turno não tem como reescrever o que ela já leu. Então "partes" aqui são blocos
 dentro do turno, que é como ela vê na tela; num gateway que aceite mais de um
 envio, a mesma regra produz mais de uma mensagem e nada neste módulo muda.
 
 **Observabilidade.** Quando uma parede sai mesmo assim, o gancho de fim de turno
 grava `jacquinho.pacing` com o número de partes, os assuntos e o motivo. Não é
-um portão — é a única forma de saber com que frequência o portão está sendo
+um portão: é a única forma de saber com que frequência o portão está sendo
 contornado.

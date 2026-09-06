@@ -225,7 +225,7 @@ erDiagram
 
 O caminho de volta é a exclusão das linhas do prato: `menu_remove_dish` e
 `pricing_reopen_recipe` apagam o que aquele prato tinha levado. Guardar o
-consumo separado do estoque é o que torna isso possível sem reconstruir nada — e
+consumo separado do estoque é o que torna isso possível sem reconstruir nada, e
 é o que permite a frase que ela precisa ouvir, *"você tinha 1,5 kg, a lasanha
 levou 1 kg, sobraram 500 g"*, que um saldo sozinho não teria como contar.
 

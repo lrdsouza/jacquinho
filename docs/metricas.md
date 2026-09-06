@@ -15,7 +15,7 @@ mede, e onde ela erra hoje.
 - [A conta](#a-conta)
 - [Impedimentos](#impedimentos)
 - [O segundo avaliador](#o-segundo-avaliador)
-- [Falhas conhecidas](#falhas-conhecidas-e-o-que-foi-feito)
+- [Limites conhecidos](#limites-conhecidos)
 - [A forma da mensagem](#a-forma-da-mensagem-message_pacing)
 - [Como melhorar](#como-melhorar)
 
@@ -212,89 +212,82 @@ O juiz só roda quando o agente pede (`confidence_assess_answer` seguido de
 
 ---
 
-## Falhas conhecidas, e o que foi feito
+## Limites conhecidos
 
-Uma métrica cujos limites não estão escritos vira número mágico. As seis falhas
-identificadas, e o estado de cada uma.
+Uma métrica cujos limites não estão escritos vira número mágico. Seis, com o
+alcance de cada um.
 
-### 1. O observador não lê a mensagem · *mitigada*
+### 1. O observador não lê a mensagem
 
-Ele pontua a trilha de evidência, não o texto. Um agente que reúne evidência
-impecável e depois escreve um número diferente do calculado recebe nota alta.
+O middleware fica na fronteira do MCP: ele vê chamadas de ferramenta, e a frase
+final nunca passa por ali. Um agente que reúne evidência impecável e depois
+escreve um número diferente do calculado recebe nota alta.
 
-**Por que não dá para resolver de todo:** o middleware fica na fronteira do MCP.
-Ele vê chamadas de ferramenta; a frase final nunca passa por ali.
+Duas coisas fecham a maior parte do buraco. O único ato irreversível,
+`menu_add_dish`, exige que uma avaliação tenha ocorrido para aquele prato. E
+`confidence_audit_figures` confere, **sem modelo nenhum**, se cada cifra e cada
+percentual da mensagem aparecem no que as ferramentas devolveram. O preço
+inventado, que é a coisa exata que este sistema existe para impedir, é pego
+deterministicamente.
 
-**O que foi feito:** duas coisas. O único ato irreversível, `menu_add_dish`,
-passou a exigir que uma avaliação tenha ocorrido para aquele prato. E
-`confidence_audit_figures` passou a conferir, **sem modelo nenhum**, se cada
-cifra e cada percentual da mensagem aparece no que as ferramentas devolveram.
+**O que fica de fora:** o que não é número. Uma frase que afirma que ela consegue
+assar sem que o portão tenha aprovado depende do juiz, que depende de ser
+chamado. E um adjetivo de preço, "baratinho", não é cifra e não é conferido.
 
-O segundo é o que mais fecha a falha: o preço inventado, que é a coisa exata que
-este sistema existe para impedir, agora é pego deterministicamente.
+### 2. Uma mensagem, uma nota de sinal
 
-**Residual:** o que não é número. Uma frase que afirma que ela consegue assar
-sem que o portão tenha aprovado continua dependendo do juiz, que continua
-dependendo de ser chamado.
+`confidence_assess_answer` recebe `claim`, e a afirmação declarada tem
+precedência sobre a inferida pela sessão. Sem isso, o tipo viria da última
+ferramenta chamada, e numa mensagem que mistura assuntos só o último seria
+medido.
 
-### 2. A afirmação era inferida, não declarada · *corrigida*
+**O que fica de fora:** a nota determinística é uma por mensagem. A decomposição
+por afirmação, mais abaixo, é o que dá granularidade fina, e ela roda sobre a
+mensagem entregue, não sobre o rascunho.
 
-O tipo vinha da última ferramenta relevante. Numa mensagem que mistura assuntos,
-só o último tipo era medido.
+### 3. Os degraus são ordinais, não calibrados
 
-**O que foi feito:** `confidence_assess_answer` recebe `claim`, e uma afirmação
-declarada tem precedência sobre a inferida pelo resto da sessão. A inferência
-continua como padrão para quando nada foi declarado.
-
-**Residual:** uma mensagem com duas afirmações ainda recebe uma nota só.
-
-### 3. Os degraus são arbitrários · *explicitada, não resolvida*
-
-Quatro domínios valendo 1,00 e três valendo 0,80 veio de julgamento, não de
+Quatro domínios valendo 1,00 e três valendo 0,80 vem de julgamento, não de
 medição. Ninguém verificou que pratos com quatro fontes dão menos errado.
 
-**O que foi feito:** os degraus saíram de dentro das funções e viraram
-`CONSENSUS_STEPS`, `MARKET_STEPS` e `ECONOMY_STEPS`, num só lugar, com a
-docstring dizendo que são **ordinais, não calibrados**. Ordenam respostas
-corretamente; o valor absoluto não é probabilidade de nada.
+Os degraus moram em `CONSENSUS_STEPS`, `MARKET_STEPS` e `ECONOMY_STEPS`, num só
+lugar, com a docstring dizendo o que são. Ordenam respostas corretamente; o valor
+absoluto não é probabilidade de nada.
 
-**Residual:** calibrar exige registrar desfecho (o prato foi aceito? o preço se
-sustentou?) e ainda não há esse dado.
+**O que fica de fora:** calibrar exige registrar desfecho (o prato foi aceito? o
+preço se sustentou?) e esse dado não existe.
 
-### 4. A sessão era global · *parcialmente corrigida*
+### 4. A sessão cai numa chave fixa
 
-Duas conversas simultâneas compartilhavam a mesma trilha.
+A trilha é chaveada por `(sessão, prato)`. O identificador de sessão não pode ser
+`ctx.session_id`, que é um **UUID novo a cada requisição** e faria cada chamada
+cair numa trilha própria, sem nada acumular. A chave é o header
+`mcp-session-id`, que identifica a conexão.
 
-**O que foi feito:** a trilha passou a ser chaveada por `(sessão, prato)`. Ao
-implementar, descobriu-se que `ctx.session_id` é um **UUID novo a cada
-requisição**, então cada chamada caía numa trilha própria e nada acumulava. A chave
-passou a ser o header `mcp-session-id`, que é a conexão.
+**O que fica de fora:** esse header não chega ao middleware nesta versão do
+FastMCP, então a chave cai em `local`. Estável, e portanto correta para uma
+conversa por vez; o isolamento real entre conversas simultâneas continua em
+aberto.
 
-**Residual:** esse header não chega ao middleware nesta versão do FastMCP, então
-a chave cai em `local`. Estável, e portanto correta para uma conversa por vez;
-o isolamento real entre conversas simultâneas continua em aberto.
+### 5. A trilha é por prato, e a despensa é compartilhada
 
-### 5. A trilha só crescia · *corrigida*
+Evidência de um prato não conta para outro: aprovar a parmegiana e depois
+perguntar sobre lasanha não pode derrubar a aprovação da parmegiana. Por isso o
+portão recebe `dish`, e sem esse argumento a aprovação cairia numa trilha sem
+nome.
 
-Evidência de um prato contava para outro. Aprovar a parmegiana e depois
-perguntar sobre lasanha derrubava a aprovação da parmegiana, que era então
-recusada no cardápio sem explicação.
+A leitura da despensa é a exceção deliberada, e continua compartilhada, porque é
+sobre a cozinha dela e não sobre um prato.
 
-**O que foi feito:** trilha por prato. A leitura da despensa continua
-compartilhada, porque é sobre a cozinha dela e não sobre um prato. E o portão
-ganhou o argumento `dish`, que ele não tinha, e por isso a aprovação caía numa
-trilha sem nome.
+### 6. `pantry` mede cobertura, não abertura de arquivo
 
-### 6. `pantry` era binário · *corrigida*
+Quando uma receita é conferida com `recipes_check_pantry_coverage`, a
+**cobertura** vira a nota: 0,5 para um de dois ingredientes. Ler a lista inteira
+vale 1,00, que é correto, porque aí a despensa toda é conhecida. Uma conferência
+específica não é sobrescrita por uma leitura genérica posterior.
 
-Ler a despensa dava 1,00 mesmo para uma mensagem sobre ingrediente não
-consultado. O sinal dizia "o arquivo foi aberto", não "isto foi verificado".
-
-**O que foi feito:** quando uma receita é conferida com
-`recipes_check_pantry_coverage`, a **cobertura** vira a nota: 0,5 para um de
-dois ingredientes. A leitura da lista inteira continua valendo 1,00, que é
-correto: aí a despensa toda é conhecida. Uma conferência específica não é
-sobrescrita por uma leitura genérica posterior.
+**O que fica de fora:** sem a conferência da receita, o sinal diz apenas que a
+despensa foi lida.
 
 ---
 
@@ -507,7 +500,7 @@ Para isso continua existindo o juiz, que lê o rascunho, e ele é a única parte
 paga desta pilha.
 
 E não julga a **forma**. Uma mensagem pode estar inteiramente lastreada e ainda
-ser ilegível para ela, e esse é um defeito diferente — medido à parte, logo
+ser ilegível para ela, e esse é um defeito diferente, medido à parte, logo
 abaixo.
 
 ## A forma da mensagem: `message_pacing`
@@ -542,7 +535,7 @@ pergunta sobre a cozinha dela. Os marcadores são frases, não palavras soltas,
 justamente por isso.
 
 A ferramenta nunca reescreve a mensagem. Prosa quebrada por regra soa quebrada,
-e o agente já sabe onde os próprios parágrafos terminam — o que volta é a
+e o agente já sabe onde os próprios parágrafos terminam: o que volta é a
 costura, no instante em que ele já está perguntando se o rascunho está pronto.
 
 Quando uma parede sai mesmo assim, o gancho de fim de turno grava
@@ -551,6 +544,6 @@ como se sabe com que frequência o portão está sendo contornado.
 
 ### Calibrar os degraus
 
-O que resta da falha 3, e o mais caro. Registrar desfecho (o prato foi aceito?
-o preço se sustentou? a compra coube?) e mover os limiares com base em dado.
-É o que transforma a nota de heurística ordenada em medida.
+O limite mais caro dos seis. Registrar desfecho (o prato foi aceito? o preço se
+sustentou? a compra coube?) e mover os limiares com base em dado. É o que
+transforma a nota de heurística ordenada em medida.
