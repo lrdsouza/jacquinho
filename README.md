@@ -13,6 +13,29 @@
 ![Testes](https://img.shields.io/badge/testes-277-success)
 ![Confiança](https://img.shields.io/badge/confiança-afirmação%20atômica%20%2B%20Pydantic-6E56CF)
 
+
+> **Antes de rodar: a planilha da Dona Maria não vem no repositório.**
+>
+> O `despensa_dona_maria.xlsx` é dado de entrada e fica fora do versionamento.
+> Para testar, crie uma pasta `data/` na raiz e coloque o arquivo lá:
+>
+> ```
+> jacquinho/
+> └── data/
+>     └── despensa_dona_maria.xlsx
+> ```
+>
+> A planilha tem duas abas, e é dessas colunas que sai o custo unitário de
+> cada ingrediente:
+>
+> | Aba        | Colunas                                                              |
+> | ---------- | -------------------------------------------------------------------- |
+> | `Despensa` | Ingrediente · Quantidade em estoque · Unidade                        |
+> | `Precos`   | Ingrediente · Quantidade comprada · Unidade · Preço total pago (R$)  |
+>
+> Sem esse arquivo, o `jacquinho reset` sobe os bancos vazios e o agente
+> começa a consultoria sem despensa nenhuma.
+
 Um sous-chef de IA para a **Dona Maria**, cozinheira que está abrindo o primeiro
 delivery dela, o *Sabor da Maria*. Ela sabe cozinhar. O que ela não sabe é quais
 pratos a despensa dela consegue produzir, se a cozinha dela dá conta de
