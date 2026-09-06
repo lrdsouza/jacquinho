@@ -203,12 +203,17 @@ def test_a_percentage_over_a_missing_base_is_none():
 
 def test_the_breakdown_reads_like_a_person_talking():
     """A total on its own is a number she has to take on faith. '100 g de carne
-    moída: R$ 2,80' is one she can check against her own shopping."""
+    moída: R$ 2,80' is one she can check against her own shopping.
+
+    It comes back as a bullet, dash included: six ingredients run into a
+    paragraph become something she skims, and the line she would have questioned
+    is the one that disappears.
+    """
     pytest.importorskip('fastmcp')
     from app.mcps.pricing_mcp import PricingMCP
 
     said = PricingMCP._in_her_words('0.1 kg', 'carne moída', 2.80)
-    assert said == '100 g de carne moída: R$ 2,80'
+    assert said == '- 100 g de carne moída: R$ 2,80'
 
 
 def test_small_volumes_become_millilitres():
@@ -217,15 +222,15 @@ def test_small_volumes_become_millilitres():
 
     # Vírgula decimal, porque é assim que se escreve em português.
     assert PricingMCP._in_her_words('0.0625 l', 'leite', 0.31) == (
-        '62,5 ml de leite: R$ 0,31')
+        '- 62,5 ml de leite: R$ 0,31')
 
 
 def test_pieces_are_counted_not_weighed():
     pytest.importorskip('fastmcp')
     from app.mcps.pricing_mcp import PricingMCP
 
-    assert PricingMCP._in_her_words('1 un', 'ovo', 0.60).startswith('1 unidade de ovo')
-    assert PricingMCP._in_her_words('3 un', 'ovo', 1.80).startswith('3 unidades de ovo')
+    assert PricingMCP._in_her_words('1 un', 'ovo', 0.60).startswith('- 1 unidade de ovo')
+    assert PricingMCP._in_her_words('3 un', 'ovo', 1.80).startswith('- 3 unidades de ovo')
 
 
 def test_a_whole_kilo_stays_a_kilo():
@@ -233,7 +238,7 @@ def test_a_whole_kilo_stays_a_kilo():
     from app.mcps.pricing_mcp import PricingMCP
 
     assert PricingMCP._in_her_words('1,5 kg'.replace(',', '.'), 'farinha', 7.72) == (
-        '1,5 kg de farinha: R$ 7,72')
+        '- 1,5 kg de farinha: R$ 7,72')
 
 
 def test_the_recipe_yield_is_divided_by_the_tool_not_by_the_model():
@@ -246,3 +251,60 @@ def test_the_recipe_yield_is_divided_by_the_tool_not_by_the_model():
     line = RecipeLine(ingredient='carne moída', quantity=1.0, unit='kg')
     per_portion = line.model_copy(update={'quantity': line.quantity / 6})
     assert round(per_portion.quantity, 4) == 0.1667
+
+
+def test_the_tail_of_the_breakdown_becomes_one_line():
+    """Eleven bullets ending in 'uma pitada de sal: R$ 0,00' is worse than the
+    total alone: she stops reading before the line she would have questioned."""
+    pytest.importorskip('fastmcp')
+    from app.mcps.pricing_mcp import PricingMCP
+
+    used = [
+        {'ingredient': 'Carne moída', 'amount': '0.0625 kg', 'cost': 1.75},
+        {'ingredient': 'Queijo mussarela', 'amount': '0.025 kg', 'cost': 1.00},
+        {'ingredient': 'Batata', 'amount': '0.125 kg', 'cost': 0.75},
+        {'ingredient': 'Manteiga', 'amount': '0.00375 kg', 'cost': 0.15},
+        {'ingredient': 'Azeite', 'amount': '0.0015 l', 'cost': 0.12},
+        {'ingredient': 'Cebola', 'amount': '0.015 kg', 'cost': 0.06},
+        {'ingredient': 'Leite', 'amount': '0.0125 l', 'cost': 0.06},
+        {'ingredient': 'Alho', 'amount': '0.0005 kg', 'cost': 0.01},
+        {'ingredient': 'Sal', 'amount': '0.000625 kg', 'cost': 0.00},
+    ]
+    lines = PricingMCP._breakdown_lines(used, 3.90)
+
+    assert lines[0].startswith('- 62,5 g de Carne moída')
+    # The tail is folded, not dropped: it keeps its ingredients and its cents.
+    assert lines[-1].startswith('- e o resto (')
+    assert 'sal' in lines[-1] and 'alho' in lines[-1]
+    assert len(lines) <= PricingMCP.MOST_LINES + 1
+
+
+def test_a_short_recipe_keeps_every_line():
+    pytest.importorskip('fastmcp')
+    from app.mcps.pricing_mcp import PricingMCP
+
+    used = [
+        {'ingredient': 'Carne moída', 'amount': '0.1 kg', 'cost': 2.80},
+        {'ingredient': 'Queijo mussarela', 'amount': '0.05 kg', 'cost': 2.00},
+    ]
+    lines = PricingMCP._breakdown_lines(used, 4.80)
+    assert len(lines) == 2
+    assert not any('e o resto' in line for line in lines)
+
+
+def test_the_folded_line_adds_up_to_the_total():
+    """What is folded is still counted. It has to be, or the bullets stop
+    explaining the number they sit under."""
+    pytest.importorskip('fastmcp')
+    from app.mcps.pricing_mcp import PricingMCP
+
+    used = [
+        {'ingredient': f'Item {i}', 'amount': f'{i} un', 'cost': round(1.0 / (i + 1), 2)}
+        for i in range(12)
+    ]
+    total = sum(entry['cost'] for entry in used)
+    lines = PricingMCP._breakdown_lines(used, total)
+    shown = sum(
+        float(line.rsplit('R$ ', 1)[1].replace(',', '.')) for line in lines
+    )
+    assert shown == pytest.approx(total, abs=0.02)

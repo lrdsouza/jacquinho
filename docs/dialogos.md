@@ -28,7 +28,7 @@ demonstração concreta do limite que está anotado no README.
 - [Certo 2 · O fechamento da fornada](#certo-2--o-fechamento-da-fornada)
 - [Certo 3 · O prato que volta quando ela ganha um forno](#certo-3--o-prato-que-volta-quando-ela-ganha-um-forno)
 - [Certo 4 · Ela não sabe o que quer](#certo-4--ela-não-sabe-o-que-quer)
-- [Certo 5 · Os 2 kg de patinho, e o meio quilo que falta](#certo-5--os-2-kg-de-patinho-e-o-meio-quilo-que-falta)
+- [Certo 5 · A carne que o primeiro prato já comeu](#certo-5--a-carne-que-o-primeiro-prato-já-comeu)
 - [Errado 1 · O forno que ninguém perguntou](#errado-1--o-forno-que-ninguém-perguntou)
 - [Errado 2 · "Já comprei a massa"](#errado-2--já-comprei-a-massa)
 - [Errado 3 · O lucro que nenhuma ferramenta calculou](#errado-3--o-lucro-que-nenhuma-ferramenta-calculou)
@@ -368,98 +368,119 @@ copiar.
 
 ---
 
-## Certo 5 · Os 2 kg de patinho, e o meio quilo que falta
+## Certo 5 · A carne que o primeiro prato já comeu
 
-**O que se testa:** que o estoque dela é **finito**. Dois pratos que usam a
-mesma carne, e o segundo tem que enxergar a geladeira como o primeiro a deixou.
+**O que se testa:** que o estoque dela é **finito**. Dois pratos que usam a mesma
+carne, e o segundo tem que enxergar a geladeira como o primeiro a deixou. Esta é
+a conversa que está no [README](../README.md); aqui ficam as partes que lá foram
+resumidas e o estado que sobrou nos bancos.
 
 ```
 Dona Maria ▸ oi! vou começar a vender marmita por delivery. quero fazer
              escondidinho de carne moída, é o que sai melhor aqui em casa.
              faço 8 marmitas por fornada
 
-             [ele pergunta forno, fogão, refratário, prática com purê e
-              refogado, e quanto pesa uma cebola média dela]
+             [ele pergunta o forno, o fogão, o refratário, a prática com purê
+              e refogado — e só então calcula]
 
-Dona Maria ▸ quanto sai cada marmita?
+Jacquinho  ▸ Cada porção leva:
+             - 70 g de carne moída: R$ 1,96
+             - 40 g de mussarela: R$ 1,60
+             - 100 g de batata: R$ 0,60
+             - 39 g de tomate: R$ 0,31
+             - 0,2 g de pimenta-do-reino: R$ 0,12
+             - 24 ml de leite: R$ 0,12
+             - e o resto (manteiga, azeite, cebola, alho, sal): R$ 0,28
+             Dá R$ 5,00 por porção pra você fazer.
 
-Jacquinho  ▸ O escondidinho de carne moída fecha em R$ 3,96 por marmita.
-             Fazendo a conta: 62,5 g de carne moída (R$ 1,75), 25 g de
-             mussarela (R$ 1,00), 125 g de batata (R$ 0,75), manteiga
-             (R$ 0,15), azeite (R$ 0,12) e o restinho de cebola, leite, alho,
-             sal e cheiro-verde — dá R$ 3,96 por marmita.
-             Só falta comprar a pimenta branca: um potinho de 100 g sai por
-             R$ 11,90 [...]
+Dona Maria ▸ uma cebola média minha dá uns 120 gramas. quanto sai cada marmita?
 
-Dona Maria ▸ vou vender a 24,90. pode colocar no cardápio
+Jacquinho  ▸ Boa, cebola média de 120g anotado — mas isso não muda a conta que
+             já te mostrei. A cebola tá dentro daquele grupinho "e o resto
+             (manteiga, azeite, cebola, alho, sal): R$ 0,28" — é pouca cebola
+             por marmita, então mesmo com esse tamanho seu o valor não sai do
+             lugar.
+             Cada marmita continua saindo R$ 5,00 pra você fazer.
 
-             [entra no cardápio; a fornada de 8 leva 500 g dos 1,5 kg dela]
+Dona Maria ▸ vou vender a 24,90. pode colocar no cardápio e reservar a compra
+
+             [entra no cardápio; a fornada de 8 tira 560 g dos 1,5 kg dela]
 
 Dona Maria ▸ gostei! agora quero botar um segundo prato no cardápio: macarrão
              à bolonhesa, também com carne moída. essa fornada eu faço maior,
-             12 marmitas
+             18 marmitas
 
-Jacquinho  ▸ Macarrão à bolonhesa com carne moída entra numa boa: é só fogão,
-             sem exigir nada além do que você já tem. E essa carne moída que
-             sobrou do escondidinho cai bem aqui — você tinha 1,5 kg, o
-             escondidinho levou 500 g, sobrou 1 kg, e a bolonhesa usa esse
-             quilo inteiro na fornada de 12 marmitas.
-             A conta por marmita: 83 g de carne moída (R$ 2,33), 83 g de
-             macarrão (R$ 1,17) [...] Dá R$ 4,91 por marmita.
-             A boa notícia: essa fornada não precisa de nenhuma compra, tudo
-             sai do que já está na sua despensa.
+             [a bolonhesa exige peneira, ralador, escumadeira, tábua, prática
+              de molho e de massa, e onde descartar a gordura do bacon. Ele
+              pergunta tudo isso antes de qualquer conta]
 
-Dona Maria ▸ pensando melhor, essa bolonhesa eu quero fazer 18 marmitas, que o
-             pedido do fim de semana é grande
+Jacquinho  ▸ Cada porção leva:
+             - 100 g de carne moída: R$ 2,80
+             - 17 ml de azeite: R$ 1,05
+             - 20 g de parmesão ralado: R$ 0,86
+             - 50 g de macarrão espaguete: R$ 0,70
+             - 80 g de tomate: R$ 0,64
+             - 20 g de bacon: R$ 0,48
+             - e o resto (cenoura, cebola, pimenta-do-reino, sal): R$ 0,16
+             Dá R$ 6,70 por porção pra você fazer.
+             Da carne moída você tinha 1,5 kg; o escondidinho levou 560 g e
+             sobraram 940 g. Essa fornada de bolonhesa (18 marmitas) pede
+             1,8 kg, então faltam 860 g pra comprar — uns R$ 24,08.
+             Do parmesão você tinha 200 g; a fornada pede 360 g, faltam 160 g
+             — uns R$ 6,86.
+             [...] No total, a compra fica em R$ 48,42. Isso deixa R$ 22,59
+             dos seus R$ 71,01 pra próxima fornada, se você comprar tudo isso.
+             Três opções pra você:
+             - vendendo a R$ 18,90 → sobram R$ 10,31 por porção pra você
+             - vendendo a R$ 25,90 → sobram R$ 16,61 por porção pra você
+             - vendendo a R$ 29,90 → sobram R$ 20,21 por porção pra você
+             Qual preço você quer colocar?
 
-Jacquinho  ▸ A bolonhesa agora vai numa fornada de 18 marmitas.
-             Só um aviso antes: você tinha 1,5 kg de carne moída; o
-             escondidinho levou 500 g, sobrou 1 kg. Pra 18 marmitas a
-             bolonhesa pede 1,5 kg, então faltam 500 g pra comprar. O macarrão
-             é a mesma história: você tem 1 kg na despensa e a fornada pede
-             1,5 kg, faltam 500 g.
-             A conta por marmita: 83,3 g de carne moída (R$ 2,33), 83,3 g de
-             macarrão (R$ 1,17), 100 g de tomate (R$ 0,80) e mais 56,7 g de
-             tomate pro molho (R$ 0,45), cebola (R$ 0,10), óleo (R$ 0,04) e
-             caldo de carne (R$ 0,01). Dá R$ 4,91 por marmita.
-             Pra fechar a fornada você precisa comprar meio quilo de carne
-             moída (uns R$ 14,00) e meio quilo de macarrão (uns R$ 6,99) —
-             R$ 20,99 no total. Isso cabe nos seus R$ 68,10 que sobraram,
-             ficando R$ 47,11 pra próxima.
+Dona Maria ▸ vou de 25,90. reserva a compra e coloca no cardápio
 ```
 
-**Por que está certo.** Os dois pratos somam exatamente os **2 kg** de patinho
-que as duas fornadas pedem, contra os 1,5 kg que ela tinha, e o meio quilo que
-falta virou linha de compra a R$ 14,00 — que é o preço por quilo que ela mesma
-pagou, `28,00 × 0,5`. O estado no banco depois da conversa:
+**Por que está certo.** O estado depois da conversa:
 
 ```
- dish                         | ingredient_key      | quantity
-------------------------------+---------------------+----------
- escondidinho de carne moída  | carne moida patinho |   0.5000
- macarrão à bolonhesa         | carne moida patinho |   1.5000
- macarrão à bolonhesa         | macarrao espaguete  |   1.5000
+ dish                         | ingredient_key         | quantity | portions
+------------------------------+------------------------+----------+----------
+ escondidinho de carne moída  | carne moida patinho    |   0.5600 |        8
+ macarrão à bolonhesa         | carne moida patinho    |   1.8000 |       18
+ macarrão à bolonhesa         | queijo parmesao ralado |   0.3600 |       18
 ```
+
+`1,5 − 0,56 = 0,94`; `1,8 − 0,94 = 0,86`; `0,86 × 28,00 = 24,08`. O parmesão
+segue a mesma conta com o preço que ela pagou, `42,90` o quilo, e conta a mesma
+história sem que ninguém tenha pedido. O orçamento também fecha:
+`80,00 − 8,99 = 71,01` e `71,01 − 48,42 = 22,59`.
 
 Nenhuma dessas linhas foi escrita quando o prato foi **orçado** — só quando ela
-aceitou. A primeira versão da bolonhesa, a de 12 marmitas, foi calculada, lida
-para ela e nunca entrou no cardápio: não tirou nada da despensa.
+aceitou.
 
-**A frase é a coisa toda.** Um "faltam 500 g de carne" solto parece erro de
+**A frase é a coisa toda.** Um "faltam 860 g de carne" solto parece erro de
 planilha, e o que ela faz com um erro de planilha é duvidar do número em vez de
-comprar a carne. *"Você tinha 1,5 kg, o escondidinho levou 500 g, sobrou 1 kg"*
-é uma frase que ela confere contra a própria geladeira. Ela existe porque o
-consumo é gravado separado do estoque: com um `UPDATE` no saldo, o porquê teria
+comprar a carne. *"Você tinha 1,5 kg, o escondidinho levou 560 g e sobraram
+940 g"* é uma frase que ela confere contra a própria geladeira. Ela existe porque
+o consumo é gravado separado do estoque: com um `UPDATE` no saldo, o porquê teria
 sido jogado fora. Ver [decisoes.md](decisoes.md), item 51.
 
-**E ela mudou de ideia no meio.** As 12 marmitas viraram 18 e tudo foi refeito —
-o custo por marmita continuou R$ 4,91, porque a receita está fechada e o que
-mudou foi o tamanho da fornada, não os ingredientes. O que mudou junto foi a
-falta: com 12 marmitas não faltava nada, com 18 faltam 500 g de cada.
+**A fornada é de 18 porque ela disse 18.** `portions` não tem valor padrão. Numa
+gravação anterior desta mesma conversa ele tinha `= 1`, o agente pegou o padrão, e
+o escondidinho — que ela tinha aberto a conversa dizendo que rende 8 marmitas —
+foi custeado para uma fornada de uma. O custo por porção saiu certo e todo o
+resto saiu errado: a despensa perdeu 125 g de patinho em vez de 1 kg, e a frase
+que ela lia era *"o escondidinho levou 125 g"* depois de ela ter cozinhado oito
+marmitas. Ver [decisoes.md](decisoes.md), item 52.
 
-**Duas ressalvas ditas na língua dela.** *"Achei pouca referência pra esse prato,
-então trate como indicativo, não como preço firme de mercado."* Nenhum selo,
-nenhum `〔 〕`, nenhuma banda de confiança na mensagem.
+**A conta em lista, e a cauda dobrada.** Numa gravação intermediária o
+escondidinho veio com onze marcadores, terminando em *"uma pitada de sal:
+R$ 0,00"*. Nada errado, e pior que dar só o total: ela para de ler antes da linha
+que teria questionado. Agora a lista para quando já explicou o número, e o resto
+vira uma linha com os ingredientes nomeados — que é justamente a linha que ela
+citou de volta quando perguntou da cebola.
+
+**Duas ressalvas na língua dela**, e nenhum selo: *"achei poucas referências,
+então trate como indicativo"*.
 
 ---
 

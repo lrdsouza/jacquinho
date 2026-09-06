@@ -11,6 +11,7 @@ relational questions.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 
 import redis
@@ -171,6 +172,49 @@ class ConversationStore:
                         'checked_against': provenance}
         return {'said': False, 'turns_on_record': len(pool), 'match': None,
                 'checked_against': provenance}
+
+    # A batch size, as she says it: "faço 8 marmitas por fornada", "rende 12",
+    # "essa fornada eu faço maior, 18 marmitas".
+    BATCH_PATTERNS = (
+        re.compile(r'(\d{1,3})\s*(?:marmita|porc|porç|por[çc][õo]es|unidade)', re.I),
+        re.compile(r'(?:rende|fa[çc]o|fazer|sai[ae]m?)\s*(\d{1,3})\b', re.I),
+    )
+
+    def batch_size_she_said(self) -> dict | None:
+        """The last batch size she named out loud, if she named one.
+
+        `portions` is her number, not a default. It arrived as `= 1` and the
+        agent took the default: her escondidinho was costed for a batch of one
+        while she had said "faço 8 marmitas por fornada" in her first message,
+        so the pantry lost an eighth of what the fornada actually eats and the
+        shopping list came out short. A default that is wrong seven times out of
+        eight is worse than a missing argument.
+
+        Read from what the runtime captured, never from what the agent typed,
+        for the same reason `she_said` is.
+        """
+        hers = [
+            turn
+            for session in self.sessions()
+            for turn in self.history(session, self.MAX_TURNS)
+            if turn.get('role') == 'dona_maria'
+        ]
+        captured = [t for t in hers if t.get('source') == self.CAPTURED]
+        # Newest first, by the clock and not by which session came back first:
+        # she may have said 8 in one breath and 18 in the next, and the answer
+        # is the last one she said, not the last one the iteration happened to
+        # reach.
+        pool = sorted(
+            captured or hers, key=lambda turn: turn.get('at') or '', reverse=True
+        )
+        for turn in pool:
+            for pattern in self.BATCH_PATTERNS:
+                found = pattern.search(turn.get('content') or '')
+                if found:
+                    size = int(found.group(1))
+                    if 1 < size <= 200:
+                        return {'portions': size, 'her_words': turn['content']}
+        return None
 
     # ------------------------------------------------------- summary window
 

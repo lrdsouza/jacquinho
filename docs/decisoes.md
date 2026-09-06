@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-52-6E56CF)
+![Registros](https://img.shields.io/badge/registros-53-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -1555,11 +1555,11 @@ tenha caído.
 
 ## 50. A conta é aberta, em português, e a divisão é da ferramenta
 
-**Decisão.** `pricing_calculate_cmv` devolve `breakdown_for_her`: uma linha por
-ingrediente, na língua dela e ordenada pela que mais pesa. Devolve também
-`cost_per_portion_for_her`, o mesmo número sem a sigla. E aceita
-`recipe_yields`, para dividir a receita pelo rendimento dela em vez de o modelo
-dividir de cabeça.
+**Decisão.** `pricing_calculate_cmv` devolve `cost_message_for_her`: a conta
+pronta para mandar, **em lista**, um ingrediente por linha, ordenada pela que
+mais pesa, com o total embaixo. Devolve também `cost_per_portion_for_her`, o
+mesmo número sem a sigla. E aceita `recipe_yields`, para dividir a receita pelo
+rendimento dela em vez de o modelo dividir de cabeça.
 
 **Motivo.** Três coisas diferentes, e as três são sobre a mesma pessoa.
 
@@ -1580,9 +1580,26 @@ exatamente o tipo de conta que este servidor existe para tirar da cabeça do
 modelo. Com `recipe_yields`, as quantidades vão como a receita escreve e a
 divisão acontece onde pode ser mostrada.
 
+**Lista, e não parágrafo.** É a mesma forma das opções de preço, e pelo mesmo
+motivo. Corridos dentro de um parágrafo, seis ingredientes e seis valores viram
+uma coisa que ela passa o olho, e a linha que ela questionaria é justamente a que
+some. Em lista ela desce a coluna e para no item que não reconhece. As duas
+listas que ela lê numa conversa — o que a porção custa e por quanto vender — têm
+a mesma cara por isso; `price_scenarios` devolve `options_for_her` no mesmo
+formato.
+
 **Consequência.** A ordenação por peso não é enfeite: as duas ou três primeiras
-linhas explicam quase todo o número, e os centavos do fim são ruído. Ler a lista
-inteira em voz alta seria pior que dar só o total.
+linhas explicam quase todo o número, e os centavos do fim são ruído. E o fim é
+**dobrado**, não mostrado: a partir do ponto em que a lista já explica 92% do
+número, ou depois de seis linhas, o resto vira uma linha só — *"e o resto
+(cebola, leite, alho, salsinha, sal): R$ 0,14"* — com os ingredientes nomeados e
+os centavos somados.
+
+Isso saiu de uma gravação em que o escondidinho veio com onze marcadores,
+terminando em *"uma pitada de sal: R$ 0,00"*. Nada ali estava errado, e era pior
+que dar só o total: ela para de ler antes da linha que teria questionado. O que
+é dobrado continua contado — as linhas mostradas mais a dobrada somam o total —,
+só para de disputar a atenção dela com a carne moída.
 
 Cada linha do detalhamento passa pela conferência de afirmações como qualquer
 outra cifra, porque `ingredients[].cost` está no mapa de saídas. Numa gravação de
@@ -1668,7 +1685,40 @@ relacional isso é um `UPDATE` de uma linha, verificável na hora com um `SELECT
 Guardado no Redis, junto do resto do estado de conversa, seria um blob que só o
 código sabe abrir.
 
-## 52. A mensagem vai em partes, e o tamanho não é o problema
+## 52. A fornada é o número dela, e não tem valor padrão
+
+**Decisão.** `portions` em `pricing_calculate_cmv` é obrigatório. E, se a Dona
+Maria disse em algum momento de quantas marmitas é a fornada dela, um número
+diferente é **recusado**, com a frase dela devolvida.
+
+**Motivo.** O argumento nasceu com `= 1`, e o agente pegou o padrão. Numa
+gravação de verificação ela abriu a conversa com *"faço 8 marmitas por fornada"*
+e o escondidinho foi custeado para uma fornada de uma: o custo por porção estava
+certo, e tudo o mais estava errado. A despensa perdeu **um oitavo** do que a
+fornada come — 125 g de patinho em vez de 1 kg — e a lista de compras do prato
+seguinte saiu curta em sete porções de carne. O sintoma apareceu na frase que ela
+lê: *"o escondidinho levou 125 g"*, quando ela tinha acabado de cozinhar oito
+marmitas.
+
+Um padrão que está errado sete vezes em cada oito é pior que um argumento
+faltando. Faltando, a chamada falha e o agente tem que decidir; com padrão, a
+chamada passa e ninguém percebe.
+
+*Por que também conferir contra as palavras dela.* Tornar obrigatório força uma
+decisão, mas não força a decisão **certa**. O tamanho da fornada é um fato dela,
+como o forno e como o preço, e a fala dela está gravada fora do alcance do
+modelo. Então vale a mesma regra do resto do sistema: uma afirmação sobre o que
+ela disse é conferível contra o que ela disse. A conferência lê a fala mais
+recente em que ela nomeia uma fornada, por relógio e não por ordem de iteração —
+ela pode ter dito 12 num fôlego e 18 no seguinte, e a resposta é a última.
+
+**Consequência.** A suíte passou a limpar as falas capturadas antes de cada
+teste. Não é cosmético: com o Redis compartilhado, um "faço 18 marmitas" deixado
+pela conversa anterior decidiria o resultado de um teste que nunca falou em
+fornada. É o mesmo limite de isolamento de sessão já anotado no README, aparecendo
+onde dá para contorná-lo.
+
+## 53. A mensagem vai em partes, e o tamanho não é o problema
 
 **Decisão.** Uma resposta se divide em partes — uma por linha, cada uma
 resolvendo uma coisa — e a pergunta, quando existe, vai sozinha na última.

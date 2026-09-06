@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-272-success)
+![Unitários](https://img.shields.io/badge/testes-276-success)
 ![Suítes](https://img.shields.io/badge/suítes-15-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,13 +38,13 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**272 testes, 15 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**276 testes, 15 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
-| `test_mcp_server.py` | 45 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio, não gasta o dinheiro dela e não usa carne que ela já gastou |
-| `test_pricing.py` | 28 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
+| `test_mcp_server.py` | 46 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio, não gasta o dinheiro dela e não usa carne que ela já gastou |
+| `test_pricing.py` | 31 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
 | `test_pantry.py` | 28 | Semeadura, custo unitário, casamento de nomes, e o estoque finito que baixa e volta |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
@@ -588,39 +588,56 @@ porque eu escrevi as expectativas com ponto decimal, e a implementação escreve
 
 ---
 
-### A rodada dos 2 kg de patinho
+### As rodadas do estoque que acaba
 
-A rodada que gravou o [Certo 5](dialogos.md#certo-5--os-2-kg-de-patinho-e-o-meio-quilo-que-falta),
-com os bancos zerados e um prato de cada vez.
+Quatro gravações para chegar ao [Certo 5](dialogos.md#certo-5--a-carne-que-o-primeiro-prato-já-comeu),
+cada uma com os bancos zerados e uma conversa por vez. Cada uma expôs uma coisa
+diferente, e as três primeiras foram descartadas.
 
-**O que ela achou de bom.** O comportamento novo apareceu sozinho, sem ninguém
-puxar: no primeiro turno do segundo prato, sem que ela perguntasse nada sobre
-estoque, o agente disse *"você tinha 1,5 kg, o escondidinho levou 500 g, sobrou
-1 kg"*. É `why_short` sendo lido como frase e não como campo. Quando ela mudou
-a fornada de 12 para 18 marmitas, a falta apareceu e o custo por marmita **não
-mudou** — R$ 4,91 nos dois turnos, porque a receita estava fechada e o que
-mudou foi o tamanho da fornada.
+**O comportamento apareceu sozinho.** Já na primeira rodada, no primeiro turno do
+segundo prato e sem que ela perguntasse nada sobre estoque, o agente disse *"você
+tinha 1,5 kg, o escondidinho levou 500 g, sobrou 1 kg"*. É `why_short` sendo lido
+como frase e não como campo. Quando ela mudou a fornada de 12 para 18 marmitas, a
+falta apareceu e o custo por marmita **não** mudou — a receita estava fechada, e o
+que mudou foi o tamanho da fornada.
 
-**Dois defeitos que a rodada expôs, e que viraram código.**
+**O selo, de novo.** Na primeira rodada a mensagem de fechamento saiu com
+`〔preço: confiança média · sem preço de mercado · inflação antiga · cozinha
+confere〕` colado no fim. O texto que mandava colar tinha sido reescrito duas
+vezes; o campo continuava lá. Enquanto existir um campo chamado `badge` com uma
+linha formatada dentro, ele vai ser colado — então o campo saiu do payload. Nas
+rodadas seguintes nenhuma mensagem tem selo, e as ressalvas aparecem na língua
+dela.
 
-*Duas linhas para o mesmo ingrediente.* A receita da bolonhesa pedia tomate duas
-vezes — o fresco e o que vira molho — e o consumo foi gravado em duas linhas.
-Aritmeticamente certo, e a história ficava *"levou 1,02 kg e levou 1,8 kg"*.
-Agora o consumo é somado por ingrediente antes de ser escrito.
+**Duas linhas para o mesmo ingrediente.** A receita da bolonhesa pedia tomate
+duas vezes — o fresco e o que vira molho — e o consumo foi gravado em duas
+linhas. Aritmeticamente certo, e a história ficava *"levou 1,02 kg e levou
+1,8 kg"*. O consumo passou a ser somado por ingrediente antes de ser escrito. Na
+mesma passagem, `menu_add_dish` virou idempotente por prato: aceitar o mesmo
+prato duas vezes substitui as linhas dele em vez de comer a despensa de novo.
 
-*Aceitar o mesmo prato duas vezes.* Não aconteceu aqui, mas nada impedia:
-`menu_add_dish` chamado de novo para o mesmo prato gravaria uma segunda fornada
-de consumo. O prato é dono das próprias linhas, e escrevê-las de novo agora as
-substitui.
+**A conta corrida virou lista, e a lista virou grande demais.** A terceira rodada
+já trouxe a conta em marcadores, e trouxe onze deles, terminando em *"uma pitada
+de sal: R$ 0,00"*. Nada estava errado e o efeito era pior que dar só o total. A
+cauda passou a ser dobrada numa linha só, com os ingredientes nomeados — e na
+rodada final ela citou essa linha de volta ao perguntar da cebola, que é
+exatamente o que uma conta aberta deveria provocar.
 
-**E o selo, de novo.** Numa gravação anterior desta mesma rodada, a mensagem de
-fechamento saiu com `〔preço: confiança média · sem preço de mercado · inflação
-antiga · cozinha confere〕` colado no fim. O texto que mandava colar tinha sido
-reescrito duas vezes; o campo continuava lá. Enquanto existir um campo chamado
-`badge` com uma linha formatada dentro, ele vai ser colado — então o campo saiu
-do payload. Na regravação, nenhuma mensagem tem selo, e as ressalvas aparecem na
-língua dela: *"achei pouca referência pra esse prato, então trate como
-indicativo"*.
+**A fornada de uma marmita.** O achado mais caro, e o mais silencioso.
+`portions` tinha valor padrão `1`; o agente pegou o padrão; o escondidinho de uma
+cozinheira que abriu a conversa com *"faço 8 marmitas por fornada"* foi custeado
+para uma fornada de uma. O custo por porção estava certo, o portão estava certo,
+o preço estava certo — e a despensa perdeu 125 g de patinho em vez de 1 kg, o que
+faria a lista de compras do prato seguinte sair curta em sete porções de carne.
+Só apareceu porque a frase que ela lê ficou absurda: *"o escondidinho levou
+125 g"*, depois de ela ter cozinhado oito marmitas. O argumento perdeu o padrão e
+ganhou uma conferência contra as palavras dela.
+
+**Uma consequência na suíte.** A conferência lê a última fala dela sobre fornada,
+e o Redis é compartilhado: um "faço 18 marmitas" deixado pela conversa anterior
+decidiria o resultado de um teste que nunca falou em fornada. A suíte passou a
+limpar as falas capturadas antes de cada teste, junto com o veredito pendente que
+já limpava.
 
 ---
 

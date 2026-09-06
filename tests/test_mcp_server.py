@@ -31,10 +31,46 @@ def one_conversation_per_test(built):
     The server is built once for the module because building it is slow, so
     without this a debt raised in one test would close the tools of the next -
     which is correct in a conversation and nonsense across tests.
+
+    Her captured words are cleared for the same reason, and it is not cosmetic:
+    the batch size is read from the last thing she said about a fornada, so a
+    "faço 18 marmitas" left in Redis by the previous test - or by the last real
+    conversation, since this Redis outlives the suite - would decide the result
+    of a test that never mentioned a fornada.
     """
+    _forget_her_words(built)
     yield
     built.observer.pending.clear()
     built.observer.announced.clear()
+
+
+def _forget_her_words(built) -> None:
+    from app.domain.memory import ConversationStore, RedisBackend
+
+    chat = ConversationStore(RedisBackend(built.settings.redis_url))
+    try:
+        for session in chat.sessions():
+            chat.backend.client.delete(chat._turns_key(session))
+    except Exception:
+        # No Redis is the same as no captured words, which is the state the
+        # fixture is trying to reach anyway.
+        pass
+
+
+async def _release_everything_for(client, dish: str) -> None:
+    """Put back every cent a test reserved for its own dish.
+
+    Her budget is R$ 80,00 and this database outlives the suite: without this,
+    each run leaves R$ 12,00 behind and after half a dozen runs a reservation
+    that should fit stops fitting, which fails a test that is about consent and
+    not about arithmetic.
+    """
+    status = await client.call_tool('budget_get_status', {})
+    for entry in status.data.get('entries', []):
+        if entry.get('dish') == dish:
+            await client.call_tool(
+                'budget_release_purchase', {'entry_id': entry['entry_id']}
+            )
 
 
 async def _she_says(built, client, text, **capability):
@@ -164,6 +200,7 @@ async def test_assessment_fills_gaps_from_what_was_observed(server):
         await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': 'Teste',
+             'portions': 1,
              'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
         )
         # The bundle below mentions neither the gate nor the CMV.
@@ -236,6 +273,7 @@ async def test_cmv_is_arithmetic_and_shows_its_working(server):
         result = await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': 'Conta',
+             'portions': 1,
              'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
         )
     line = result.data['ingredients'][0]
@@ -257,6 +295,7 @@ async def test_an_ambiguous_unit_becomes_a_question_not_an_estimate(server):
         result = await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': 'Brownie',
+             'portions': 1,
              'lines': [{'ingredient': 'Ovos', 'quantity': 200, 'unit': 'g'}]},
         )
     assert result.data['cmv_per_portion'] is None
@@ -301,6 +340,7 @@ async def test_acceptance_check_clears_once_every_check_passes(server):
         await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': 'Pronto',
+             'portions': 1,
              'lines': [{'ingredient': 'Peito de frango', 'quantity': 100, 'unit': 'g'}]},
         )
         await client.call_tool(
@@ -538,6 +578,12 @@ async def test_the_agent_cannot_reserve_money_she_did_not_agree_to(built, server
             {'dish': dish, 'description': 'massa de lasanha', 'amount': 12.0,
              'her_words': 'pode comprar a massa de lasanha sim'},
         )
+        # Give the money back. The ledger is shared with every other test and
+        # with the last real conversation, and a suite that reserves R$ 12,00
+        # per run eventually exhausts her R$ 80 and starts failing the tests
+        # that come after it.
+        await _release_everything_for(client, dish)
+
     assert hers.data['reserved'] is True
     assert 'Nunca diga que você comprou' in hers.data['next_step']
     assert hers.data['reserved_for_her_to_buy'] >= 12.0
@@ -630,6 +676,7 @@ async def test_a_cost_she_never_heard_is_not_a_promise(built, server):
         await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': dish,
+             'portions': 1,
              'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
         )
         # She asks for a change, so the recipe legitimately reopens.
@@ -642,6 +689,7 @@ async def test_a_cost_she_never_heard_is_not_a_promise(built, server):
         second = await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': dish,
+             'portions': 1,
              'lines': [{'ingredient': 'Peito de frango', 'quantity': 100, 'unit': 'g'}]},
         )
     assert second.data['cmv_changed_since_you_told_her'] is None
@@ -664,6 +712,7 @@ async def test_a_cost_she_already_heard_cannot_change_in_silence(built, server):
         first = await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': dish,
+             'portions': 1,
              'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'},
                        {'ingredient': 'Cebola', 'quantity': 50, 'unit': 'g'}]},
         )
@@ -681,6 +730,7 @@ async def test_a_cost_she_already_heard_cannot_change_in_silence(built, server):
         second = await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': dish,
+             'portions': 1,
              'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
         )
     changed = second.data['cmv_changed_since_you_told_her']
@@ -704,9 +754,12 @@ async def test_recalculating_to_the_same_number_says_nothing(built, server):
             'kitchen_check_feasibility',
             {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
         )
-        await client.call_tool('pricing_calculate_cmv', {'dish': dish, 'lines': lines})
+        await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish, 'portions': 1, 'lines': lines},
+        )
         again = await client.call_tool(
-            'pricing_calculate_cmv', {'dish': dish, 'lines': lines}
+            'pricing_calculate_cmv', {'dish': dish, 'portions': 1, 'lines': lines}
         )
     assert again.data['cmv_changed_since_you_told_her'] is None
 
@@ -766,7 +819,10 @@ async def test_only_her_words_can_reopen_a_recipe(built, server):
             'kitchen_check_feasibility',
             {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
         )
-        await client.call_tool('pricing_calculate_cmv', {'dish': dish, 'lines': lines})
+        await client.call_tool(
+            'pricing_calculate_cmv',
+            {'dish': dish, 'portions': 1, 'lines': lines},
+        )
 
         alone = await client.call_tool(
             'pricing_reopen_recipe', {'dish': dish, 'her_words': ''},
@@ -792,6 +848,7 @@ async def test_only_her_words_can_reopen_a_recipe(built, server):
         after = await client.call_tool(
             'pricing_calculate_cmv',
             {'dish': dish,
+             'portions': 1,
              'lines': [{'ingredient': 'Peito de frango', 'quantity': 200, 'unit': 'g'}]},
         )
     assert after.data.get('ok') is not False
@@ -838,6 +895,8 @@ async def test_the_shopping_list_is_not_the_agents_to_choose(built, server):
             {'dish': dish, 'description': 'massa de lasanha', 'amount': expected,
              'her_words': 'pode reservar que eu compro amanha'},
         )
+        await _release_everything_for(client, dish)
+
     assert right.data['reserved'] is True
 
 
@@ -894,7 +953,7 @@ async def test_the_cost_comes_with_the_breakdown_she_can_check(built, server):
                         'unit': 'g'}]},
         )
     data = result.data
-    assert data['breakdown_for_her'][0].startswith('100 g de Carne moída')
+    assert data['breakdown_for_her'][0].startswith('- 100 g de Carne moída')
     assert 'R$ 2,80' in data['breakdown_for_her'][0]
     # Biggest first: the first lines explain most of the number.
     assert data['breakdown_for_her'] == sorted(
@@ -902,6 +961,11 @@ async def test_the_cost_comes_with_the_breakdown_she_can_check(built, server):
         key=lambda line: -float(line.rsplit('R$ ', 1)[1].replace(',', '.')),
     )
     assert data['cost_per_portion_for_her'] == 'custo por porção: R$ 4,80'
+    # Ready to paste: one ingredient per line, and the total under them.
+    message = data['cost_message_for_her'].splitlines()
+    assert message[0] == 'Cada porção leva:'
+    assert all(line.startswith('- ') for line in message[1:-1])
+    assert message[-1] == 'Dá R$ 4,80 por porção pra você fazer.'
     assert 'CMV' not in data['next_step'] or 'Never say "CMV"' in data['next_step']
 
 
@@ -1026,5 +1090,51 @@ async def test_costing_a_dish_she_never_accepts_leaves_the_pantry_alone(built, s
             await client.call_tool(
                 'pricing_reopen_recipe',
                 {'dish': 'Orçamento solto', 'what_changed': 'fim do teste',
+                 'her_words': 'desisti desse prato'},
+            )
+
+
+@pytest.mark.asyncio
+async def test_the_batch_size_is_hers_not_a_default(built, server):
+    """`portions` used to default to 1, and the agent took the default.
+
+    She had said "faço 8 marmitas por fornada" in her opening message; the
+    escondidinho was costed for a batch of one, so an eighth of the meat left
+    her pantry and the shopping list came out short by seven portions.
+    """
+    import uuid
+
+    dish = f'Prato Fornada {uuid.uuid4().hex[:6]}'
+    async with Client(server) as client:
+        try:
+            await client.call_tool(
+                'kitchen_check_feasibility',
+                {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+            )
+            await capture_her_message(built, 'faço 8 marmitas por fornada')
+
+            wrong = await client.call_tool(
+                'pricing_calculate_cmv',
+                {'dish': dish, 'portions': 1,
+                 'lines': [{'ingredient': 'Carne moída (patinho)',
+                            'quantity': 100, 'unit': 'g'}]},
+            )
+            assert wrong.data['calculation_complete'] is False
+            assert wrong.data['she_said_the_batch_is'] == 8
+            assert '8 marmitas' in wrong.data['her_words']
+
+            right = await client.call_tool(
+                'pricing_calculate_cmv',
+                {'dish': dish, 'portions': 8,
+                 'lines': [{'ingredient': 'Carne moída (patinho)',
+                            'quantity': 100, 'unit': 'g'}]},
+            )
+            assert right.data['calculation_complete'] is True
+            # And what leaves the pantry is the whole fornada, not one portion.
+            assert right.data['takes_out_of_the_pantry'][0]['quantity'] == pytest.approx(0.8)
+        finally:
+            await client.call_tool(
+                'pricing_reopen_recipe',
+                {'dish': dish, 'what_changed': 'fim do teste',
                  'her_words': 'desisti desse prato'},
             )

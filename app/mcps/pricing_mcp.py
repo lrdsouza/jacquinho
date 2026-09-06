@@ -104,11 +104,17 @@ class PricingMCP(BaseMCP):
 
     @staticmethod
     def _in_her_words(amount: str, ingredient: str, cost: float) -> str:
-        """One line of the cost, as she would say it out loud.
+        """One bullet of the cost, as she would say it out loud.
 
         A total on its own is a number she has to take on faith. "100 g de carne
         moída: R$ 2,80" is a number she can check against her own shopping, and
         checking is the whole point of showing it.
+
+        It comes back as a bullet, with the dash already on it, for the same
+        reason the price options are a list: run into prose, six ingredients and
+        six values become a paragraph she skims, and the one line that looks
+        wrong to her is the one that disappears. One per line, she reads down
+        the column and stops at the item she does not recognise.
 
         Grams and litres are for recipes; people say "meio quilo" and "um copo
         de leite". This keeps the unit but scales it to what reads naturally.
@@ -117,7 +123,7 @@ class PricingMCP(BaseMCP):
             value, unit = amount.split(' ', 1)
             quantity = float(value)
         except ValueError:
-            return f'{amount} de {ingredient}: R$ {cost:.2f}'.replace('.', ',')
+            return f'- {amount} de {ingredient}: R$ {cost:.2f}'.replace('.', ',')
 
         if unit == 'kg' and quantity < 1:
             written = f'{quantity * 1000:g} g'
@@ -127,7 +133,59 @@ class PricingMCP(BaseMCP):
             written = f'{quantity:g}' + (' unidade' if quantity == 1 else ' unidades')
         else:
             written = f'{quantity:g} {unit}'
-        return f'{written} de {ingredient}: R$ {cost:.2f}'.replace('.', ',')
+        return f'- {written} de {ingredient}: R$ {cost:.2f}'.replace('.', ',')
+
+    # A line is worth its own bullet while the list still has to explain the
+    # number. Past this, the bullets are pinches of salt at R$ 0,00 and they
+    # push the ones that matter off the top of her screen.
+    EXPLAINS_ENOUGH = 0.92
+    MOST_LINES = 6
+
+    def _batch_she_said(self) -> dict | None:
+        """How many portions she said the fornada makes, from her own turns."""
+        try:
+            return self.chat.batch_size_she_said()
+        except Exception:
+            # Unreachable memory must not stop a costing. The default is then
+            # what the agent passed, which is the situation this check improves
+            # on and does not depend on.
+            return None
+
+    @classmethod
+    def _breakdown_lines(cls, used: list, total: float) -> list[str]:
+        """The cost as bullets, with the tail folded into one line.
+
+        Biggest first, because the first two or three explain almost the whole
+        number. The rest is real and is not hidden - it keeps its own line with
+        the ingredients named and the centavos added up - but it stops competing
+        for her attention with the carne moída.
+
+        Reading eleven bullets ending in "uma pitada de sal: R$ 0,00" is worse
+        than giving her the total: she stops reading before the line she would
+        have questioned.
+        """
+        ordered = sorted(used, key=lambda entry: -entry['cost'])
+        head, running = [], 0.0
+        for entry in ordered:
+            if len(head) >= cls.MOST_LINES or (
+                head and total and running / total >= cls.EXPLAINS_ENOUGH
+            ):
+                break
+            head.append(entry)
+            running += entry['cost']
+
+        tail = ordered[len(head):]
+        lines = [
+            cls._in_her_words(entry['amount'], entry['ingredient'], entry['cost'])
+            for entry in head
+        ]
+        if tail:
+            names = ', '.join(entry['ingredient'].lower() for entry in tail)
+            rest = sum(entry['cost'] for entry in tail)
+            lines.append(
+                f'- e o resto ({names}): R$ {rest:.2f}'.replace('.', ',')
+            )
+        return lines
 
     @staticmethod
     def _cost_a_purchase(line, priced, portions: int, to_buy: list) -> tuple:
@@ -266,7 +324,7 @@ class PricingMCP(BaseMCP):
         def calculate_cmv(
             dish: Annotated[str, Field(description='Dish name.')],
             lines: Annotated[list[RecipeLine], Field(description='Ingredients as the recipe writes them. Per portion by default; if the recipe gives totals, pass recipe_yields and these are the totals.')],
-            portions: Annotated[int, Field(ge=1, description='Portions she will produce per batch.')] = 1,
+            portions: Annotated[int, Field(ge=1, description='Portions in ONE batch, as SHE said it. Not a guess: this is what leaves her pantry.')],
             recipe_yields: Annotated[int, Field(ge=0, description='How many portions the recipe itself yields. Pass it when `lines` are the recipe totals, and the division is done here instead of in your head.')] = 0,
             researched_prices: Annotated[list[PurchasedItem], Field(description='Prices you looked up for ingredients the pantry does not have, one per ingredient, as a package.')] = [],
         ) -> dict:
@@ -282,6 +340,27 @@ class PricingMCP(BaseMCP):
             Returns ``open_questions`` rather than guessing when a recipe unit
             does not match how the ingredient was bought.
             '''
+            # The batch size is hers. It used to default to 1, and the agent
+            # took the default: the escondidinho was costed for a batch of one
+            # while she had said "faço 8 marmitas por fornada" in her opening
+            # message, so the pantry lost an eighth of what the fornada eats and
+            # the shopping list came out short by seven portions of meat.
+            said = self._batch_she_said()
+            if said and said['portions'] != portions:
+                return {
+                    'ok': False,
+                    'calculation_complete': False,
+                    'she_said_the_batch_is': said['portions'],
+                    'her_words': said['her_words'],
+                    'next_step': (
+                        f'Ela disse que a fornada é de {said["portions"]}, não de '
+                        f'{portions}. É a fornada dela que sai da despensa: com o '
+                        'número errado, a lista de compras sai curta e ela chega na '
+                        'cozinha com menos comida do que precisa. Chame de novo com '
+                        f'portions={said["portions"]}, ou pergunte a ela se mudou.'
+                    ),
+                }
+
             # The recipe of a dish is settled once. Passing a different list
             # for the same dish is how the cost wandered from R$ 9,90 to
             # R$ 8,18 to R$ 7,15 in one consultation, each figure arithmetically
@@ -445,13 +524,9 @@ class PricingMCP(BaseMCP):
 
             shopping_cost = sum(entry['estimated_cost'] for entry in to_buy)
             complete = not questions and not unknown
-            # The itemised cost, ready to read to her. Biggest first, because
-            # the first two lines usually explain most of the number and the
-            # centavos at the end are noise.
-            breakdown = [
-                self._in_her_words(entry['amount'], entry['ingredient'], entry['cost'])
-                for entry in sorted(used, key=lambda e: -e['cost'])
-            ]
+            # The itemised cost, ready to read to her: the lines that carry the
+            # number, biggest first, and everything else folded into one.
+            breakdown = self._breakdown_lines(used, cmv)
             # A cost she has already heard is a promise. Recalculating is fine;
             # changing the number in silence leaves her with two prices in her
             # head. It happened in the flagship transcript of this repository:
@@ -524,6 +599,17 @@ class PricingMCP(BaseMCP):
                     if complete else None
                 ),
                 'breakdown_for_her': breakdown if complete else [],
+                # The whole thing ready to paste: the bullets first, the total
+                # after them. The order is the point - a total read first is a
+                # number she is asked to accept, and the lines under it become a
+                # justification nobody reads.
+                'cost_message_for_her': (
+                    'Cada porção leva:\n'
+                    + '\n'.join(breakdown)
+                    + '\nDá R$ ' + f'{cmv:.2f}'.replace('.', ',')
+                    + ' por porção pra você fazer.'
+                    if complete else None
+                ),
                 'calculation_complete': complete,
                 'ingredients': used,
                 'must_buy': to_buy,
@@ -539,9 +625,12 @@ class PricingMCP(BaseMCP):
                 'not_found': unknown,
                 'open_questions': questions,
                 'next_step': (
-                    'Show her `breakdown_for_her` before the total: a cost she can '
-                    'check against her own shopping is worth more than a number she '
-                    'has to believe. Never say "CMV" to her. Then run '
+                    'Send `cost_message_for_her` as it comes: the bullet list first '
+                    'and the total after it, one ingredient per line, exactly like '
+                    'the price options are a list. Run into a paragraph, six values '
+                    'become something she skims, and the line she would have '
+                    'questioned is the one that disappears. Never say "CMV" to her. '
+                    'Then run '
                     'market_research_dish_prices for this dish, and price_scenarios '
                     'with the cost and that reference band. Reserve the shopping with '
                     'budget_reserve_purchase only after she says she will buy it: '
@@ -645,6 +734,12 @@ class PricingMCP(BaseMCP):
                         f'{receives:.2f} - {cmv_per_portion:.2f} CMV = {profit:.2f} profit'
                     ),
                     'above_break_even': profit > 0,
+                    # The same bullet shape the cost breakdown uses, so the two
+                    # lists she reads in one conversation read alike.
+                    'in_her_words': (
+                        f'- vendendo a R$ {price:.2f} → sobram R$ {profit:.2f} '
+                        'por porção pra você'
+                    ).replace('.', ','),
                     'real_terms': self._real_terms(price, cmv_per_portion, net_share),
                 }
 
@@ -700,6 +795,13 @@ class PricingMCP(BaseMCP):
                     'confidence': market.confidence,
                 },
                 'scenarios': scenarios,
+                # Ready to paste, one option per line. She chooses from a list
+                # she can run her eye down, not from a paragraph.
+                'options_for_her': (
+                    'Três opções pra você escolher:\n'
+                    + '\n'.join(entry['in_her_words'] for entry in scenarios)
+                    if scenarios else None
+                ),
                 'unviable_anchors': unviable,
                 'alert': (
                     f'O mercado cobra abaixo do custo dela nestes pontos: {unviable}. '
@@ -713,7 +815,8 @@ class PricingMCP(BaseMCP):
                     else None
                 ),
                 'instruction': (
-                    'Show the arithmetic and the sources to Dona Maria, then let HER '
-                    'choose. Do not pick the price for her.'
+                    'Send `options_for_her` as it comes: one option per line, the '
+                    'same shape as the cost breakdown. Then let HER choose. Do not '
+                    'pick the price for her.'
                 ),
             }

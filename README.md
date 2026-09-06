@@ -10,7 +10,7 @@
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 ![Servidores MCP](https://img.shields.io/badge/servidores%20MCP-11-success)
 ![Ferramentas](https://img.shields.io/badge/ferramentas-59-success)
-![Testes](https://img.shields.io/badge/testes-272-success)
+![Testes](https://img.shields.io/badge/testes-276-success)
 
 Um sous-chef de IA para a **Dona Maria**, cozinheira que está abrindo o primeiro
 delivery dela, o *Sabor da Maria*. Ela sabe cozinhar. O que ela não sabe é quais
@@ -59,105 +59,158 @@ que valem `grep` estão em **[docs/operacao.md](docs/operacao.md)**.
 
 ## Uma consultoria que deu certo
 
-Transcrição real, bancos zerados, **sem cortes e sem edição**. É o caso que o
-desafio pede: ela quer um prato que exige forno, não tem forno, e ele descobre
-isso **antes** de ela gastar um centavo.
+Transcrição real, bancos zerados. Dois pratos, e o segundo encontra a despensa
+como o primeiro a deixou. Nada foi reescrito: as falas estão palavra por palavra,
+e o que está entre colchetes são turnos de cozinha inteiros que ficaram de fora
+para o exemplo caber.
 
 ```
-Dona Maria ▸ oi! quero fazer lasanha ao forno pra vender de marmita
+Dona Maria ▸ oi! vou começar a vender marmita por delivery. quero fazer
+             escondidinho de carne moída, é o que sai melhor aqui em casa.
+             faço 8 marmitas por fornada
 
-Jacquinho  ▸ Lasanha à bolonhesa ao forno é uma ótima pedida pra marmita!
-             Antes de eu olhar a receita direitinho e ver as contas, preciso
-             saber uma coisa: você tem forno em casa? Ele assa por igual, sem
-             deixar parte crua e parte queimada?
+Jacquinho  ▸ Escondidinho de carne moída combina muito bem com sua despensa!
+             Você já tem quase tudo: batata, carne moída, mussarela, cebola,
+             alho, leite, manteiga. Só falta a pimenta branca.
+             Antes de fechar, preciso saber uma coisa da sua cozinha: você tem
+             forno? Funciona bem, assa por igual? Pergunto porque esse prato
+             vai gratinado no forno.
 
-Dona Maria ▸ nao tenho forno nao, so um cooktop de 4 bocas. topo a de panela,
-             tenho cacarola grande, so refogo, faco molho branco de olho,
-             rende 8 marmitas. me diz o custo aberto e por quanto vender
+Dona Maria ▸ tenho forno a gás que assa por igual, fogão de 4 bocas, panela
+             grande, espremedor de batata e refratário. e tenho prática com
+             purê e com refogado, faço há anos. porciono na balança
 
-Jacquinho  ▸ Oi, Dona Maria!
-             Lasanha à bolonhesa ao forno tá fora, viu — porque você não tem
-             forno, só o cooktop de 4 bocas. Mas dá pra fazer sua lasanha na
-             panela mesmo: monta em camadas com o molho bolonhês e o molho
-             branco de olho, tampa a caçarola grande e cozinha no fogo baixo.
-             Fica com o mesmo gostinho, só muda o jeito de cozinhar.
-             Fechei a conta do custo. Cada marmita fica em R$ 7,53 pra você
-             fazer. As três que mais pesam: 80g de carne moída (R$ 2,24), 50g
-             de mussarela (R$ 2,00) e o tomate (R$ 0,67). Depois vem a massa
-             que você vai comprar (R$ 0,64) e o resto dos temperos e do molho
-             branco fechando a conta.
-             Pra fazer a fornada de 8 marmitas, você vai gastar uns R$ 29,24
-             comprando massa de lasanha, orégano, manjericão e pimenta-do-reino
-             — o resto você já tem em casa. Isso cabe tranquilo no seu
-             orçamento, sobrando R$ 50,76 pra próxima fornada.
-             Abaixo de R$ 8,37 por marmita você paga pra vender, então esse é o
-             seu piso.
-             Marmita parecida está saindo entre R$ 14,98 e R$ 28,00 por aí —
-             achei poucas referências de preço, então trate isso como
-             indicativo, não como faixa fechada de mercado. Com esses números:
-             vendendo a R$ 15,90 → sobram R$ 6,78 por marmita pra você
-             vendendo a R$ 23,90 → sobram R$ 13,98 por marmita
-             vendendo a R$ 28,90 → sobram R$ 18,48 por marmita
-             Qual desses preços você quer colocar, ou prefere outro valor?
+Jacquinho  ▸ Sua cozinha tá anotada e o escondidinho de carne moída fechou o
+             portão: seu forno assa por igual, você já manja de refogado e de
+             purê há anos, e o refratário dá conta do gratinado.
+             Cada porção leva:
+             - 70 g de carne moída: R$ 1,96
+             - 40 g de mussarela: R$ 1,60
+             - 100 g de batata: R$ 0,60
+             - 39 g de tomate: R$ 0,31
+             - 0,2 g de pimenta-do-reino: R$ 0,12
+             - 24 ml de leite: R$ 0,12
+             - e o resto (manteiga, azeite, cebola, alho, sal): R$ 0,28
+             Dá R$ 5,00 por porção pra você fazer.
+             Só falta uma coisa na sua despensa: pimenta-do-reino. Um potinho
+             de 15g custa uns R$ 8,99 e rende várias fornadas. Isso deixaria
+             R$ 71,01 dos seus R$ 80 pra próxima fornada.
+             Achei pouca referência firme de preço pra esse prato específico,
+             então trate como indicativo: marmita parecida gira uns R$ 24 por
+             aí. Vendendo a R$ 24,90, sobram R$ 17,41 por marmita pra você.
+             Quer fechar nesse preço, ou prefere outro?
+
+Dona Maria ▸ vou vender a 24,90. pode colocar no cardápio e reservar a compra
+
+             [entra no cardápio, e a fornada de 8 tira 560 g de patinho dos
+              1,5 kg dela]
+
+Dona Maria ▸ gostei! agora quero botar um segundo prato no cardápio: macarrão
+             à bolonhesa, também com carne moída. essa fornada eu faço maior,
+             18 marmitas
+
+             [a bolonhesa exige peneira, ralador, escumadeira, tábua, prática
+              de molho e de massa, e onde descartar a gordura do bacon. Ele
+              pergunta tudo isso, um por turno, antes de qualquer conta]
+
+Jacquinho  ▸ Cada porção leva:
+             - 100 g de carne moída: R$ 2,80
+             - 17 ml de azeite: R$ 1,05
+             - 20 g de parmesão ralado: R$ 0,86
+             - 50 g de macarrão espaguete: R$ 0,70
+             - 80 g de tomate: R$ 0,64
+             - 20 g de bacon: R$ 0,48
+             - e o resto (cenoura, cebola, pimenta-do-reino, sal): R$ 0,16
+             Dá R$ 6,70 por porção pra você fazer.
+             Da carne moída você tinha 1,5 kg; o escondidinho levou 560 g e
+             sobraram 940 g. Essa fornada de bolonhesa (18 marmitas) pede
+             1,8 kg, então faltam 860 g pra comprar — uns R$ 24,08.
+             Do parmesão você tinha 200 g; a fornada pede 360 g, faltam 160 g
+             — uns R$ 6,86.
+             Cenoura e pimenta-do-reino não estão na sua despensa: um pacote de
+             1 kg de cenoura sai por R$ 8,99, e um potinho de 100 g de
+             pimenta-do-reino por R$ 8,49.
+             No total, a compra fica em R$ 48,42. Isso deixa R$ 22,59 dos seus
+             R$ 71,01 pra próxima fornada, se você comprar tudo isso.
+             Marmita parecida de macarrão à bolonhesa está saindo entre R$ 18 e
+             R$ 29,90 por aí — achei poucas referências, então trate como
+             indicativo. Três opções pra você:
+             - vendendo a R$ 18,90 → sobram R$ 10,31 por porção pra você
+             - vendendo a R$ 25,90 → sobram R$ 16,61 por porção pra você
+             - vendendo a R$ 29,90 → sobram R$ 20,21 por porção pra você
+             Qual preço você quer colocar?
 ```
+
+### O estoque dela acaba, e ela ouve para onde foi
+
+A frase que faz esta conversa valer é *"o escondidinho levou 560 g e sobraram
+940 g"*. Um "faltam 860 g" solto parece erro de planilha, e o que ela faz com um
+erro de planilha é duvidar do número em vez de comprar a carne.
+
+Nada disso é lembrança do modelo. Quando o escondidinho entrou no cardápio, a
+fornada dele saiu da despensa, e o Postgres guarda para onde:
+
+```
+ dish                         | ingredient_key         | quantity | portions
+------------------------------+------------------------+----------+----------
+ escondidinho de carne moída  | carne moida patinho    |   0.5600 |        8
+ macarrão à bolonhesa         | carne moida patinho    |   1.8000 |       18
+ macarrão à bolonhesa         | queijo parmesao ralado |   0.3600 |       18
+```
+
+`1,5 − 0,56 = 0,94`, e `1,8 − 0,94 = 0,86` — os 860 g que ela precisa comprar,
+a R$ 28,00 o quilo que ela mesma pagou, dão os R$ 24,08. O parmesão conta a mesma
+história sem que ninguém tenha pedido. **A fornada é de 18 porque ela disse 18**:
+`portions` não tem valor padrão, e um número diferente do que ela falou é
+recusado. O como e o porquê estão
+[mais abaixo](#o-estoque-dela-é-finito-e-baixa-quando-ela-aceita-o-prato).
 
 ### A conta é aberta, e por isso pode ser conferida
 
-Repare no que ele **não** faz: dar um total e pedir fé. Cada linha da conta sai
-com a gramatura e o preço, ordenada pela que mais pesa, porque as duas ou três
-primeiras explicam quase todo o número e os centavos do fim são ruído.
+Repare no que ele **não** faz: dar um total e pedir fé. Cada linha sai com a
+gramatura e o preço, **em lista**, ordenada pela que mais pesa — e a cauda vira
+uma linha só, porque onze marcadores terminando em "uma pitada de sal: R$ 0,00"
+são piores que dar apenas o total: ela para de ler antes da linha que teria
+questionado.
 
-Ela compra carne, sabe quanto pagou pelo quilo, e reconhece o R$ 2,24. Se algum
-item estiver errado, é assim que ela descobre, e descobrir agora é melhor que
-descobrir vendendo.
-
-O custo unitário vem do cruzamento das duas abas da planilha dela
+Ela compra carne, sabe quanto pagou pelo quilo, e reconhece o R$ 2,80. O custo
+unitário vem do cruzamento das duas abas da planilha dela
 (`preço pago ÷ quantidade comprada`), e a conta bate ao centavo:
 
 | Ingrediente | Por marmita | Custo unitário | Custo |
 |---|---:|---:|---:|
-| Carne moída (patinho) | 80 g | R$ 28,00/kg | R$ 2,24 |
-| Queijo mussarela | 50 g | R$ 40,00/kg | R$ 2,00 |
-| Tomate | ~84 g | R$ 8,00/kg | R$ 0,67 |
-| Massa de lasanha *(compra)* | fração do pacote | pesquisado | R$ 0,64 |
-| *…e o resto do molho e dos temperos* | | | R$ 1,98 |
-| | | **por marmita** | **R$ 7,53** |
+| Carne moída (patinho) | 100 g | R$ 28,00/kg | R$ 2,80 |
+| Azeite de oliva | 17 ml | R$ 61,98/L | R$ 1,05 |
+| Parmesão ralado | 20 g | R$ 42,90/kg | R$ 0,86 |
+| Macarrão espaguete | 50 g | R$ 13,99/kg | R$ 0,70 |
+| Tomate | 80 g | R$ 8,00/kg | R$ 0,64 |
+| Bacon | 20 g | R$ 23,90/kg | R$ 0,48 |
+| *…e o resto* | | | R$ 0,16 |
+| | | **por marmita** | **R$ 6,70** |
 
-E **nenhuma sigla**: "cada marmita fica em R$ 7,53 pra você fazer", "abaixo de
-R$ 8,37 você paga pra vender". Ela é cozinheira, não consultora. Decisão
+As opções de preço saem na mesma forma, e pelo mesmo motivo: uma por linha, para
+ela descer a coluna e escolher. `25,90 × 0,90 − 6,70 = 16,61`, e o piso
+`6,70 / 0,90 = 7,44`.
+
+E **nenhuma sigla**: "cada marmita custa R$ 6,70 pra você fazer", "abaixo de
+R$ 7,44 você paga pra vender". Ela é cozinheira, não consultora. Decisão
 [50](docs/decisoes.md#50-a-conta-é-aberta-em-português-e-a-divisão-é-da-ferramenta).
 
-Quando a receita da web vem em porções, como *"1 kg de carne, serve 6"*, quem divide
-é a ferramenta, não o modelo de cabeça. A gramatura da receita é o que determina
-o valor por porção, e o que falta comprar é estimado sobre a mesma base: a
+Quando a receita da web vem em porções, como *"1 kg de carne, serve 6"*, quem
+divide é a ferramenta, não o modelo de cabeça. A gramatura da receita determina o
+valor por porção, e o que falta comprar é estimado sobre a mesma base: a
 **fração** que a fornada consome entra no custo, a **embalagem inteira** entra na
-lista de compras.
-
-O resto confere: piso `7,53 / 0,90 = 8,37`, `15,90 × 0,90 − 7,53 = 6,78`,
-`23,90 × 0,90 − 7,53 = 13,98`, `28,90 × 0,90 − 7,53 = 18,48`,
-`80,00 − 29,24 = 50,76`.
+lista de compras — daí o pacote de 1 kg de cenoura ao lado dos 160 g de parmesão.
 
 **E o servidor confere sozinho.** A mensagem foi julgada na fronteira do turno,
-afirmação por afirmação:
+afirmação por afirmação, cada uma ligada ao campo de saída do MCP que a produziu:
 
 ```
-jacquinho.claims {"score":1.0,"verdict":"tudo confere","verifiable":16,"grounded":16,"contradictions":0}
+jacquinho.claims {"dish":"macarrao a bolonhesa","score":1.0,"verdict":"tudo confere","verifiable":23,"grounded":23,"contradictions":0}
 ```
 
-Dezesseis afirmações, cada uma ligada ao campo de saída do MCP que a produziu.
-Abrir a conta multiplicou o que pode ser **conferido**, em vez de multiplicar o
-que precisa ser acreditado.
-
-O estado que ficou nos bancos, consultável com `psql`:
-
-```
-recipe_costing  lasanha de panela | receita fechada, 8 porções | custo 7.53
-                compras: R$ 29.24
-recipe_blocks   lasanha ao forno | forno | ativo  ← volta no dia em que ela tiver um
-```
-
-Repare na última linha: o que fica arquivado é a **lasanha ao forno**, o prato
-que morreu, e não a de panela que a substituiu.
+Vinte e três afirmações, vinte e três com lastro. Abrir a conta multiplicou o que
+pode ser **conferido**, em vez de multiplicar o que precisa ser acreditado.
 
 ## Uma conversa que deu errado
 
@@ -223,7 +276,7 @@ Outras conversas, com o diagnóstico de cada falha, estão em
 
 ## As decisões que sustentam isso
 
-As cinquenta e duas decisões de arquitetura, cada uma com motivo e
+As cinquenta e três decisões de arquitetura, cada uma com motivo e
 consequência, estão em **[docs/decisoes.md](docs/decisoes.md)**. Estas seis são
 as que respondem o desafio.
 
@@ -296,48 +349,72 @@ o portão, recalcular custo e preço. Decisões
 
 Ela tem **1,5 kg** de patinho. Não patinho à vontade. Se o segundo prato calcula
 em cima da geladeira que o primeiro já esvaziou, a lista de compras sai curta — e
-ela chega na cozinha com metade da carne que a fornada pede.
+ela chega na cozinha com metade da carne que a fornada pede. É o que acontece na
+conversa lá em cima, e é por isso que ela ouve *"o escondidinho levou 560 g e
+sobraram 940 g"* em vez de *"faltam 860 g"*.
 
-Então o estoque deixou de ser um número lido da planilha e virou uma
-**subtração**: o que a planilha semeou, menos o que os pratos já aceitos
-consumiram. O consumo mora numa tabela só-adição, uma linha por ingrediente por
-prato.
+**O estoque é uma subtração, não um número guardado.** O que a planilha semeou,
+menos o que os pratos já aceitos consumiram. `pantry_items` nunca é reescrita;
+o consumo mora em `pantry_usage`, uma linha por ingrediente por prato.
 
-Numa conversa gravada com os bancos zerados, ela pôs dois pratos no cardápio e a
-segunda fornada bateu no fim da carne:
-
-```
-Dona Maria ▸ pensando melhor, essa bolonhesa eu quero fazer 18 marmitas, que o
-             pedido do fim de semana é grande
-
-Jacquinho  ▸ Só um aviso antes: você tinha 1,5 kg de carne moída; o
-             escondidinho levou 500 g, sobrou 1 kg. Pra 18 marmitas a
-             bolonhesa pede 1,5 kg, então faltam 500 g pra comprar.
+```sql
+-- o que ela ainda tem, em uma consulta
+SELECT i.ingredient,
+       i.stock_quantity - COALESCE(sum(u.quantity), 0) AS sobra
+  FROM pantry_items i
+  LEFT JOIN pantry_usage u ON u.ingredient_key = i.ingredient_key
+ GROUP BY i.ingredient, i.stock_quantity;
 ```
 
-Os dois pratos somam os 2 kg que as fornadas pedem contra os 1,5 kg que ela
-tinha, e o meio quilo que falta virou compra a R$ 14,00 — o preço por quilo que
-ela mesma pagou. A conversa inteira está em
-[docs/dialogos.md](docs/dialogos.md#certo-5--os-2-kg-de-patinho-e-o-meio-quilo-que-falta).
+**Só-adição, e não um `UPDATE` no saldo.** Um `UPDATE` guarda quanto sobrou e
+joga fora o porquê. O que ela precisa ouvir não é o saldo, é para onde a carne
+foi. Com o consumo ao lado do estoque semeado, a frase inteira é uma consulta;
+com um saldo só, o porquê teria sido jogado fora na primeira escrita.
 
-Duas escolhas fazem essa frase existir. **Só-adição**, porque um `UPDATE` no
-estoque guarda o saldo e joga fora o porquê — e o que ela precisa ouvir não é o
-saldo, é para onde a carne foi; um "faltam 500 g" solto parece erro de planilha,
-e o que ela faz com um erro de planilha é duvidar do número em vez de comprar a
-carne. E **no aceite, não no cálculo**: orçar um prato é uma pergunta, colocá-lo
-no cardápio é uma decisão. O mesmo prato é orçado várias vezes, inclusive quando
-ela recusa; se cada orçamento baixasse o estoque, a despensa esvaziava por conta
-de perguntas.
+**Baixa no aceite, nunca no cálculo.** Orçar um prato é uma pergunta; colocá-lo
+no cardápio é uma decisão. O mesmo prato é orçado várias vezes, e às vezes ela
+recusa no fim — se cada orçamento baixasse o estoque, a despensa esvaziaria por
+conta de perguntas. Quem escreve é `menu_add_dish`.
 
-O caminho de volta é automático: tirar o prato do cardápio, ou reabrir a receita
-porque ela mudou de ideia, devolve o que aquele prato tinha levado.
+**As quantidades vêm da receita fechada.** `pricing_calculate_cmv` já resolveu
+cada linha para unidade base ao calcular o custo, e guarda isso no cadeado da
+receita. O aceite lê de lá: re-derivar a partir dos nomes seria resolver o mesmo
+fato duas vezes, e duas resoluções são duas chances de discordar.
 
-Aqui está a vantagem prática do Postgres, e é bem concreta: o estoque dela é um
-dado que o operador precisa poder mexer — repor o que ela comprou, corrigir o que
-a planilha trouxe errado, montar um cenário. Isso é um `UPDATE` de uma linha,
-conferível na hora com um `SELECT`. Guardado junto do estado de conversa, seria
-um blob que só o código sabe abrir. Decisão
-[51](docs/decisoes.md#51-o-estoque-dela-é-finito-e-baixa-quando-o-prato-entra-no-cardápio).
+**E volta sozinho.** Tirar o prato do cardápio devolve o que ele tinha levado.
+Reabrir a receita porque ela mudou de ideia também — o que aquela versão
+consumia era de um prato que não vai mais ser feito. Nada disso depende de o
+modelo lembrar de um segundo passo.
+
+**Uma linha por ingrediente, e o prato é dono das dela.** A receita da bolonhesa
+pede tomate duas vezes, o fresco e o que vira molho: o consumo é somado antes de
+ser escrito, senão a história vira *"levou 1,02 kg e levou 1,8 kg"*. E aceitar o
+mesmo prato de novo substitui as linhas dele em vez de comer a despensa duas
+vezes.
+
+**E a fornada é o número dela.** `portions` diz quantas marmitas saem de uma
+fornada, e é essa quantidade que sai da despensa. O argumento nasceu com `= 1` e
+o agente pegou o padrão: ela tinha aberto a conversa com *"faço 8 marmitas por
+fornada"* e o prato foi custeado para uma fornada de uma — o custo por porção
+certo, e a despensa perdendo um oitavo do que a fornada come. Hoje o argumento é
+obrigatório, e um número diferente do que ela falou é recusado com a frase dela
+devolvida. Um padrão errado sete vezes em oito é pior que um argumento faltando:
+faltando, a chamada falha e alguém decide; com padrão, ela passa e ninguém vê.
+Decisão [52](docs/decisoes.md#52-a-fornada-é-o-número-dela-e-não-tem-valor-padrão).
+
+**A vantagem prática do Postgres, bem concreta.** O estoque é um dado que o
+operador precisa poder mexer: repor o que ela comprou, corrigir o que a planilha
+trouxe errado, montar um cenário para demonstração. É um `UPDATE` de uma linha,
+conferível na hora com um `SELECT`.
+
+```sql
+-- ela comprou mais meio quilo de patinho
+UPDATE pantry_items SET stock_quantity = stock_quantity + 0.5
+ WHERE ingredient_key = 'carne moida patinho';
+```
+
+Guardado junto do estado de conversa, seria um blob que só o código sabe abrir.
+Decisão [51](docs/decisoes.md#51-o-estoque-dela-é-finito-e-baixa-quando-o-prato-entra-no-cardápio).
 
 ### Confiança por afirmação atômica, tipada pela saída do MCP
 
@@ -433,7 +510,14 @@ resposta longa para uma pergunta grande é uma boa resposta. `message_pacing`
 volta em `confidence_assess_answer` dizendo em quantas partes o rascunho está e
 onde é a costura, sem nunca reescrever nada: prosa quebrada por regra soa
 quebrada, e o agente já sabe onde os próprios parágrafos terminam. Decisão
-[52](docs/decisoes.md#52-a-mensagem-vai-em-partes-e-o-tamanho-não-é-o-problema).
+[53](docs/decisoes.md#53-a-mensagem-vai-em-partes-e-o-tamanho-não-é-o-problema).
+
+E o que ela lê em lista **é** lista: a conta da porção e as opções de preço saem
+com um item por linha, na mesma forma. Corridos dentro de um parágrafo, seis
+ingredientes e seis valores viram uma coisa que ela passa o olho, e a linha que
+ela questionaria é justamente a que some. A cauda é dobrada, não escondida — *"e
+o resto (cebola, leite, alho, sal): R$ 0,14"* —, porque onze marcadores
+terminando em "uma pitada de sal: R$ 0,00" são piores que dar só o total.
 
 O procedimento (que ferramenta chamar, em que ordem, o que exige o quê) **não**
 está lá. Está nas descrições das ferramentas e no `next_step` de cada resultado,
@@ -518,7 +602,7 @@ torto.
 | Documento | Conteúdo |
 |---|---|
 | [docs/arquitetura.md](docs/arquitetura.md) | Componentes, camadas, fluxogramas e diagramas de sequência |
-| [docs/decisoes.md](docs/decisoes.md) | As 52 decisões de arquitetura, com motivo e consequência |
+| [docs/decisoes.md](docs/decisoes.md) | As 53 decisões de arquitetura, com motivo e consequência |
 | [docs/dialogos.md](docs/dialogos.md) | Nove conversas reais: cinco que deram certo, quatro que deram errado |
 | [docs/metricas.md](docs/metricas.md) | Como a confiança é calculada, o pipeline de afirmações, e as referências |
 | [docs/modelo-de-dados.md](docs/modelo-de-dados.md) | Esquema do Postgres, chaves do Redis, normalização de unidades |
