@@ -11,6 +11,7 @@
 ![Servidores MCP](https://img.shields.io/badge/servidores%20MCP-11-success)
 ![Ferramentas](https://img.shields.io/badge/ferramentas-59-success)
 ![Testes](https://img.shields.io/badge/testes-277-success)
+![Confiança](https://img.shields.io/badge/confiança-afirmação%20atômica%20%2B%20Pydantic-6E56CF)
 
 Um sous-chef de IA para a **Dona Maria**, cozinheira que está abrindo o primeiro
 delivery dela, o *Sabor da Maria*. Ela sabe cozinhar. O que ela não sabe é quais
@@ -21,7 +22,12 @@ Sous-chef, e não chefe: **quem decide o prato, o preço e a compra é ela.** El
 a despensa, pergunta o que não sabe, faz as contas e abre os números.
 
 E é construído de modo que **todo número que ele diz veio de uma chamada de
-ferramenta, nunca da memória do modelo**.
+ferramenta, nunca da memória do modelo**. Isso não é uma intenção: cada mensagem
+entregue é quebrada em afirmações atômicas e cada uma é conferida contra a saída
+de MCP que a produziu, com o que ela já ouviu nos turnos anteriores no meio da
+comparação. Uma cifra sem lastro zera a afirmação; uma que contradiz o que ela
+ouviu zera a mensagem. Está descrito em
+[Confiança por afirmação atômica](#confiança-por-afirmação-atômica-tipada-pela-saída-do-mcp).
 
 > *O nome é uma homenagem ao chef **Érick Jacquin**, e o sotaque francês
 > acaba aí: o Jacquinho fala português claro e não grita com ninguém.*
@@ -32,6 +38,13 @@ ferramenta, nunca da memória do modelo**.
 - [Uma consultoria que deu certo](#uma-consultoria-que-deu-certo)
 - [Uma conversa que deu errado](#uma-conversa-que-deu-errado)
 - [Decisões de arquitetura](#decisões-de-arquitetura)
+  - [Ferramentas MCP, e nenhuma skill](#ferramentas-mcp-e-nenhuma-skill)
+  - [Confiança por afirmação atômica, tipada pela saída do MCP](#confiança-por-afirmação-atômica-tipada-pela-saída-do-mcp)
+  - [O `SOUL.md` carrega a voz, e só a voz](#o-soulmd-carrega-a-voz-e-só-a-voz)
+  - [Redis para a conversa, Postgres para o que ela decidiu](#redis-para-a-conversa-postgres-para-o-que-ela-decidiu)
+  - [O preço da porção nasce da gramatura da receita](#o-preço-da-porção-nasce-da-gramatura-da-receita)
+  - [O estoque é finito, e só baixa quando ela aceita o prato](#o-estoque-é-finito-e-só-baixa-quando-ela-aceita-o-prato)
+  - [O que ela tem é estado, e muda quando ela muda de ideia](#o-que-ela-tem-é-estado-e-muda-quando-ela-muda-de-ideia)
 - [O que pode melhorar](#o-que-pode-melhorar)
 - [O sistema em números](#o-sistema-em-números)
 - [O que eu deixei de fora, e por quê](#o-que-eu-deixei-de-fora-e-por-quê)
@@ -381,6 +394,90 @@ um pedaço do estado, e uma tabela tem um dono só. Decisões
 [2](docs/decisoes.md#2-um-endpoint-http-onze-servidores-montados) e
 [4](docs/decisoes.md#4-ferramentas-mcp-em-vez-de-skills).
 
+### Confiança por afirmação atômica, tipada pela saída do MCP
+
+É a garantia que sustenta a frase do topo deste arquivo. Dizer *"todo número vem
+de uma ferramenta"* só vale alguma coisa se alguém conferir, mensagem por
+mensagem, e é isso que esta camada faz.
+
+Uma nota por mensagem não diz nada, porque uma mensagem tem várias afirmações e
+elas não têm o mesmo lastro. Então **toda** mensagem entregue é decomposta, e
+cada afirmação é julgada sozinha:
+
+```
+"custa R$ 7,53 por marmita, e vendendo a R$ 23,90 sobram R$ 13,98"
+        │                              │                    │
+     COST 7.53                    PRICE 23.90          PROFIT 13.98
+        └── pricing_calculate_cmv  └── price_scenarios  └── price_scenarios
+            .cmv_per_portion           .scenarios[]        .scenarios[]
+                                       .selling_price      .profit_per_portion
+```
+
+Quatro passos, e nenhum deles depende de o agente lembrar de pedir:
+
+| Passo | O que faz |
+|---|---|
+| **1. Decompor** | Quebra a mensagem em afirmações atômicas, uma cifra e um tipo cada |
+| **2. Filtrar** | Pergunta, conselho e opinião saem: só fica o que é conferível |
+| **3. Conferir** | Cada afirmação contra a saída de MCP que a estabelece |
+| **4. Comparar** | Contra o que ela **já ouviu** nos turnos anteriores |
+
+O modelo `AtomicClaim` é Pydantic, e a tipagem é a garantia: uma afirmação
+carrega o tipo (`COST`, `PRICE`, `PROFIT`, `RECEIPT`, `PANTRY`, `BUDGET`), o
+valor e a fonte. Sem tipo, R$ 13,98 de lucro conferiria contra um R$ 13,98 de
+compra que passou pela conversa por acaso.
+
+**E o lastro vem da saída do MCP, não de um saco de números.** Um mapa declara,
+campo por campo, qual saída de qual ferramenta estabelece qual tipo de afirmação:
+`pricing_calculate_cmv.cmv_per_portion` é um custo,
+`menu_expected_return.dishes[].platform_fee_paid` é uma taxa. Duas distinções
+fazem o trabalho:
+
+*Saída, nunca argumento.* Uma ferramenta é evidência do que ela **calcula**. O que
+ela **recebe** é o modelo falando consigo mesmo, e contar isso fecha um círculo
+com nada dentro. Sem essa regra, uma ferramenta que devolve no resultado o valor
+que o modelo passou faz o próprio chute do modelo parecer conferido.
+
+*Ter lastro não é comprometer.* `price_scenarios` devolve três preços, e nenhum
+deles é o preço do prato. Só o que foi para o cardápio compromete. Marcar os três
+como promessa transformaria "aqui estão três opções" em três contradições no
+turno seguinte.
+
+**O que acontece quando falha.** Uma cifra que nenhuma saída produziu zera
+aquela afirmação. Uma que contradiz o que ela já ouviu zera a **mensagem
+inteira**, porque dois preços na cabeça dela é pior que um preço vago. O
+resultado sai no log a cada turno:
+
+```
+jacquinho.claims {"score":1.0,"verdict":"tudo confere","verifiable":23,"grounded":23,"contradictions":0}
+```
+
+Ao lado dele roda a camada irmã, mais crua: `confidence_audit_figures` extrai
+todo R$ e todo % da mensagem e pergunta se alguma ferramenta produziu aquele
+número, sem modelo nenhum no circuito. Um turno limpo não gera linha; quando
+gera, ela vem com o valor e o trecho onde aparece, sob o prefixo
+`jacquinho.figures`. É o que pega uma conta feita na prosa **mesmo quando o
+resultado está certo**, que é o caso difícil: a conta certa feita na mensagem e a
+errada de amanhã têm exatamente a mesma cara.
+
+**Antes de enviar, e depois de enviar.** `confidence_assess_answer` pontua o
+rascunho contra a evidência que a afirmação daquele tipo exige, e banda `low`
+significa que a resposta não está pronta. O pipeline de afirmações roda depois,
+na fronteira do turno, sobre o que realmente saiu, que é o único lugar onde a
+mensagem existe. As duas medem coisas diferentes de propósito: a primeira
+pergunta se há evidência suficiente, a segunda pergunta se o que foi dito bate
+com ela.
+
+O método vem da literatura de verificação factual, adaptado: decomposição atômica
+do FActScore e do SAFE, o filtro de "só o que é verificável" do VeriScore, e o
+registro de compromissos entre turnos do SKG-Eval. Nada disso vira selo na
+mensagem dela, que é cozinheira e não avaliadora deste sistema: o que chega até
+ela é a ressalva em português, dentro da frase. Decisões
+[45](docs/decisoes.md#45-a-confiança-de-uma-mensagem-é-a-soma-das-afirmações-dela)
+e [47](docs/decisoes.md#47-as-afirmações-são-conferidas-contra-a-saída-do-mcp-que-as-produziu);
+a matemática e os limites conhecidos estão em
+[docs/metricas.md](docs/metricas.md).
+
 ### O `SOUL.md` carrega a voz, e só a voz
 
 O Hermes trata texto vindo de um servidor MCP como **dado não confiável**, com um
@@ -550,59 +647,6 @@ o portão, recalcular custo e preço. Decisões
 [30](docs/decisoes.md#30-o-prato-morto-é-fechado-pela-ferramenta-não-pelo-lembrete),
 [35](docs/decisoes.md#35-um-sim-com-mas-dentro-não-é-um-sim) e
 [43](docs/decisoes.md#43-a-receita-de-um-prato-fecha-uma-vez).
-
-### Confiança por afirmação atômica, tipada pela saída do MCP
-
-Uma nota por mensagem não diz nada, porque uma mensagem tem várias afirmações e
-elas não têm o mesmo lastro. Toda mensagem entregue é decomposta e cada afirmação
-é julgada sozinha:
-
-```
-"custa R$ 7,53 por marmita, e vendendo a R$ 23,90 sobram R$ 13,98"
-        │                              │                    │
-     COST 7.53                    PRICE 23.90          PROFIT 13.98
-        └── pricing_calculate_cmv  └── price_scenarios  └── price_scenarios
-            .cmv_per_portion           .scenarios[]        .scenarios[]
-                                       .selling_price      .profit_per_portion
-```
-
-O modelo `AtomicClaim` é Pydantic, e a tipagem é a garantia: uma afirmação
-carrega o tipo (`COST`, `PRICE`, `PROFIT`, `RECEIPT`, `PANTRY`, `BUDGET`), o
-valor e a fonte. Sem tipo, R$ 13,98 de lucro conferiria contra um R$ 13,98 de
-compra que passou pela conversa por acaso.
-
-**E o lastro vem da saída do MCP, não de um saco de números.** Um mapa declara,
-campo por campo, qual saída de qual ferramenta estabelece qual tipo de afirmação:
-`pricing_calculate_cmv.cmv_per_portion` é um custo,
-`menu_expected_return.dishes[].platform_fee_paid` é uma taxa. Duas distinções
-fazem o trabalho:
-
-*Saída, nunca argumento.* Uma ferramenta é evidência do que ela **calcula**. O que
-ela **recebe** é o modelo falando consigo mesmo, e contar isso fecha um círculo
-com nada dentro.
-
-*Ter lastro não é comprometer.* `price_scenarios` devolve três preços, e nenhum
-deles é o preço do prato. Só o que foi para o cardápio compromete. Marcar os três
-como promessa transformaria "aqui estão três opções" em três contradições no
-turno seguinte.
-
-Uma cifra que nenhuma saída produziu zera a afirmação. Uma que contradiz o que
-ela já ouviu zera a mensagem inteira, porque dois preços na cabeça dela é pior
-que um preço vago. O pipeline roda na fronteira do turno, sobre a mensagem que
-saiu, e escreve uma linha no log:
-
-```
-jacquinho.claims {"score":1.0,"verdict":"tudo confere","verifiable":23,"grounded":23,"contradictions":0}
-```
-
-O método vem da literatura de verificação factual, adaptado: decomposição atômica
-do FActScore e do SAFE, o filtro de "só o que é verificável" do VeriScore, e o
-registro de compromissos entre turnos do SKG-Eval. Nada disso vira selo na
-mensagem dela, que é cozinheira e não avaliadora deste sistema: o que chega até
-ela é a ressalva em português, dentro da frase. Decisões
-[45](docs/decisoes.md#45-a-confiança-de-uma-mensagem-é-a-soma-das-afirmações-dela)
-e [47](docs/decisoes.md#47-as-afirmações-são-conferidas-contra-a-saída-do-mcp-que-as-produziu);
-a matemática está em [docs/metricas.md](docs/metricas.md).
 
 ---
 
