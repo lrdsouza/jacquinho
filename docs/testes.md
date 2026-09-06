@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-243-success)
+![Unitários](https://img.shields.io/badge/testes-245-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,7 +38,7 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**243 testes, 14 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**245 testes, 14 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
@@ -50,7 +50,7 @@ ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 | `test_units.py` | 15 | Unidade e embalagem: `balde 2kg` são dois quilos |
 | `test_search_and_consensus.py` | 15 | Recência, domínios distintos, extração de preço |
 | `test_pricing.py` | 23 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
-| `test_observer.py` | 15 | Trilha por sessão e por prato |
+| `test_observer.py` | 17 | Trilha por sessão e por prato |
 | `test_claims.py` | 20 | Decompor a mensagem, o que é conferível, o que contradiz o turno anterior |
 | `test_facts.py` | 9 | O mapa das saídas de MCP, e que cada campo mapeado existe de verdade |
 | `test_verdict.py` | 12 | A frase que ela lê nomeia o prato e o motivo; um sim com "mas" não é sim |
@@ -521,6 +521,47 @@ usá-la.
 
 Só foi possível ver isso porque o log passou a dizer **qual** cifra ficou sem
 lastro. Antes dizia "uma de treze", que não dá para investigar.
+
+---
+
+### O prato arquivado era o errado
+
+Regravando os exemplos, o estado final mostrou isto:
+
+```
+recipe_blocks   lasanha de panela | forno | ativo = false
+```
+
+O bloqueio por falta de forno tinha caído sobre a **lasanha de panela**, a
+versão que funciona no cooktop, e o agente precisou desbloqueá-la à mão para
+seguir. A lasanha ao forno, que é o prato que de fato morreu, não foi arquivada
+em lugar nenhum: no dia em que ela ganhasse um forno, não havia o que voltar.
+
+A causa é de sequência. O arquivamento usava o "prato em jogo", que é o último
+prato nomeado por uma ferramenta. Quando ela responde *"não tenho forno"*, o
+agente muitas vezes já nomeou a substituição, então o prato em jogo é a versão
+de panela.
+
+Agora o prato é escolhido por evidência: aquele cujo veredito do portão nomeia
+**este** item como impedimento, e o mais recente quando há mais de um. Só na
+falta disso cai no prato em jogo. Na regravação seguinte,
+`lasanha ao forno | forno | ativo`.
+
+Vale dizer o que isso significa sobre a suíte: havia teste para o prato ser
+arquivado, e ele passava, porque nos testes o prato em jogo **é** o prato morto.
+A conversa real tem um passo a mais que o teste não tinha.
+
+### O que a regravação dos exemplos achou de conversa
+
+Dois defeitos no exemplo ruim, nenhum de conta, ambos anotados no README.
+
+Ele ofereceu guardar dinheiro no orçamento **antes** de saber se ela consegue
+fazer o prato. Não reservou nada, e o portão impediria, mas prometer a compra
+antes da viabilidade é a sequência que o desafio manda evitar.
+
+E repetiu a mesma pergunta quando ela perguntou *"dá pra fazer ou não?"*. Ela não
+tinha respondido, então não é o caso de perguntar duas vezes o que ela já disse,
+mas do lado dela é uma parede.
 
 ---
 

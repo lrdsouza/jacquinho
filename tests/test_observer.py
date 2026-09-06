@@ -136,3 +136,34 @@ def test_the_recipe_reading_still_wins_when_there_is_one():
         'gate': {'safe_to_shop': False, 'known_blockers': []},
     }, dish='Lasanha ao forno')
     assert observer.requirements_of('s') == ['forno', 'molho_bechamel']
+
+
+def test_the_dish_that_died_is_the_one_that_needs_the_missing_thing():
+    """By the time she answers 'não tenho forno', the agent has often already
+    named the replacement, so the dish in play is the pan version. Archiving
+    that one leaves the oven lasagna unrecorded, and nothing comes back the day
+    she gets an oven."""
+    from app.domain.observer import ConfidenceObserver
+
+    observer = ConfidenceObserver()
+    observer.record('s', 'kitchen_check_feasibility', {
+        'verdict': 'rejected',
+        'blockers': [{'category': 'equipment', 'item': 'forno'}],
+    }, dish='Lasanha ao forno')
+    # The conversation has already moved to the replacement.
+    observer.record('s', 'kitchen_check_feasibility', {
+        'verdict': 'approved', 'blockers': [],
+    }, dish='Lasanha de panela')
+
+    assert observer.dish_in_play('s') == 'lasanha de panela'
+    assert observer.dish_that_needs('s', 'forno') == 'lasanha ao forno'
+
+
+def test_a_capability_nothing_is_waiting_on_names_no_dish():
+    from app.domain.observer import ConfidenceObserver
+
+    observer = ConfidenceObserver()
+    observer.record('s', 'kitchen_check_feasibility', {
+        'verdict': 'approved', 'blockers': [],
+    }, dish='Arroz')
+    assert observer.dish_that_needs('s', 'air fryer') is None

@@ -16,6 +16,12 @@ duas coisas. O caso principal e um caso de falha ficam no
 Dona Maria. O estado depois de cada conversa foi conferido com `psql`, e os
 números conferidos à mão contra a taxa de plataforma de 10%.
 
+**Uma conversa por vez.** Rodar duas ao mesmo tempo contra a mesma instância
+invalida as duas: o `state.db` do Hermes é SQLite e a escrita colide, e o prato
+em jogo vaza de uma conversa para a outra porque o isolamento de sessão cai numa
+chave fixa. Aconteceu aqui, numa gravação que foi descartada por isso, e é a
+demonstração concreta do limite que está anotado no README.
+
 ## Índice
 
 - [Certo 1 · A embalagem inteira e a colherada](#certo-1--a-embalagem-inteira-e-a-colherada)

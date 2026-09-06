@@ -284,6 +284,32 @@ class ConfidenceObserver:
             if isinstance(entry, dict) and entry.get('item')
         ]
 
+    def dish_that_needs(self, session: str, item: str) -> str | None:
+        '''The dish whose gate is blocked by this capability.
+
+        Not simply the dish in play. By the time she answers "não tenho forno",
+        the agent has often already named the replacement, so the dish in play
+        is the pan version and the block lands on the dish that *works* while
+        the one that died is never archived at all. Then nothing comes back the
+        day she gets an oven, which is the whole point of archiving it.
+
+        So the dish is chosen by evidence: the one whose feasibility verdict
+        names this item as a blocker, and only failing that the one in play.
+        '''
+        # Newest first: if two dishes were ever blocked by the same thing, the
+        # one that just died is the one she is talking about.
+        for (owner, name), trail in reversed(list(self.trails.items())):
+            if owner != session or name == self.NO_DISH:
+                continue
+            blockers = (trail.feasibility or {}).get('blockers') or []
+            for entry in blockers:
+                if isinstance(entry, dict) and entry.get('item') == item:
+                    return name
+        for (owner, name), trail in reversed(list(self.trails.items())):
+            if owner == session and name != self.NO_DISH and item in trail.requirements:
+                return name
+        return None
+
     def dish_in_play(self, session: str) -> str | None:
         name = self.active_dish.get(session, self.NO_DISH)
         return None if name == self.NO_DISH else name

@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-48-6E56CF)
+![Registros](https://img.shields.io/badge/registros-49-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -1504,3 +1504,36 @@ depende de o modelo lembrar de nada.
 **Observabilidade.** Nenhuma perda. `confidence_assess_answer` continua
 devolvendo badge e nota, `answer_assessments` continua gravando, e o
 `jacquinho confidence` ao vivo continua igual.
+
+---
+
+## 49. O prato arquivado é o que morreu, não o que sobrou
+
+**Decisão.** Quando uma capacidade vira `confirmed_no`, o prato arquivado contra
+ela é aquele cujo veredito do portão nomeia **aquele item** como impedimento, e o
+mais recente quando há mais de um. Só na falta disso vale o prato em jogo.
+
+**Motivo.** O arquivamento usava o "prato em jogo", que é o último prato nomeado
+por uma ferramenta. Parece a mesma coisa e não é: quando ela responde *"não tenho
+forno"*, o agente muitas vezes já nomeou a substituição, e aí o prato em jogo é a
+lasanha **de panela**.
+
+O resultado observado numa gravação foi o pior possível para uma garantia que o
+projeto anuncia: o bloqueio por falta de forno caiu sobre a versão que funciona,
+o agente teve de desbloqueá-la à mão para seguir, e a lasanha ao forno não ficou
+arquivada em lugar nenhum. No dia em que ela ganhasse um forno, não haveria o que
+voltar.
+
+**Consequência.** A escolha passa a ser por evidência em vez de por proximidade
+temporal. O portão já sabe qual prato ele rejeitou e por quê; usar isso é mais
+barato e mais exato do que inferir pelo que foi nomeado por último.
+
+**Sobre a suíte.** Havia teste para o prato ser arquivado, e ele passava. Nos
+testes o prato em jogo **é** o prato morto, porque ninguém escreve um teste com o
+passo intermediário de o agente já ter sugerido a alternativa. A conversa real
+tinha um passo a mais que o teste não tinha, e é o tipo de lacuna que só simulação
+encontra.
+
+**Observabilidade.** `recipe_blocks` passa a mostrar o prato certo, e a diferença
+é verificável numa linha de `psql` ao fim de qualquer consultoria em que um prato
+tenha caído.

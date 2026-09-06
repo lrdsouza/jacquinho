@@ -119,13 +119,17 @@ class KitchenMCP(BaseMCP):
             self.observer.owe_announcement(self._session(), announcement)
         return {'dishes': dishes, 'recipes': revived, **announcement}
 
-    def _recheck_dish_in_play(self, state: str, note: str = '') -> dict | None:
+    def _recheck_dish_in_play(
+        self, state: str, note: str = '', item: str = '',
+    ) -> dict | None:
         '''Re-run the gate after an answer, but only if the answer was a no.'''
         if state != 'confirmed_no':
             return None
-        return self._blocked_dish_in_play(park=True, note=note)
+        return self._blocked_dish_in_play(park=True, note=note, item=item)
 
-    def _blocked_dish_in_play(self, park: bool = False, note: str = '') -> dict | None:
+    def _blocked_dish_in_play(
+        self, park: bool = False, note: str = '', item: str = '',
+    ) -> dict | None:
         '''Re-run the gate for the dish under discussion, right here.
 
         Telling the agent to go and re-check was not enough: it recorded the
@@ -138,8 +142,16 @@ class KitchenMCP(BaseMCP):
         from .middleware import ConfidenceMiddleware
 
         session = ConfidenceMiddleware.SESSION_FALLBACK
-        dish = self.observer.dish_in_play(session)
-        requirements = self.observer.requirements_of(session)
+        # The dish that died, not the one being discussed. She answers "não
+        # tenho forno" after the agent has already named the replacement, so
+        # the dish in play is the pan version; archiving that one leaves the
+        # oven lasagna unrecorded and nothing comes back the day she gets an
+        # oven.
+        dish = (
+            (self.observer.dish_that_needs(session, item) if item else None)
+            or self.observer.dish_in_play(session)
+        )
+        requirements = self.observer.requirements_of(session, dish)
         if not dish or not requirements:
             return None
 
@@ -298,7 +310,7 @@ class KitchenMCP(BaseMCP):
             item = resolved.key
             planner = self._planner()
             coverage = planner.coverage()
-            ruled_out = self._recheck_dish_in_play(state, note)
+            ruled_out = self._recheck_dish_in_play(state, note, resolved.key)
             back_on = (
                 self._bring_dishes_back(item, note)
                 if state == 'confirmed_yes' else None
