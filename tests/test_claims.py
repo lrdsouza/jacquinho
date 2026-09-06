@@ -214,3 +214,20 @@ def test_a_candidate_that_differs_is_not_a_contradiction():
     candidates = [ToolFact(subject='lasanha', kind=ClaimKind.PRICE, value=19.90,
                            binds=False)]
     assert ledger.contradictions(candidates, 'Poderia ser R$ 19,90 também.') == []
+
+
+def test_a_typed_fact_grounds_a_figure_the_loose_set_lost():
+    """A package price the tool computed under must_buy[].estimated_cost was
+    reported as unsupported, because the identical number had also arrived as an
+    argument and been subtracted from the loose set. The typed facts are
+    evidence, and they were not being consulted."""
+    judgement = ClaimPipeline.run(
+        message='O pacote de massa sai por R$ 10,79.',
+        subject='lasanha',
+        known_numbers=set(),
+        facts=[ToolFact(subject='lasanha', kind=ClaimKind.BUDGET, value=10.79,
+                        source='pricing_calculate_cmv.must_buy[].estimated_cost')],
+        ledger=CommitmentLedger(),
+    )
+    assert judgement.ungrounded == 0
+    assert judgement.score == 1.0

@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-242-success)
+![Unitários](https://img.shields.io/badge/testes-243-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,7 +38,7 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**242 testes, 14 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**243 testes, 14 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
@@ -51,7 +51,7 @@ ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 | `test_search_and_consensus.py` | 15 | Recência, domínios distintos, extração de preço |
 | `test_pricing.py` | 23 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
 | `test_observer.py` | 15 | Trilha por sessão e por prato |
-| `test_claims.py` | 19 | Decompor a mensagem, o que é conferível, o que contradiz o turno anterior |
+| `test_claims.py` | 20 | Decompor a mensagem, o que é conferível, o que contradiz o turno anterior |
 | `test_facts.py` | 9 | O mapa das saídas de MCP, e que cada campo mapeado existe de verdade |
 | `test_verdict.py` | 12 | A frase que ela lê nomeia o prato e o motivo; um sim com "mas" não é sim |
 | `test_audit.py` | 11 | Todo R$ e todo % da mensagem sai de uma ferramenta |
@@ -496,6 +496,31 @@ mapa: `floor_price`, `profit_today` e `unit_cost_value` duas vezes.
 
 **E um detalhe de observabilidade.** O log dizia "uma de treze sem lastro" sem
 dizer qual. Contagem sem exemplo não é acionável; agora vem o trecho e o tipo.
+
+---
+
+### A regravação que fechou o caso principal
+
+O transcrito do README tinha ficado para trás: eu havia corrigido o código da
+lista de compras e verificado numa conversa separada, mas não voltei para trocar
+o exemplo. Ele ainda mostrava R$ 6,95 de massa virando R$ 12,00 com orégano do
+nada, apresentado como o caso que dá certo.
+
+Regravado do zero com o código atual, os dois turnos com números pontuaram 1,00,
+com 12 e 10 afirmações conferidas e nenhuma sem lastro. O custo ficou em R$ 9,30
+nos dois, e a compra em R$ 10,39 nos dois, na mensagem, na receita fechada e no
+lançamento do orçamento.
+
+**Um erro de ligação achado por causa do log.** Numa gravação intermediária a
+mensagem pontuou 0,90 com "R$ 10,39 sem lastro". Era falso positivo: o valor é
+saída calculada (`must_buy[].estimated_cost`), mas coincidia com o argumento
+`package_price` que o agente tinha passado, e a subtração de argumentos o tirou
+do conjunto solto. Os `ToolFact` tipados **não estavam sendo consultados no
+lastro**, só no compromisso. Eu tinha construído a evidência boa e deixado de
+usá-la.
+
+Só foi possível ver isso porque o log passou a dizer **qual** cifra ficou sem
+lastro. Antes dizia "uma de treze", que não dá para investigar.
 
 ---
 

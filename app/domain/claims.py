@@ -324,7 +324,14 @@ class ClaimPipeline:
         ledger: 'CommitmentLedger',
     ) -> 'MessageJudgement':
         claims = ClaimExtractor.extract(message, subject)
-        checked = [ledger.ground(claim, known_numbers) for claim in claims]
+        # The typed facts are evidence too, and better evidence: they carry the
+        # field that produced them. Leaving them out of the grounding set was a
+        # wiring mistake with a visible cost - a package price the tool had
+        # computed under `must_buy[].estimated_cost` was reported as unsupported
+        # because the identical number had also arrived as an argument and been
+        # subtracted from the loose set.
+        evidence = set(known_numbers) | {round(f.value, 2) for f in facts}
+        checked = [ledger.ground(claim, evidence) for claim in claims]
         clashes = ledger.contradictions(facts, message)
 
         # A contradiction supersedes the grounding verdict for the same figure:

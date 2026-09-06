@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-47-6E56CF)
+![Registros](https://img.shields.io/badge/registros-48-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -369,9 +369,20 @@ lê esse log ao lado do chat. Nada depende de o agente lembrar.
 Isso é a mesma regra da decisão sobre ferramentas contra skills, aplicada à
 própria camada de confiança: o que pode ser conferido não fica como pedido.
 
-**E é visível.** Toda avaliação devolve um `display.badge` que o agente cola no
-fim da mensagem: `〔preço: confiança alta · CMV completo · 4 fontes〕`. Esse caminho
-depende do modelo e portanto falha às vezes; o log não depende de nada.
+**E é visível para quem opera.** Toda avaliação devolve um `display.badge`:
+`〔preço: confiança alta · CMV completo · 4 fontes〕`. Ele vai para o log e para
+`jacquinho confidence`.
+
+Durante um tempo ele ia também para a Dona Maria, colado no fim de cada
+mensagem, e a justificativa parecia boa: ela deveria saber quão firme é a
+resposta. Lendo as transcrições de fora, o erro fica evidente. Ela é cozinheira
+abrindo um delivery, não avaliadora deste sistema, e "inflação antiga" não é uma
+ressalva na língua dela, é vocabulário interno vazando para dentro da conversa.
+Um selo que aparece em toda mensagem também é um selo que ela aprende a ignorar.
+
+O que ela precisa saber continua sendo dito, dentro da frase e com as palavras
+dela: *"achei só uma referência de preço, então trate como indicativo"*. Some
+quando não há ressalva a fazer, que é como uma ressalva deveria se comportar.
 
 **A confiança é da afirmação, não do pipeline.** A primeira versão pontuava toda
 mensagem contra os cinco sinais (gate, CMV, consenso, mercado, inflação) e o
@@ -1432,3 +1443,44 @@ o mapa: `floor_price`, `profit_today`, `unit_cost_value` duas vezes.
 conferidas, e agora também **quais** ficaram sem lastro, com o trecho e o tipo.
 Contagem sem exemplo não é acionável: saber que uma de treze não tem ferramenta
 por trás não diz qual olhar.
+
+---
+
+## 48. O selo de confiança sai da mensagem dela
+
+**Decisão.** O badge de confiança deixa de ser colado no fim da mensagem para a
+Dona Maria. Ele continua existindo, vai para o log e para
+`jacquinho confidence`, e quem o lê é quem opera o sistema. A ressalva que ela
+precisa ouvir passa a ser dita dentro da frase, com as palavras dela.
+
+**Motivo.** A justificativa original parecia boa: ela deveria saber quão firme é
+a resposta antes de agir. Lendo as transcrições de fora, o erro fica evidente.
+Toda mensagem terminava assim:
+
+> 〔preço: confiança média · sem preço de mercado firme · inflação antiga ·
+> cozinha confere〕
+
+"Inflação antiga" não é uma ressalva na língua dela. É o vocabulário interno do
+avaliador vazando para dentro da conversa, na mesma família do
+`o que decidiu isso` que já tinha vazado duas vezes por outro caminho. Ela é
+cozinheira abrindo um delivery, não avaliadora deste sistema.
+
+E há um problema de desenho além do vocabulário: um selo que aparece em **toda**
+mensagem é um selo que ela aprende a ignorar. Uma ressalva que nunca some deixa
+de ser ressalva.
+
+**Consequência.** O que importa continua sendo dito, e melhor: *"achei só uma
+referência de preço, então trate como indicativo, não como verdade absoluta"*,
+*"esse número de inflação é da última publicação, pode ter mudado"*. Aparece
+quando há o que ressalvar e some quando não há, que é como uma ressalva deveria
+se comportar. Na gravação seguinte à mudança, foi exatamente isso que saiu.
+
+O que se perde é a garantia de formato: a ressalva agora é redigida pelo modelo,
+e portanto varia e pode faltar. O que se ganha é que, quando aparece, ela é
+legível para a pessoa a quem se destina. E a medição não depende disso: quem
+quer saber a confiança de cada mensagem tem `jacquinho.claims` no log, que não
+depende de o modelo lembrar de nada.
+
+**Observabilidade.** Nenhuma perda. `confidence_assess_answer` continua
+devolvendo badge e nota, `answer_assessments` continua gravando, e o
+`jacquinho confidence` ao vivo continua igual.

@@ -27,7 +27,7 @@ chamada de ferramenta, nunca da memória do modelo**.
 > deixa em aberto (modelo, context files, tools/MCP, estrutura de memória e
 > skills) estão respondidas em
 > [uma tabela](#as-cinco-escolhas-que-o-enunciado-deixou-em-aberto), cada uma
-> com link para a justificativa completa. As quarenta e sete decisões inteiras,
+> com link para a justificativa completa. As quarenta e oito decisões inteiras,
 > com motivo e consequência, estão em
 > [docs/decisoes.md](docs/decisoes.md); as conversas que causaram boa parte
 > delas, em [docs/dialogos.md](docs/dialogos.md).
@@ -36,8 +36,8 @@ chamada de ferramenta, nunca da memória do modelo**.
 
 ## Uma consultoria inteira, do "oi" ao resultado da fornada
 
-Transcrição real, bancos zerados, gravada com `jacquinho`, copiada palavra por
-palavra (é a única parte deste README que ainda usa travessão, porque é fala
+Transcrição real, bancos zerados, gravada com `jacquinho`, **sem cortes e sem
+edição** (é a única parte deste README que ainda usa travessão, porque é fala
 dela e dele, não texto meu). É o caso que o desafio pede: ela quer um prato que
 exige forno, não tem forno, e ele descobre isso **antes** de ela gastar um
 centavo.
@@ -45,76 +45,101 @@ centavo.
 ```
 Dona Maria ▸ oi! quero fazer lasanha ao forno pra vender de marmita
 
-Jacquinho  ▸ Que delícia, lasanha vende muito bem em marmita! Dei uma olhada na
-             sua despensa: você tem carne moída, tomate, cebola, alho, queijo
-             mussarela, parmesão, leite e manteiga — a base toda tá aí.
-             Antes de eu fechar a receita com você: seu forno funciona bem,
-             assa por igual?
+Jacquinho  ▸ Boa, já vi a receita de lasanha à bolonhesa ao forno — molho de
+             carne moída, camadas de massa, presunto, muçarela e parmesão por
+             cima.
+             Antes de fechar isso com você, uma pergunta rápida: o seu forno
+             funciona bem, assa por igual? E de quantas bocas é o seu fogão?
 
 Dona Maria ▸ nao tenho forno nao, so um cooktop de 4 bocas
 
-Jacquinho  ▸ Anotado, Dona Maria. A lasanha ao forno não vai dar, porque a
-             senhora não tem forno, só o cooktop de 4 bocas.
-             Mas a lasanha não precisa morrer não: dá pra fazer ela na panela,
-             em cima do próprio cooktop. Monta as camadas de massa, molho e
-             queijo numa panela larga, tampa e deixa no fogo baixo até tudo
-             derreter e a massa cozinhar — fica bem parecida, só que sem forno.
-             Quer que eu vá atrás dessa versão de panela pra ver o que ela pede
-             da sua despensa?
+Jacquinho  ▸ Oi Dona Maria! Então, a lasanha ao forno não vai rolar, porque
+             você não tem forno, só o cooktop de 4 bocas. Mas dá pra fazer a
+             versão dela na panela: uma lasanha de panela, feita no fogão
+             mesmo, com camadas de massa, molho de carne moída, presunto,
+             muçarela e um molho branco, tudo montado direto na panela e
+             cozido em fogo baixo até derreter o queijo. Fica com o mesmo
+             gostinho, só que sai do cooktop em vez do forno.
+             Topa fazer assim?
 
 Dona Maria ▸ topo a de panela. tenho cacarola grande e funda, so refogo, nao
-             frito por imersao, e faco molho branco de olho. rende 8 marmitas
+             frito por imersao, e faco molho branco de olho. rende 8 marmitas.
+             me diz o custo e por quanto vender
 
-Jacquinho  ▸ Fechado, Dona Maria! A lasanha de frango com molho branco cabe
-             certinho na sua panela, no cooktop.
-             O custo fica em R$ 4,15 por marmita. A massa de lasanha a senhora
-             vai comprar — um pacote de 500g sai por uns R$ 6,95, e sobra massa
-             pra outra fornada. O resto (frango, leite, manteiga, farinha,
-             queijo) já está na sua despensa.
-             Marmita parecida está saindo por uns R$ 14,98 por aí (achei só uma
-             referência, então é só indicativo). Numa faixa parecida, R$ 15,90
-             deixa R$ 14,31 no seu bolso depois da taxa da plataforma, e um
-             lucro de R$ 10,16 por marmita.
-             Que preço a senhora quer colocar?
-             〔preço: confiança média · sem preço de mercado firme · inflação
-              antiga · cozinha confere〕
+Jacquinho  ▸ Fechou, Dona Maria! A lasanha de panela — molho de carne moída,
+             camadas de massa, molho branco de olho e queijo, tudo cozinhado
+             tampado no seu cooktop — passou no teste da sua cozinha.
+             Custo: R$ 9,30 por marmita, já rendendo as 8 marmitas que você
+             falou.
+             O que falta comprar: 1 pacote de massa de lasanha de 500g, uns
+             R$ 10,39. Isso cabe tranquilo no seu orçamento — sobra R$ 69,61
+             dos seus R$ 80 pra próxima fornada.
+             Preço de venda: marmita parecida está saindo entre R$ 14,98 e
+             R$ 28 por aí (poucas referências, então trate como indicativo,
+             não como verdade absoluta). Te trago três caminhos:
+             - Entrada — R$ 15,90 → sobra R$ 5,01 de lucro por marmita
+             - Mercado — R$ 17,90 → sobra R$ 6,81 de lucro por marmita
+             - Premium — R$ 28,90 → sobra R$ 16,71 de lucro por marmita
+             Qual desses preços você quer usar?
 
-Dona Maria ▸ pode fechar a conta e me dizer por quanto vender
+Dona Maria ▸ vou de 24,90. eu compro a massa amanha, pode deixar separado no
+             orcamento. fecha no cardapio e me diz o resultado da fornada
 
-Jacquinho  ▸ [...] A conta ficou assim:
-             Cada marmita de lasanha de panela custa R$ 4,15 pra fazer.
-             Marmita parecida está saindo entre R$ 14,98 e R$ 17,00 por aí
-             (achei só 2 referências, então é uma faixa indicativa, não uma
-             pesquisa grande).
-             Três opções pra senhora escolher:
-             - R$ 15,90 → deixa R$ 10,16 de lucro por marmita
-             - R$ 16,90 → deixa R$ 11,06 de lucro por marmita
-             - R$ 17,90 → deixa R$ 11,96 de lucro por marmita
-             Qual desses valores a senhora quer colocar?
-
-Dona Maria ▸ vou de 24,90. eu compro o que falta amanha, pode deixar separado
-             no orcamento. fecha no cardapio e me diz o resultado da fornada
-
-Jacquinho  ▸ Fechado, Dona Maria!
-             A lasanha de panela de frango com molho branco entra no cardápio a
-             R$ 24,90, categoria prato principal.
-             Sobre a compra: os R$ 12,00 da massa de lasanha e orégano já estão
-             separados no orçamento, esperando você ir ao mercado. Isso deixa
-             R$ 68,00 dos seus R$ 80,00 livres para a próxima fornada.
-             E o resultado da fornada, numa leva de 8 marmitas:
-             Você vende as 8 por R$ 199,20 no total. A plataforma fica com
-             R$ 19,92. Os ingredientes usados custam R$ 33,20. Sobram
-             R$ 146,08 no seu bolso — ou seja, 73 centavos de cada real que
-             entra. Você desembolsa só os R$ 12,00 de compra pra essa fornada,
-             e ainda sobra estoque de massa pra próxima.
-             〔preço: confiança alta · poucas fontes de preço · cozinha confere
-              · CMV completo〕
+Jacquinho  ▸ Fechado no cardápio: lasanha de panela a R$ 24,90, com CMV de
+             R$ 9,30 por marmita.
+             Deixei reservado no orçamento R$ 10,39 pra massa de lasanha
+             (500g) que você compra amanhã — sobram R$ 69,61 dos seus R$ 80
+             pra próxima fornada.
+             Resultado da fornada de 8 marmitas: você vende por R$ 199,20, a
+             plataforma fica com R$ 19,92, os ingredientes usados custam
+             R$ 74,40, e sobram R$ 104,88 no seu bolso — ou seja, 53 centavos
+             de cada real vendido. Pra essa fornada você desembolsa só
+             R$ 10,39 de compra (o resto já está na despensa), e ainda sobra
+             estoque pra próximas fornadas.
 ```
+
+### Toda cifra confere, e o servidor sabe disso sozinho
+
+Os dois turnos com números foram julgados na fronteira do turno, afirmação por
+afirmação:
+
+```
+jacquinho.claims {"dish":"lasanha de panela","score":1.0,
+                  "verdict":"tudo confere","verifiable":12,"grounded":12,
+                  "contradictions":0}
+jacquinho.claims {"dish":"lasanha de panela","score":1.0,
+                  "verdict":"tudo confere","verifiable":10,"grounded":10,
+                  "contradictions":0}
+```
+
+Conferindo à mão: `9,30 / 0,90 = 10,33` de piso, `15,90 × 0,90 − 9,30 = 5,01`,
+`17,90 × 0,90 − 9,30 = 6,81`, `28,90 × 0,90 − 9,30 = 16,71`,
+`80,00 − 10,39 = 69,61`, `8 × 24,90 = 199,20`, taxa `19,92`,
+`8 × 9,30 = 74,40`, `199,20 − 19,92 − 74,40 = 104,88`,
+`104,88 / 199,20 = 53%`.
+
+O custo **não andou**: R$ 9,30 nos dois turnos. O que ela compra também não:
+R$ 10,39, um pacote, o mesmo número nas duas mensagens, na receita fechada e no
+lançamento do orçamento. Nada disso é coincidência, e os dois parágrafos abaixo
+explicam por quê.
+
+### Uma aresta desta gravação
+
+Na última mensagem ele escreveu *"com CMV de R$ 9,30"*. `CMV` é vocabulário de
+consultoria, não de cozinha, e o `SOUL.md` manda falar a língua dela. Passou.
+
+O selo de confiança que aparecia no fim de cada mensagem, com coisas como
+*"〔preço: confiança média · inflação antiga〕"*, **saiu**. Era telemetria vazando
+para dentro da conversa: ela é cozinheira, não avaliadora do sistema. A ressalva
+que importa continua, na língua dela e dentro da frase: *"poucas referências,
+então trate como indicativo, não como verdade absoluta"*. A nota estruturada vai
+para o log, onde quem opera o sistema a lê.
 
 ### O custo de um prato não anda sozinho
 
-R$ 4,15 nos três turnos em que ele falou de dinheiro. Isso não é sorte: **a
-receita de um prato fecha na primeira conta completa**. Passar uma lista de
+R$ 9,30 nos dois turnos em que ele falou de dinheiro, e R$ 10,39 de compra nos
+dois. Isso não é sorte: **a receita de um prato fecha na primeira conta
+completa**, e com ela a lista de compras que ela implica. Passar uma lista de
 ingredientes diferente para o mesmo prato depois disso é recusado, com a receita
 fechada e o custo dela devolvidos.
 
@@ -140,28 +165,11 @@ sobre uma mudança é ruim; memória falsa da conversa é pior. Hoje a comparaç
 contra o que **chegou até ela**, marcado na fronteira do turno
 ([item 42](docs/decisoes.md#42-uma-promessa-é-o-que-ela-ouviu-não-o-que-a-ferramenta-calculou)).
 
-### Duas arestas nesta gravação
-
-Ditas aqui porque exemplo com defeito escondido é pior que exemplo com defeito
-anotado.
-
-Ele **repetiu o veredito do forno** no quarto turno, que ela já tinha ouvido no
-segundo. Não é a dívida do veredito disparando duas vezes, que isso o servidor
-impede; é o modelo reabrindo o assunto por conta própria.
-
-E disse que os ingredientes usados custam R$ 33,20 *"incluindo os R$ 12,00 que
-você vai comprar"*. Os R$ 33,20 são `8 x 4,15`, o custo de produção, e dele só
-entra a **fração** de massa que a fornada come, não o pacote inteiro. É
-exatamente a confusão que separar os dois números existe para evitar, e aqui ela
-apareceu na frase, não na conta.
-
 ### O fechamento é uma conta, não uma impressão
 
 A última mensagem responde a pergunta que ela de fato faz, que não é quanto
 sobra numa marmita e sim se o dia valeu a pena. Cada cifra sai de
-`menu_expected_return`, e todas conferem: `8 x 24,90 = 199,20`, taxa `19,92`,
-custo `8 x 4,15 = 33,20`, lucro `199,20 − 19,92 − 33,20 = 146,08`, margem
-`146,08 / 199,20 = 73%`.
+`menu_expected_return`.
 
 A porcentagem é **margem sobre a venda**, e essa escolha importou. A primeira
 versão liderava com retorno sobre o custo de produção e imprimiu *"um retorno de
@@ -169,9 +177,11 @@ versão liderava com retorno sobre o custo de produção e imprimiu *"um retorno
 a colherada que a fornada consome, não o que ela paga no caixa. Margem sobre
 venda não passa de 100 e por isso continua acreditável.
 
-E os dois custos ficam separados de propósito: **R$ 33,20** de ingrediente usado
-contra **R$ 12,00** de desembolso agora. Somar os dois contaria duas vezes a
-despensa que ela já pagou.
+E os dois custos ficam separados de propósito: **R$ 74,40** de ingrediente usado
+contra **R$ 10,39** de desembolso agora. Somar os dois contaria duas vezes a
+despensa que ela já pagou. Numa versão anterior deste mesmo fechamento o agente
+escreveu *"os ingredientes custam R$ 33,20, incluindo os R$ 12,00 que você vai
+comprar"*, que é precisamente a confusão que separá-los existe para evitar.
 
 ### Quem compra é ela
 
@@ -244,8 +254,8 @@ beco sem saída, é um prato esperando.
 | **3** | Orçamento de R$ 80,00 para complementos | R$ 16,09 reservados **para ela comprar**, R$ 63,91 restantes | `budget_reserve_purchase` |
 
 Duas coisas fora do enunciado, que a conversa mostrou serem necessárias: dizer
-**o quanto confia** no que está falando (o badge, e a trilha em
-`jacquinho confidence`) e fechar com **o resultado da fornada**, que é a
+**o quanto confia** no que está falando (a ressalva na frase, para ela; o badge e
+a trilha em `jacquinho confidence`, para quem opera) e fechar com **o resultado da fornada**, que é a
 pergunta que ela de fato faz.
 
 Outras quatro conversas que deram certo e outras quatro que deram errado, com o
@@ -1215,16 +1225,10 @@ Rode em um segundo terminal, ao lado do chat. Toda chamada gera uma linha,
 apagada quando não mexeu na evidência, porque um observador mudo enquanto o
 agente trabalha parece quebrado.
 
-O mesmo **badge** volta em cada avaliação para o agente colar no fim da mensagem:
-
-```
-Pela conta, R$ 19,90 deixa R$ 9,23 no seu bolso por marmita.
-〔preço: confiança alta · cozinha confere · CMV completo · preço de mercado bem apurado〕
-```
-
-O badge lista os sinais **mais frágeis primeiro**. Um marcador que enumera o
-que deu certo e esconde a única coisa que não deu é pior que nenhum, porque lê
-como tranquilização:
+Cada avaliação devolve um **badge**, que resume a nota em palavras e lista os
+sinais **mais frágeis primeiro**. Um marcador que enumera o que deu certo e
+esconde a única coisa que não deu é pior que nenhum, porque lê como
+tranquilização:
 
 | Situação | Badge |
 |---|---|
@@ -1233,17 +1237,23 @@ como tranquilização:
 | Preço com uma fonte de mercado só | `〔preço: confiança média · poucas fontes de preço · cozinha confere · CMV completo〕` |
 | Preço sem mercado nenhum | `〔preço: confiança baixa, 2 impedimento(s)〕` |
 
-A nota vai de **0 a 1**, grandeza de crença e não nota de escola. Ela aparece
-no acompanhamento ao vivo, para quem está avaliando a execução; o badge que vai
-para a Dona Maria fica sem número, porque citar um decimal de uma heurística dá
-falsa precisão. "CMV completo, 6 fontes de preço" diz o que de fato se sabe.
+**Isso é telemetria, e não vai para a Dona Maria.** Durante um tempo ia: o
+agente colava a linha no fim de cada mensagem. Lendo as transcrições de fora,
+fica evidente o que estava errado nisso. Ela é cozinheira abrindo um delivery,
+não avaliadora deste sistema, e "inflação antiga" não é uma ressalva na língua
+dela; é o vocabulário interno vazando para dentro da conversa.
+
+O que ela precisa saber continua sendo dito, na frase e com as palavras dela:
+*"achei só uma referência de preço, então trate como indicativo"*. A ressalva
+some quando não há ressalva, em vez de virar um selo permanente que ela aprende
+a ignorar.
+
+A nota vai de **0 a 1**, grandeza de crença e não nota de escola, e nunca é
+citada para ela: um decimal de heurística dá falsa precisão.
 
 Toda avaliação fica gravada, tanto as do observador quanto as que o agente pede.
 `confidence_recent_assessments` mostra o que estava prestes a ser dito, quão
 forte era a evidência e o que estava barrando, sem reproduzir a conversa.
-
-Vale a distinção: o badge na mensagem depende de o modelo colá-lo, e modelo
-esquece. O log não depende de nada, e é o caminho confiável.
 
 ---
 
@@ -1334,7 +1344,7 @@ entrega do veredito eram promessas que o servidor não podia verificar
 
 ### O resto
 
-Quarenta e sete decisões de arquitetura, cada uma com motivo, consequência e o
+Quarenta e oito decisões de arquitetura, cada uma com motivo, consequência e o
 que ela custou. O documento completo é **[docs/decisoes.md](docs/decisoes.md)**;
 esta página é uma seleção, agrupada pelo problema que cada decisão resolve, e
 cada número abaixo abre direto na decisão. As que não estão aqui aparecem em
@@ -1389,6 +1399,7 @@ de entender no lugar onde o assunto aparece.
 | [12](docs/decisoes.md#12-nenhum-preço-de-venda-sem-mercado-observado) | Nenhum preço de venda sem mercado observado | Sem faixa apurada ele devolve o piso e se recusa a sugerir preço |
 | [15](docs/decisoes.md#15-a-confiança-combina-dois-avaliadores-de-forma-conservadora) | Confiança conservadora | Dois avaliadores, e vale a nota do menos convencido |
 | [23](docs/decisoes.md#23-as-falhas-da-métrica-são-corrigidas-onde-dá-e-escritas-onde-não-dá) | Falhas escritas onde não dá para corrigir | Os limiares ordenam respostas; não medem probabilidade de nada |
+| [48](docs/decisoes.md#48-o-selo-de-confiança-sai-da-mensagem-dela) | O selo de confiança sai da mensagem dela | Telemetria vai para o log; a ressalva vai na frase, na língua dela |
 | [29](docs/decisoes.md#29-a-busca-tem-um-teto-por-sessão) | A busca tem teto | Categoria vazia não fica cheia na décima tentativa |
 
 O fio que atravessa quase todas: **uma regra escrita onde não pode ser imposta
