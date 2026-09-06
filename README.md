@@ -294,13 +294,31 @@ ou não, responda em uma linha" é leitura de intenção, e leitura de intençã
 exatamente o que este projeto não delega a regra determinística nem confia ao
 modelo sem conferência.
 
-**Quatro turnos, nenhuma conta.** Cada turno termina numa pergunta, e a última
-delas chega depois de ela dizer *"me diz o custo logo"*. O portão está certo:
-pudim de panela pede liquidificador e forma, e ninguém deveria mandar ela
-comprar leite condensado para descobrir na cozinha que falta a forma. Mas o
-portão pergunta um item por vez, e cada versão nova da receita traz exigência
-nova. Correção e paciência estão em conflito aqui, e hoje a correção ganha
-sozinha, sem ninguém medir o custo disso.
+**Quatro turnos, nenhuma conta, e metade deles pedindo licença.** É tentador
+culpar o portão de viabilidade, e a conta turno a turno diz outra coisa:
+
+| Turno | Ela | Ele | Precisava? |
+|---|---|---|---|
+| 1 | quero vender pudim | pergunta do forno | **sim**, é o portão |
+| 2 | forno queima embaixo | mata o assado, propõe panela, *"quer que eu já veja como fica?"* | **não** |
+| 3 | dá pra fazer ou não? | repete tudo, *"quer que eu já veja o custo?"* | **não** |
+| 4 | me diz o custo logo | pergunta liquidificador e forma | **sim**, é o portão |
+
+O portão perguntou **duas** vezes, e as duas foram legítimas: pudim de panela
+pede liquidificador e forma, e ninguém deveria mandar ela comprar leite
+condensado para descobrir na cozinha que falta a forma. Os outros dois turnos
+foram gastos **pedindo permissão para fazer o que ela já tinha pedido**. Ela
+disse que quer vender pudim no primeiro turno; ele pergunta duas vezes se pode
+calcular.
+
+É a mesma falha do parágrafo anterior vista de outro ângulo. O agente trata cada
+turno como se precisasse de autorização para o passo seguinte, e quando ela
+responde com impaciência, ele lê a impaciência como pergunta nova.
+
+O portão perguntar um item por vez é risco de verdade, mas latente, não
+demonstrado aqui: `kitchen_register_requirement` não tem teto, e cada variante de
+receita pode acrescentar exigência. Agrupar as perguntas por prioridade é
+trabalho útil, e não é o que custou esta conversa.
 
 **E o "baratinho" não tem lastro.** No primeiro turno, o leite condensado é
 "baratinho de comprar" antes de qualquer pesquisa de preço. A conferência
@@ -593,23 +611,26 @@ a matemática está em [docs/metricas.md](docs/metricas.md).
 Quatro coisas, na ordem em que eu faria.
 
 **Um servidor MCP de condução, para responder o que ela perguntou.** É a falha
-da conversa lá em cima, e é uma falha de lógica de diálogo, não de conta. O
+da conversa lá em cima, e é de lógica de diálogo, não de conta. O
 `conversation_state` diz onde a consultoria está; ninguém classifica o que a
-**última frase dela** pediu. Um servidor `dialogue_*` com uma ferramenta que tipa
-o turno dela (pergunta fechada, pedido de ação, resposta a uma pergunta pendente,
-desistência) e devolve a forma da resposta devida dá ao portão de mensagem o que
-falta: ele mede se o rascunho está empilhado e não mede se ele responde. O
-mecanismo é o mesmo do veredito do prato morto, que é a garantia mais sólida
-deste sistema: uma dívida da conversa que fecha as ferramentas de seguir em
-frente até ser paga.
+**última frase dela** pediu, e por isso um *"dá pra fazer ou não?"* recebe uma
+explicação e um *"me diz o custo logo"* recebe outro pedido de licença.
+
+Um servidor `dialogue_*` com uma ferramenta que tipa o turno dela (pergunta
+fechada, pedido de ação, resposta a uma pergunta pendente, desistência) e devolve
+a forma da resposta devida dá ao portão de mensagem o que falta: ele mede se o
+rascunho está empilhado e não mede se ele responde. Um pedido de ação já
+concedido vira dívida: enquanto a ação não acontecer, perguntar de novo é
+recusado. O mecanismo é o mesmo do veredito do prato morto, que é a garantia mais
+sólida deste sistema.
 
 **Perguntar em bloco, e por prioridade.** O portão pergunta um item por vez, e
-cada versão nova da receita traz exigência nova; quatro turnos sem número é o
-resultado. `kitchen_elicitation_gaps` já sabe quais respostas faltam e quais
-bloqueiam a compra: falta ordenar por impacto e devolver o conjunto mínimo que
-destrava o próximo passo, para ela responder três coisas de uma vez e ver a
-conta. É a mesma tensão entre correção e paciência que aparece na conversa que
-deu errado, atacada do lado da correção, que é o lado que dá para medir.
+`kitchen_register_requirement` não tem teto: cada variante de receita pode
+acrescentar exigência, e nada impede uma sequência longa de perguntas antes de
+ela ver um número. Não foi o que custou a conversa lá em cima, mas é risco real.
+`kitchen_elicitation_gaps` já sabe quais respostas faltam e quais bloqueiam a
+compra: falta ordenar por impacto e devolver o conjunto mínimo que destrava o
+próximo passo, para ela responder três coisas de uma vez e ver a conta.
 
 **Latência.** Um turno leva de sessenta a noventa segundos, e a maior parte é
 busca na web em série: descoberta de pratos, receitas, preço de mercado. As
