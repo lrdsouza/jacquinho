@@ -1,6 +1,6 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-231-success)
+![Unitários](https://img.shields.io/badge/testes-242-success)
 ![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
@@ -38,7 +38,7 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**231 testes, 13 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**242 testes, 14 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
@@ -51,7 +51,8 @@ ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 | `test_search_and_consensus.py` | 15 | Recência, domínios distintos, extração de preço |
 | `test_pricing.py` | 23 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
 | `test_observer.py` | 15 | Trilha por sessão e por prato |
-| `test_claims.py` | 17 | Decompor a mensagem, o que é conferível, o que contradiz o turno anterior |
+| `test_claims.py` | 19 | Decompor a mensagem, o que é conferível, o que contradiz o turno anterior |
+| `test_facts.py` | 9 | O mapa das saídas de MCP, e que cada campo mapeado existe de verdade |
 | `test_verdict.py` | 12 | A frase que ela lê nomeia o prato e o motivo; um sim com "mas" não é sim |
 | `test_audit.py` | 11 | Todo R$ e todo % da mensagem sai de uma ferramenta |
 | `test_budget_and_catalogue.py` | 7 | Bloqueio condicional contra bloqueio por gosto |
@@ -472,6 +473,29 @@ e a reserva recusa qualquer outro valor. Ver [decisoes.md](decisoes.md), item 46
 Na verificação depois da correção os três lugares batem: a mensagem diz R$ 10,39
 para um item, `recipe_costing.shopping_cost` diz R$ 10,39 com um item, e o
 lançamento do orçamento diz R$ 10,39.
+
+---
+
+### A camada que quase não estava ligada
+
+A conferência de afirmações existia e lia **dois campos de duas ferramentas**.
+Todo o resto era comparado contra um saco plano com todos os números que já
+tinham passado, argumentos inclusive. Na prática ela carimbava 1,00 em quase
+tudo, porque quase tudo estava no saco.
+
+Agora há um mapa declarativo de onze ferramentas, campo a campo, dizendo que
+tipo de afirmação cada saída estabelece e se ela **decide** a questão ou apenas
+dá lastro. O efeito medido: a mesma mensagem que pontuava 1,00 passou a pontuar
+0,92, com 13 afirmações conferidas e uma sem lastro apontada pelo trecho.
+
+**Um teste que se paga.** Mapa apontando para campo inexistente é pior que mapa
+nenhum: falha em silêncio, e toda afirmação que ele deveria sustentar parece sem
+lastro. O teste percorre o mapa e confirma que cada nome de campo existe no
+código que o produz. Pegou quatro campos que eu tinha inventado ao escrever o
+mapa: `floor_price`, `profit_today` e `unit_cost_value` duas vezes.
+
+**E um detalhe de observabilidade.** O log dizia "uma de treze sem lastro" sem
+dizer qual. Contagem sem exemplo não é acionável; agora vem o trecho e o tipo.
 
 ---
 

@@ -126,6 +126,14 @@ class HookRoutes:
             'verifiable': judgement.verifiable, 'grounded': judgement.grounded,
             'contradictions': judgement.contradictions,
         }
+        # A count with no example is not actionable: knowing that one figure of
+        # thirteen has no tool behind it says nothing about which one to look at.
+        loose = [
+            {'quoted': c.claim.quoted, 'kind': c.claim.kind.value}
+            for c in judgement.claims if c.verdict.value == 'ungrounded'
+        ]
+        if loose:
+            payload['sem_lastro'] = loose
         if judgement.contradictions:
             payload['detail'] = [
                 c.note for c in judgement.claims
@@ -134,8 +142,8 @@ class HookRoutes:
             logger.warning('jacquinho.claims %s',
                            json.dumps(payload, ensure_ascii=False))
         else:
-            logger.info('jacquinho.claims %s',
-                        json.dumps(payload, ensure_ascii=False))
+            level = logger.warning if loose else logger.info
+            level('jacquinho.claims %s', json.dumps(payload, ensure_ascii=False))
 
     def _audit_figures(self, session: str, reply: str) -> None:
         '''Every R$ in the message, against every R$ the tools produced.

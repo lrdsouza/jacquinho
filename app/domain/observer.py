@@ -130,6 +130,9 @@ class ConfidenceObserver:
         from .claims import CommitmentLedger
 
         self.ledger: dict[str, CommitmentLedger] = {}
+        # Typed facts per (session, dish), each one carrying the tool and field
+        # that produced it.
+        self.facts: dict[tuple[str, str], list] = {}
 
     def _trail(self, key: tuple[str, str]) -> EvidenceTrail:
         trail = self.trails.get(key)
@@ -295,16 +298,30 @@ class ConfidenceObserver:
 
     NUMBER_CAP = 20000
 
-    def remember_numbers(self, session: str, payload: dict | None) -> None:
-        '''Keep every figure a tool produced, so the message can be checked.'''
+    def remember_numbers(
+        self, session: str, tool: str, payload: dict | None,
+        arguments: dict | None = None, dish: str | None = None,
+    ) -> None:
+        '''Keep what a tool produced, typed where the map knows the field.
+
+        Two things are deliberate. Numbers the tool was *handed* are subtracted,
+        because a tool echoing an argument is the model agreeing with itself.
+        And the typed facts are kept apart from the loose ones, so a claim can
+        be checked against the field that establishes it rather than against a
+        bag of every figure that ever passed through.
+        '''
+        from .facts import facts_from, output_values
+
         if not isinstance(payload, dict):
             return
-        from .audit import MessageAudit
-
         seen = self.numbers.setdefault(session, set())
-        if len(seen) >= self.NUMBER_CAP:
-            return
-        seen |= MessageAudit.known_values(payload)
+        if len(seen) < self.NUMBER_CAP:
+            seen |= output_values(tool, payload, arguments)
+
+        name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
+        produced = facts_from(tool, payload, name)
+        if produced:
+            self.facts.setdefault((session, name), []).extend(produced)
 
     def numbers_seen(self, session: str) -> set[float]:
         return self.numbers.get(session, set())
@@ -411,25 +428,22 @@ class ConfidenceObserver:
         from .claims import ClaimKind, ToolFact
 
         name = self.key_for(dish) or self.active_dish.get(session, self.NO_DISH)
-        trail = self.trails.get((session, name))
-        if trail is None or name == self.NO_DISH:
-            return []
-        out = []
-        cmv = (trail.cmv or {})
-        if cmv.get('calculation_complete') and isinstance(
-            cmv.get('cmv_per_portion'), (int, float)
-        ):
-            out.append(ToolFact(subject=name, kind=ClaimKind.COST,
-                                value=float(cmv['cmv_per_portion'])))
-        for field, kind in (
-            ('price', ClaimKind.PRICE),
-            ('she_receives', ClaimKind.RECEIPT),
-            ('profit', ClaimKind.PROFIT),
-        ):
-            value = (trail.menu or {}).get(field)
-            if isinstance(value, (int, float)):
-                out.append(ToolFact(subject=name, kind=kind, value=float(value)))
-        return out
+        collected = list(self.facts.get((session, name), []))
+        # Facts gathered before a dish had a name still belong to the dish the
+        # conversation moved to: the pantry is read before the dish is chosen.
+        if name != self.NO_DISH:
+            for fact in self.facts.get((session, self.NO_DISH), []):
+                collected.append(fact.model_copy(update={'subject': name}))
+        # Latest wins for a binding key: a dish costed twice keeps the last
+        # settled value, and the contradiction check is what notices the change.
+        latest: dict[tuple, ToolFact] = {}
+        loose: list[ToolFact] = []
+        for fact in collected:
+            if fact.binds:
+                latest[fact.key] = fact
+            else:
+                loose.append(fact)
+        return list(latest.values()) + loose
 
     def note_menu(self, session: str, dish: str | None, payload: dict) -> None:
         '''Remember the accepted price of a dish, which is a commitment too.'''
@@ -617,6 +631,7 @@ class ConfidenceObserver:
             self.announced.clear()
             self.numbers.clear()
             self.ledger.clear()
+            self.facts.clear()
         elif dish is None:
             for key in [k for k in self.trails if k[0] == session]:
                 self.trails.pop(key)

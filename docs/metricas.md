@@ -394,6 +394,39 @@ de ingredientes, fechada na primeira conta completa. Sem isso o custo andava
 sozinho entre turnos com aritmética correta em todas as vezes, porque os insumos
 mudavam. Ver [decisoes.md](decisoes.md), itens 43 e 46.
 
+### O mapa das saídas de MCP
+
+A conferência só significa alguma coisa se for contra o que os servidores
+produziram. `app/domain/facts.py` declara isso campo a campo:
+
+| Ferramenta | Campo | Tipo | Decide? |
+|---|---|---|---|
+| `pricing_calculate_cmv` | `cmv_per_portion` | custo | **sim** |
+| `pricing_calculate_cmv` | `shopping_cost` | orçamento | **sim** |
+| `pricing_price_scenarios` | `scenarios[].selling_price` | preço | não |
+| `pricing_price_scenarios` | `scenarios[].profit_per_portion` | lucro | não |
+| `market_research_dish_prices` | `reference.{min,median,max}` | mercado | não |
+| `budget_*` | `remaining`, `shortfall`, … | orçamento | não |
+| `menu_add_dish` | `price`, `she_receives`, `profit`, `cmv` | preço, líquido, lucro, custo | **sim** |
+| `menu_expected_return` | `revenue`, `profit`, `production_cost`, … | vários | não |
+| `pantry_*` | `unit_cost`, `price_paid` | despensa | não |
+
+Duas colunas carregam o desenho.
+
+**"Decide"** separa lastro de compromisso. `price_scenarios` devolve três
+preços: são candidatos, e nenhum é o preço do prato. Só o que foi para o
+cardápio compromete. Marcar todo número produzido como compromisso
+transformaria "aqui estão três opções" em três contradições no turno seguinte.
+
+**Só campos de saída entram.** Uma ferramenta é evidência do que calcula; o que
+ela recebe é o modelo conversando consigo mesmo. A subtração é genérica: os
+números do resultado menos os números dos argumentos, para toda chamada. Sem
+isso um total de compras escolhido pelo modelo servia de prova de si próprio.
+
+Um mapa apontando para campo inexistente é pior que mapa nenhum, porque falha
+em silêncio. Um teste percorre o mapa e confirma que cada nome existe no código
+que o produz; ele pegou quatro campos inventados na primeira escrita.
+
 ### A conta
 
 ```

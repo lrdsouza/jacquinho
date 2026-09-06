@@ -222,7 +222,8 @@ class ConfidenceMiddleware(Middleware):
                     self.observer.declare_claim(session, dish, declared)
             # Every figure, not just the six evidence slots: the numbers she
             # acts on come out of pricing and the menu, which feed no slot.
-            self.observer.remember_numbers(session, payload)
+            arguments = getattr(context.message, 'arguments', None) or {}
+            self.observer.remember_numbers(session, name, payload, arguments, dish)
             if name == 'menu_add_dish' and isinstance(payload, dict):
                 self.observer.note_menu(session, dish, payload)
             if name == 'pricing_reopen_recipe' and payload and payload.get('reopened'):

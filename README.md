@@ -27,7 +27,7 @@ chamada de ferramenta, nunca da memória do modelo**.
 > deixa em aberto (modelo, context files, tools/MCP, estrutura de memória e
 > skills) estão respondidas em
 > [uma tabela](#as-cinco-escolhas-que-o-enunciado-deixou-em-aberto), cada uma
-> com link para a justificativa completa. As quarenta e seis decisões inteiras,
+> com link para a justificativa completa. As quarenta e sete decisões inteiras,
 > com motivo e consequência, estão em
 > [docs/decisoes.md](docs/decisoes.md); as conversas que causaram boa parte
 > delas, em [docs/dialogos.md](docs/dialogos.md).
@@ -1291,6 +1291,7 @@ precisam mudar.
 │   │   ├── budget.py         o saldo gastável
 │   │   ├── confidence.py     pontuação determinística e julgamento
 │   │   ├── claims.py         afirmações atômicas, lastro e contradição
+│   │   ├── facts.py          que saída de MCP estabelece que afirmação
 │   │   ├── observer.py       trilha de evidência por sessão e por prato
 │   │   ├── audit.py          confere cifras da mensagem contra as ferramentas
 │   │   ├── catalogue.py      receitas e bloqueios que se desfazem
@@ -1333,7 +1334,7 @@ entrega do veredito eram promessas que o servidor não podia verificar
 
 ### O resto
 
-Quarenta e seis decisões de arquitetura, cada uma com motivo, consequência e o
+Quarenta e sete decisões de arquitetura, cada uma com motivo, consequência e o
 que ela custou. O documento completo é **[docs/decisoes.md](docs/decisoes.md)**;
 esta página é uma seleção, agrupada pelo problema que cada decisão resolve, e
 cada número abaixo abre direto na decisão. As que não estão aqui aparecem em
@@ -1373,6 +1374,7 @@ de entender no lugar onde o assunto aparece.
 | [31](docs/decisoes.md#31-o-veredito-é-uma-dívida-da-conversa-não-um-lembrete) | O veredito é uma dívida da conversa | Seguir em frente é recusado até ela ouvir; o fim do turno confere |
 | [37](docs/decisoes.md#37-as-cifras-da-mensagem-são-conferidas-sozinhas-no-fim-do-turno) | As cifras são conferidas sozinhas | Todo R$ da mensagem contra todo R$ que uma ferramenta produziu |
 | [45](docs/decisoes.md#45-a-confiança-de-uma-mensagem-é-a-soma-das-afirmações-dela) | Confiança por afirmação atômica | Decompor, descartar o não conferível, conferir contra as ferramentas, comparar com o que ela já ouviu |
+| [47](docs/decisoes.md#47-as-afirmações-são-conferidas-contra-a-saída-do-mcp-que-as-produziu) | Conferidas contra a saída do MCP | Um mapa campo a campo, só de saídas, separando o que dá lastro do que decide |
 | [42](docs/decisoes.md#42-uma-promessa-é-o-que-ela-ouviu-não-o-que-a-ferramenta-calculou) | Promessa é o que ela ouviu | Um custo calculado e não dito não é promessa; comparar com o histórico da ferramenta fez o agente inventar uma lembrança |
 | [43](docs/decisoes.md#43-a-receita-de-um-prato-fecha-uma-vez) | A receita de um prato fecha uma vez | O custo andava sozinho porque os insumos andavam; a receita agora é um fato do prato |
 | [34](docs/decisoes.md#34-um-veredito-não-é-devido-duas-vezes) | Um veredito não é devido duas vezes | Repetir o que ela já ouviu é o mesmo defeito de nunca ter dito |

@@ -45,6 +45,7 @@ from .audit import MessageAudit
 class ClaimKind(str, Enum):
     '''What a claim is about, which decides how it can be checked.'''
 
+    PANTRY = 'pantry'
     COST = 'cost'
     PRICE = 'price'
     RECEIPT = 'receipt'
@@ -203,6 +204,14 @@ class ToolFact(BaseModel):
     subject: str
     kind: ClaimKind
     value: float
+    source: str = Field(default='', description='Tool and field that produced it.')
+    binds: bool = Field(
+        default=False,
+        description=(
+            'Whether this value settles the matter. Three price scenarios are '
+            'candidates and bind nothing; the price that went on the menu binds.'
+        ),
+    )
 
     @property
     def key(self) -> tuple[str, str]:
@@ -248,7 +257,7 @@ class CommitmentLedger:
         out: list[CheckedClaim] = []
         for fact in facts:
             value = round(fact.value, 2)
-            if value not in said or fact.kind not in EXCLUSIVE:
+            if value not in said or fact.kind not in EXCLUSIVE or not fact.binds:
                 continue
             earlier = self.promised.get(fact.key)
             if earlier is None or abs(earlier - value) <= 0.005:
@@ -278,7 +287,7 @@ class CommitmentLedger:
         bound = []
         for fact in facts:
             value = round(fact.value, 2)
-            if fact.kind in EXCLUSIVE and value in said:
+            if fact.binds and fact.kind in EXCLUSIVE and value in said:
                 self.promised[fact.key] = value
                 self.revisions.discard(fact.key)
                 bound.append(fact)
@@ -286,6 +295,7 @@ class CommitmentLedger:
 
 
 LABEL = {
+    ClaimKind.PANTRY: 'despensa',
     ClaimKind.COST: 'custo',
     ClaimKind.PRICE: 'preço',
     ClaimKind.RECEIPT: 'o que ela recebe',

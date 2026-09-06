@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-46-6E56CF)
+![Registros](https://img.shields.io/badge/registros-47-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -1388,3 +1388,47 @@ tempero de verdade, corrigir exige falar com ela, e isso é intencional.
 quantas embalagens e quanto sobra, ao lado de `shopping_cost`. Na verificação
 depois da correção, os três lugares batem: a mensagem, a receita e o lançamento
 do orçamento, todos R$ 10,39 para um item.
+
+---
+
+## 47. As afirmações são conferidas contra a saída do MCP que as produziu
+
+**Decisão.** Um mapa declarativo em `app/domain/facts.py` liga cada campo de
+saída de ferramenta a um tipo de afirmação, e diz se aquele campo **decide** a
+questão ou apenas dá lastro. A conferência de uma mensagem usa esse mapa.
+
+**Motivo.** A camada de afirmações existia e quase não estava conectada aos
+servidores. Ela lia dois campos de duas ferramentas e comparava todo o resto
+contra um saco plano com **todos** os números que já haviam passado, argumentos
+inclusive. Na prática ela carimbava 1,00 em quase tudo, porque quase tudo estava
+no saco.
+
+Duas distinções fazem o trabalho.
+
+*Saída, nunca argumento.* Uma ferramenta é evidência do que **calcula**. O que
+ela recebe é o modelo conversando consigo mesmo, e contar isso fecha um círculo
+com nada dentro. Era exatamente assim que um total de compras escolhido pelo
+modelo servia de prova de si próprio. A subtração agora é genérica: números do
+resultado menos números dos argumentos, para toda ferramenta.
+
+*Lastro não é compromisso.* `price_scenarios` devolve três preços; são
+candidatos, e nenhum é o preço do prato. Só o que foi para o cardápio
+compromete. Marcar todo número produzido como compromisso transformaria "aqui
+estão três opções" em três contradições no turno seguinte.
+
+**Consequência.** Onze ferramentas mapeadas, campo a campo. Uma afirmação passa
+a ser conferida contra o campo que a estabelece, e não contra a existência do
+número em algum lugar. O efeito medido: a mesma mensagem que antes pontuava 1,00
+passou a pontuar 0,92 com 13 afirmações conferidas e uma sem lastro apontada
+pelo trecho onde aparece.
+
+**Um mapa que aponta para campo inexistente é pior que mapa nenhum**, porque
+falha em silêncio e toda afirmação que ele deveria sustentar passa a parecer sem
+lastro. Um teste percorre o mapa e confirma que cada nome de campo existe no
+código que o produz. Ele pegou quatro campos que eu tinha inventado ao escrever
+o mapa: `floor_price`, `profit_today`, `unit_cost_value` duas vezes.
+
+**Observabilidade.** `jacquinho.claims` traz a nota, quantas afirmações foram
+conferidas, e agora também **quais** ficaram sem lastro, com o trecho e o tipo.
+Contagem sem exemplo não é acionável: saber que uma de treze não tem ferramenta
+por trás não diz qual olhar.

@@ -73,7 +73,7 @@ def test_a_value_only_binds_once_it_reaches_her():
     """A cost computed three times inside one turn commits to nothing; the one
     sentence she reads does."""
     ledger = CommitmentLedger()
-    facts = [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=9.90)]
+    facts = [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=9.90, binds=True)]
     ledger.bind(facts, 'Ainda estou fechando a conta, já te digo.')
     assert ledger.promised == {}
 
@@ -83,17 +83,17 @@ def test_a_value_only_binds_once_it_reaches_her():
 
 def test_the_same_value_stated_again_is_not_a_contradiction():
     ledger = CommitmentLedger()
-    facts = [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15)]
+    facts = [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15, binds=True)]
     ledger.bind(facts, 'Custa R$ 4,15.')
     assert ledger.contradictions(facts, 'Continua R$ 4,15 por marmita.') == []
 
 
 def test_a_different_value_for_the_same_thing_is_a_contradiction():
     ledger = CommitmentLedger()
-    ledger.bind([ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15)],
+    ledger.bind([ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15, binds=True)],
                 'Custa R$ 4,15.')
     clashes = ledger.contradictions(
-        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=7.15)],
+        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=7.15, binds=True)],
         'Cada marmita custa R$ 7,15.',
     )
     assert len(clashes) == 1
@@ -106,11 +106,11 @@ def test_a_change_she_asked_for_is_not_a_contradiction():
     """Punishing the agent for doing the right thing would teach it to hide the
     change instead."""
     ledger = CommitmentLedger()
-    ledger.bind([ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15)],
+    ledger.bind([ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15, binds=True)],
                 'Custa R$ 4,15.')
     ledger.authorise_revision('lasanha', ClaimKind.COST)
     clashes = ledger.contradictions(
-        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=7.15)],
+        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=7.15, binds=True)],
         'Agora custa R$ 7,15.',
     )
     assert clashes[0].verdict is Verdict.REVISED
@@ -120,9 +120,9 @@ def test_a_new_value_the_message_never_states_binds_nothing():
     """What the tools know and what she knows are different things, and only the
     second one binds."""
     ledger = CommitmentLedger()
-    ledger.bind([ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15)],
+    ledger.bind([ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15, binds=True)],
                 'Custa R$ 4,15.')
-    facts = [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=7.15)]
+    facts = [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=7.15, binds=True)]
     assert ledger.contradictions(facts, 'Vou ver o preço de mercado agora.') == []
     assert ledger.promised[('lasanha', 'cost')] == 4.15
 
@@ -152,11 +152,11 @@ def test_one_contradiction_sinks_the_message():
     known = {4.15, 24.90, 7.15}
     ClaimPipeline.run(
         'Cada marmita custa R$ 4,15 e vendendo a R$ 24,90.', 'lasanha', known,
-        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15)], ledger,
+        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15, binds=True)], ledger,
     )
     second = ClaimPipeline.run(
         'Cada marmita custa R$ 7,15.', 'lasanha', known,
-        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=7.15)], ledger,
+        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=7.15, binds=True)], ledger,
     )
     assert second.contradictions == 1
     assert second.score == 0.0
@@ -176,7 +176,7 @@ def test_the_pipeline_binds_what_it_just_judged():
     ledger = CommitmentLedger()
     ClaimPipeline.run(
         'Custa R$ 4,15.', 'lasanha', {4.15},
-        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15)], ledger,
+        [ToolFact(subject='lasanha', kind=ClaimKind.COST, value=4.15, binds=True)], ledger,
     )
     assert ledger.promised[('lasanha', 'cost')] == 4.15
 
@@ -184,3 +184,33 @@ def test_the_pipeline_binds_what_it_just_judged():
 def test_the_judgement_is_a_pydantic_model_and_serialises():
     judgement = MessageJudgement.of([])
     assert judgement.model_dump()['score'] == 1.0
+
+
+# --- grounding is not committing -------------------------------------------
+
+def test_price_scenarios_are_candidates_and_bind_nothing():
+    """price_scenarios returns three prices. None of them is the price of the
+    dish, and binding all three would turn 'here are three options' into three
+    contradictions on the next turn."""
+    ledger = CommitmentLedger()
+    scenarios = [
+        ToolFact(subject='lasanha', kind=ClaimKind.PRICE, value=v, binds=False)
+        for v in (15.90, 16.90, 17.90)
+    ]
+    ledger.bind(scenarios, 'Três opções: R$ 15,90, R$ 16,90 ou R$ 17,90.')
+    assert ledger.promised == {}
+
+    # And then she chooses, which is what menu_add_dish records.
+    ledger.bind([ToolFact(subject='lasanha', kind=ClaimKind.PRICE, value=16.90,
+                          binds=True)],
+                'Fechado a R$ 16,90.')
+    assert ledger.promised[('lasanha', 'price')] == 16.90
+
+
+def test_a_candidate_that_differs_is_not_a_contradiction():
+    ledger = CommitmentLedger()
+    ledger.bind([ToolFact(subject='lasanha', kind=ClaimKind.PRICE, value=16.90,
+                          binds=True)], 'Fechado a R$ 16,90.')
+    candidates = [ToolFact(subject='lasanha', kind=ClaimKind.PRICE, value=19.90,
+                           binds=False)]
+    assert ledger.contradictions(candidates, 'Poderia ser R$ 19,90 também.') == []
