@@ -677,11 +677,12 @@ compra: falta ordenar por impacto e devolver o conjunto mínimo que destrava o
 próximo passo, para ela responder três coisas de uma vez e ver a conta.
 
 **Latência.** Um turno leva de sessenta a noventa segundos, e a maior parte é
-busca na web em série: descoberta de pratos, receitas, preço de mercado. As
-chamadas são independentes e podem ir em paralelo; um cache por domínio e prato
-no Redis, com validade de horas, corta a repetição entre turnos da mesma
-consultoria. Nada disso muda o resultado, só o tempo que ela espera olhando a
-tela.
+busca na web. As frases de uma descoberta já correm em paralelo, com um prazo
+sobre o conjunto: o que atrasa é descartado e dito, em vez de esperado, porque a
+ferramenta responde a um cliente MCP que desiste em noventa segundos. O que falta
+é cache: as mesmas buscas se repetem entre turnos da mesma consultoria, e um
+cache por domínio e prato no Redis, com validade de horas, corta isso. Nada
+disso muda o resultado, só o tempo que ela espera olhando a tela.
 
 **Calibrar a nota com desfecho.** A confiança hoje **ordena** respostas: é
 melhor que nada e não mede probabilidade de coisa nenhuma, e isso está escrito

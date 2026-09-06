@@ -9,7 +9,10 @@ only once independent domains agree on it.
 from __future__ import annotations
 
 import re
+import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
 
 from .search import (
@@ -135,21 +138,59 @@ class ConsensusEngine:
         self.freshness = freshness
         self.recency = RecencyFilter(freshness)
 
+    # The searches are independent, so they run at the same time. Serially, six
+    # phrasings against a slow engine is six timeouts end to end, and the caller
+    # is an MCP client with a 90 second budget: the tool would blow the client
+    # timeout before returning anything, the call would be retried, and the
+    # conversation would sit there for minutes with nothing on the screen.
+    LANES = 6
+
+    # And a wall clock over the whole thing, for the case the pool does not save
+    # us. What is late is dropped and reported, never waited for: a partial
+    # consensus that arrives is worth more than a complete one that times out.
+    DEADLINE = 45.0
+
     def gather(self, queries: list[str], per_query: int = 8) -> dict:
-        '''Run every query, drop stale results, and pool what is left.'''
+        """Run every query at once, drop stale results, and pool what is left.
+
+        Results are collected in query order and not in completion order. The
+        pooling dedups by URL and keeps the first sighting, so completion order
+        would make the same searches produce different output run to run.
+        """
         results: list[SearchResult] = []
         errors: list[dict] = []
         stale_dropped = 0
 
-        for query in queries:
-            try:
-                found = self.provider.search(query, per_query, self.freshness)
-            except SearchError as error:
-                errors.append({'query': query, 'error': str(error)})
-                continue
-            kept, dropped = self.recency.apply(found)
-            stale_dropped += dropped
-            results.extend(kept)
+        if not queries:
+            return {'results': [], 'queries_run': 0, 'queries_failed': [],
+                    'stale_results_dropped': 0}
+
+        started = time.monotonic()
+        pool = ThreadPoolExecutor(max_workers=min(self.LANES, len(queries)))
+        try:
+            running = [
+                pool.submit(self.provider.search, query, per_query, self.freshness)
+                for query in queries
+            ]
+            for query, task in zip(queries, running):
+                left = self.DEADLINE - (time.monotonic() - started)
+                try:
+                    found = task.result(timeout=max(left, 0.0))
+                except FuturesTimeout:
+                    errors.append({'query': query, 'error': 'demorou demais'})
+                    continue
+                except SearchError as error:
+                    errors.append({'query': query, 'error': str(error)})
+                    continue
+                kept, dropped = self.recency.apply(found)
+                stale_dropped += dropped
+                results.extend(kept)
+        finally:
+            # Never `with`: leaving the block joins the pool, and joining is
+            # precisely what the deadline exists to avoid. A search still in
+            # flight is abandoned, and dies on its own when the HTTP timeout
+            # below it fires.
+            pool.shutdown(wait=False, cancel_futures=True)
 
         deduped: dict[str, SearchResult] = {}
         for result in results:
