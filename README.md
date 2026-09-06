@@ -9,8 +9,6 @@
 ![Postgres](https://img.shields.io/badge/postgres-17-4169E1?logo=postgresql&logoColor=white)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 ![Servidores MCP](https://img.shields.io/badge/servidores%20MCP-11-success)
-![Ferramentas](https://img.shields.io/badge/ferramentas-59-success)
-![Testes](https://img.shields.io/badge/testes-277-success)
 ![Confiança](https://img.shields.io/badge/confiança-afirmação%20atômica%20%2B%20Pydantic-6E56CF)
 
 
