@@ -8,6 +8,26 @@ decisão tem consequência de infraestrutura (latência, escalabilidade,
 observabilidade, elasticidade) ela fecha dizendo qual. Onde não tem, não
 inventa uma.
 
+## As cinco escolhas que o enunciado deixou em aberto
+
+O desafio deixa a critério de quem implementa **modelo, context files,
+tools/MCP, estrutura de memória e skills**, e pede a justificativa. Aqui está
+cada uma, com o registro que a desenvolve.
+
+| O que era escolha | O que foi escolhido | Por quê, em uma linha | Registro |
+|---|---|---|---|
+| **Modelo** | `claude-sonnet-5`, com OAuth de uma conta Anthropic Pro | O gargalo não é profundidade, é condução: são 58 ferramentas e cadeias longas | [20](#20-o-modelo-padrão-é-o-claude-sonnet-5) |
+| **Context files** | Um só, `hermes/SOUL.md`, com voz e quem fala primeiro | O Hermes trata texto vindo de MCP como dado não confiável, então a persona **tem** que morar do lado dele | [3](#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode) |
+| **Tools/MCP** | 58 ferramentas em 11 servidores, um endpoint HTTP | O que dá para conferir vira ferramenta, porque ferramenta executa e instrução só pede | [2](#2-um-endpoint-http-onze-servidores-montados), [4](#4-ferramentas-mcp-em-vez-de-skills) |
+| **Estrutura de memória** | Redis para a conversa (20 turnos + 1 resumo), Postgres para o que ela decidiu | Redis quando perder custa contexto; Postgres quando custa uma pergunta repetida ou dinheiro | [18](#18-o-redis-guarda-a-conversa-20-turnos-mais-1-resumo), [19](#19-o-postgres-guarda-os-dados-da-dona-maria) |
+| **Skills** | Nenhuma | Uma skill não deixa rastro de ter sido seguida; onde havia o que conferir, virou ferramenta | [4](#4-ferramentas-mcp-em-vez-de-skills) |
+
+Uma sexta escolha não estava na lista e é das mais decisivas: **dois hooks de
+fronteira de turno**, que trazem a fala dela e a resposta final para fora do
+alcance do modelo. Sem eles, tanto a conferência de citações quanto a entrega do
+veredito são promessas que o servidor não pode verificar
+([33](#33-os-limites-do-turno-são-do-runtime-não-do-modelo)).
+
 ---
 
 ## 1. O cálculo vive fora do modelo de linguagem
