@@ -1,7 +1,7 @@
 # Testes
 
-![Unitários](https://img.shields.io/badge/testes-252-success)
-![Suítes](https://img.shields.io/badge/suítes-9-0A7EA4)
+![Unitários](https://img.shields.io/badge/testes-272-success)
+![Suítes](https://img.shields.io/badge/suítes-15-0A7EA4)
 ![Execução](https://img.shields.io/badge/execução-~1.5s-6E56CF)
 
 Duas camadas, com propósitos diferentes: a suíte automatizada garante que a
@@ -38,25 +38,26 @@ python -m pytest tests/ -q
 
 ## A suíte automatizada
 
-**252 testes, 14 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
+**272 testes, 15 suítes, ~60 s** (o tempo é quase todo subida de contêiner e
 ida ao Postgres; a parte de domínio roda em cerca de dois segundos).
 
 | Suíte | Testes | O que garante |
 |---|---:|---|
-| `test_mcp_server.py` | 43 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio e não gasta o dinheiro dela |
+| `test_mcp_server.py` | 45 | O servidor sobe, monta, recusa, não deixa o prato dela morrer em silêncio, não gasta o dinheiro dela e não usa carne que ela já gastou |
+| `test_pricing.py` | 28 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
+| `test_pantry.py` | 28 | Semeadura, custo unitário, casamento de nomes, e o estoque finito que baixa e volta |
 | `test_elicitation.py` | 24 | Catálogo, gate, exigências lidas da receita |
 | `test_confidence.py` | 22 | Nota por afirmação, bandas, badge, impedimentos |
-| `test_pantry.py` | 20 | Semeadura, custo unitário, casamento de nomes |
+| `test_claims.py` | 20 | Decompor a mensagem, o que é conferível, o que contradiz o turno anterior |
+| `test_observer.py` | 17 | Trilha por sessão e por prato |
 | `test_units.py` | 15 | Unidade e embalagem: `balde 2kg` são dois quilos |
 | `test_search_and_consensus.py` | 15 | Recência, domínios distintos, extração de preço |
-| `test_pricing.py` | 28 | A aritmética do desafio, a embalagem contra a fração, e o resultado da fornada |
-| `test_observer.py` | 17 | Trilha por sessão e por prato |
-| `test_claims.py` | 20 | Decompor a mensagem, o que é conferível, o que contradiz o turno anterior |
-| `test_facts.py` | 9 | O mapa das saídas de MCP, e que cada campo mapeado existe de verdade |
 | `test_verdict.py` | 12 | A frase que ela lê nomeia o prato e o motivo; um sim com "mas" não é sim |
 | `test_audit.py` | 11 | Todo R$ e todo % da mensagem sai de uma ferramenta |
-| `test_budget_and_catalogue.py` | 7 | Bloqueio condicional contra bloqueio por gosto |
+| `test_pacing.py` | 10 | A mensagem vai em partes: as mesmas palavras passam quebradas e reprovam soldadas |
+| `test_facts.py` | 9 | O mapa das saídas de MCP, e que cada campo mapeado existe de verdade |
 | `test_hooks.py` | 9 | As fronteiras do turno: fala capturada, veredito entregue, cifras conferidas |
+| `test_budget_and_catalogue.py` | 7 | Bloqueio condicional contra bloqueio por gosto |
 
 `test_hooks.py` fala com o servidor por HTTP puro, do jeito que os scripts de
 hook falam, em vez de por MCP: é o único caminho do sistema que o modelo não
@@ -584,6 +585,42 @@ vão como a receita escreve e a divisão acontece na ferramenta.
 Uma nota sobre os testes de formatação: dois falharam na primeira execução
 porque eu escrevi as expectativas com ponto decimal, e a implementação escreve
 `62,5 ml`. A implementação estava certa e o teste é que estava em inglês.
+
+---
+
+### A rodada dos 2 kg de patinho
+
+A rodada que gravou o [Certo 5](dialogos.md#certo-5--os-2-kg-de-patinho-e-o-meio-quilo-que-falta),
+com os bancos zerados e um prato de cada vez.
+
+**O que ela achou de bom.** O comportamento novo apareceu sozinho, sem ninguém
+puxar: no primeiro turno do segundo prato, sem que ela perguntasse nada sobre
+estoque, o agente disse *"você tinha 1,5 kg, o escondidinho levou 500 g, sobrou
+1 kg"*. É `why_short` sendo lido como frase e não como campo. Quando ela mudou
+a fornada de 12 para 18 marmitas, a falta apareceu e o custo por marmita **não
+mudou** — R$ 4,91 nos dois turnos, porque a receita estava fechada e o que
+mudou foi o tamanho da fornada.
+
+**Dois defeitos que a rodada expôs, e que viraram código.**
+
+*Duas linhas para o mesmo ingrediente.* A receita da bolonhesa pedia tomate duas
+vezes — o fresco e o que vira molho — e o consumo foi gravado em duas linhas.
+Aritmeticamente certo, e a história ficava *"levou 1,02 kg e levou 1,8 kg"*.
+Agora o consumo é somado por ingrediente antes de ser escrito.
+
+*Aceitar o mesmo prato duas vezes.* Não aconteceu aqui, mas nada impedia:
+`menu_add_dish` chamado de novo para o mesmo prato gravaria uma segunda fornada
+de consumo. O prato é dono das próprias linhas, e escrevê-las de novo agora as
+substitui.
+
+**E o selo, de novo.** Numa gravação anterior desta mesma rodada, a mensagem de
+fechamento saiu com `〔preço: confiança média · sem preço de mercado · inflação
+antiga · cozinha confere〕` colado no fim. O texto que mandava colar tinha sido
+reescrito duas vezes; o campo continuava lá. Enquanto existir um campo chamado
+`badge` com uma linha formatada dentro, ele vai ser colado — então o campo saiu
+do payload. Na regravação, nenhuma mensagem tem selo, e as ressalvas aparecem na
+língua dela: *"achei pouca referência pra esse prato, então trate como
+indicativo"*.
 
 ---
 

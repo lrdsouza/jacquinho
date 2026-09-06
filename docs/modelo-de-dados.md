@@ -14,7 +14,7 @@ flowchart LR
     subgraph P["Postgres · registros dela, duráveis"]
         p1["recipes · recipe_requirements<br/>recipe_blocks"]
         p2["kitchen_capabilities<br/>elicitation_items"]
-        p3["budget_entries · package_sizes<br/>pantry_items · recipe_costing"]
+        p3["budget_entries · package_sizes<br/>pantry_items · pantry_usage<br/>recipe_costing"]
         p4["dish_categories · dish_feedback<br/>menu_items · answer_assessments"]
     end
     R -.->|"some quando<br/>resumido ou expirado"| X["descartável"]
@@ -167,13 +167,14 @@ sobrevive é a capacidade, com as palavras dela copiadas na nota.
 | Tabela | Dono | Conteúdo |
 |---|---|---|
 | `pantry_items` | `pantry` | A despensa semeada da planilha, com custos unitários |
+| `pantry_usage` | `pantry`, escrita pelo `menu` | O que cada prato aceito levou da despensa; o estoque disponível é a subtração |
 | `package_sizes` | `pantry` | Pesos descobertos para itens vendidos por peça |
 | `recipes` | `recipes`, e `kitchen` | Toda receita já aberta, com fonte e cobertura |
 | `recipe_requirements` | `recipes` | O que cada receita exige: equipamento e técnica |
 | `recipe_blocks` | `recipes`, e `kitchen` | Por que um prato saiu, e o que o traria de volta |
 | `kitchen_capabilities` | `kitchen` | Capacidades em três estados, com as palavras dela |
 | `elicitation_items` | `kitchen` | Restrições acrescentadas durante a conversa |
-| `recipe_costing` | `pricing` | A receita fechada de um prato: lista, porções, custo, e o motivo de cada reabertura nas palavras dela |
+| `recipe_costing` | `pricing` | A receita fechada de um prato: lista, porções, custo, o que a fornada tira da despensa, e o motivo de cada reabertura nas palavras dela |
 | `budget_entries` | `budget` | Compras fechadas; o saldo é derivado |
 | `dish_categories` | `dishes` | Categorias criadas durante a conversa |
 | `dish_feedback` | `menu` | O que ela achou de cada prato |
@@ -190,6 +191,43 @@ regra do bloqueio condicional continua num lugar só.
 
 `answer_assessments` não tem dono entre os servidores porque quem escreve é o
 middleware, depois de toda chamada de ferramenta, sem o agente pedir.
+
+`pantry_usage` é a segunda exceção à posse única, e pela mesma razão que a
+primeira: quem lê é o `pantry`, mas quem escreve é o `menu`, no instante em que
+ela aceita o prato. Orçar não gasta nada; escolher, sim. Deixar o `pricing`
+escrever ali esvaziaria a despensa a cada pergunta.
+
+### O estoque que baixa
+
+Duas tabelas, e uma subtração. `pantry_items` guarda o que a planilha semeou e
+nunca é reescrita; `pantry_usage` recebe uma linha por ingrediente por prato
+aceito. O estoque disponível é a diferença, calculada na leitura.
+
+```mermaid
+erDiagram
+    pantry_items ||--o{ pantry_usage : "foi consumido por"
+    menu_items   ||--o{ pantry_usage : "consumiu"
+    recipe_costing ||--o{ pantry_usage : "diz quanto, em uses[]"
+
+    pantry_items {
+        text   ingredient_key PK
+        numeric stock_quantity "o que a planilha trouxe"
+        text   stock_unit
+    }
+    pantry_usage {
+        bigserial id PK
+        text      dish
+        text      ingredient_key FK
+        numeric   quantity "unidade base, fornada inteira"
+        timestamp committed_at
+    }
+```
+
+O caminho de volta é a exclusão das linhas do prato: `menu_remove_dish` e
+`pricing_reopen_recipe` apagam o que aquele prato tinha levado. Guardar o
+consumo separado do estoque é o que torna isso possível sem reconstruir nada — e
+é o que permite a frase que ela precisa ouvir, *"você tinha 1,5 kg, a lasanha
+levou 1 kg, sobraram 500 g"*, que um saldo sozinho não teria como contar.
 
 ### O bloqueio que se desfaz sozinho
 

@@ -1,13 +1,13 @@
 # Testes de diálogo
 
-![Diálogos](https://img.shields.io/badge/diálogos-8-6E56CF)
+![Diálogos](https://img.shields.io/badge/diálogos-9-6E56CF)
 ![Bancos](https://img.shields.io/badge/bancos-zerados%20a%20cada%20rodada-success)
 
 Transcrições reais, copiadas palavra por palavra, cada uma gravada com os bancos
 zerados. São a única parte da documentação que ainda usa travessão, porque é
 fala da Dona Maria e do agente, não texto meu.
 
-Quatro que deram certo e quatro que deram errado. As que deram errado valem
+Cinco que deram certo e quatro que deram errado. As que deram errado valem
 mais: cada uma virou um teste automatizado, uma decisão de arquitetura, ou as
 duas coisas. O caso principal e um caso de falha ficam no
 [README](../README.md); estes são os outros.
@@ -28,6 +28,7 @@ demonstração concreta do limite que está anotado no README.
 - [Certo 2 · O fechamento da fornada](#certo-2--o-fechamento-da-fornada)
 - [Certo 3 · O prato que volta quando ela ganha um forno](#certo-3--o-prato-que-volta-quando-ela-ganha-um-forno)
 - [Certo 4 · Ela não sabe o que quer](#certo-4--ela-não-sabe-o-que-quer)
+- [Certo 5 · Os 2 kg de patinho, e o meio quilo que falta](#certo-5--os-2-kg-de-patinho-e-o-meio-quilo-que-falta)
 - [Errado 1 · O forno que ninguém perguntou](#errado-1--o-forno-que-ninguém-perguntou)
 - [Errado 2 · "Já comprei a massa"](#errado-2--já-comprei-a-massa)
 - [Errado 3 · O lucro que nenhuma ferramenta calculou](#errado-3--o-lucro-que-nenhuma-ferramenta-calculou)
@@ -367,12 +368,107 @@ copiar.
 
 ---
 
-## O que estas oito conversas não cobrem
+## Certo 5 · Os 2 kg de patinho, e o meio quilo que falta
+
+**O que se testa:** que o estoque dela é **finito**. Dois pratos que usam a
+mesma carne, e o segundo tem que enxergar a geladeira como o primeiro a deixou.
+
+```
+Dona Maria ▸ oi! vou começar a vender marmita por delivery. quero fazer
+             escondidinho de carne moída, é o que sai melhor aqui em casa.
+             faço 8 marmitas por fornada
+
+             [ele pergunta forno, fogão, refratário, prática com purê e
+              refogado, e quanto pesa uma cebola média dela]
+
+Dona Maria ▸ quanto sai cada marmita?
+
+Jacquinho  ▸ O escondidinho de carne moída fecha em R$ 3,96 por marmita.
+             Fazendo a conta: 62,5 g de carne moída (R$ 1,75), 25 g de
+             mussarela (R$ 1,00), 125 g de batata (R$ 0,75), manteiga
+             (R$ 0,15), azeite (R$ 0,12) e o restinho de cebola, leite, alho,
+             sal e cheiro-verde — dá R$ 3,96 por marmita.
+             Só falta comprar a pimenta branca: um potinho de 100 g sai por
+             R$ 11,90 [...]
+
+Dona Maria ▸ vou vender a 24,90. pode colocar no cardápio
+
+             [entra no cardápio; a fornada de 8 leva 500 g dos 1,5 kg dela]
+
+Dona Maria ▸ gostei! agora quero botar um segundo prato no cardápio: macarrão
+             à bolonhesa, também com carne moída. essa fornada eu faço maior,
+             12 marmitas
+
+Jacquinho  ▸ Macarrão à bolonhesa com carne moída entra numa boa: é só fogão,
+             sem exigir nada além do que você já tem. E essa carne moída que
+             sobrou do escondidinho cai bem aqui — você tinha 1,5 kg, o
+             escondidinho levou 500 g, sobrou 1 kg, e a bolonhesa usa esse
+             quilo inteiro na fornada de 12 marmitas.
+             A conta por marmita: 83 g de carne moída (R$ 2,33), 83 g de
+             macarrão (R$ 1,17) [...] Dá R$ 4,91 por marmita.
+             A boa notícia: essa fornada não precisa de nenhuma compra, tudo
+             sai do que já está na sua despensa.
+
+Dona Maria ▸ pensando melhor, essa bolonhesa eu quero fazer 18 marmitas, que o
+             pedido do fim de semana é grande
+
+Jacquinho  ▸ A bolonhesa agora vai numa fornada de 18 marmitas.
+             Só um aviso antes: você tinha 1,5 kg de carne moída; o
+             escondidinho levou 500 g, sobrou 1 kg. Pra 18 marmitas a
+             bolonhesa pede 1,5 kg, então faltam 500 g pra comprar. O macarrão
+             é a mesma história: você tem 1 kg na despensa e a fornada pede
+             1,5 kg, faltam 500 g.
+             A conta por marmita: 83,3 g de carne moída (R$ 2,33), 83,3 g de
+             macarrão (R$ 1,17), 100 g de tomate (R$ 0,80) e mais 56,7 g de
+             tomate pro molho (R$ 0,45), cebola (R$ 0,10), óleo (R$ 0,04) e
+             caldo de carne (R$ 0,01). Dá R$ 4,91 por marmita.
+             Pra fechar a fornada você precisa comprar meio quilo de carne
+             moída (uns R$ 14,00) e meio quilo de macarrão (uns R$ 6,99) —
+             R$ 20,99 no total. Isso cabe nos seus R$ 68,10 que sobraram,
+             ficando R$ 47,11 pra próxima.
+```
+
+**Por que está certo.** Os dois pratos somam exatamente os **2 kg** de patinho
+que as duas fornadas pedem, contra os 1,5 kg que ela tinha, e o meio quilo que
+falta virou linha de compra a R$ 14,00 — que é o preço por quilo que ela mesma
+pagou, `28,00 × 0,5`. O estado no banco depois da conversa:
+
+```
+ dish                         | ingredient_key      | quantity
+------------------------------+---------------------+----------
+ escondidinho de carne moída  | carne moida patinho |   0.5000
+ macarrão à bolonhesa         | carne moida patinho |   1.5000
+ macarrão à bolonhesa         | macarrao espaguete  |   1.5000
+```
+
+Nenhuma dessas linhas foi escrita quando o prato foi **orçado** — só quando ela
+aceitou. A primeira versão da bolonhesa, a de 12 marmitas, foi calculada, lida
+para ela e nunca entrou no cardápio: não tirou nada da despensa.
+
+**A frase é a coisa toda.** Um "faltam 500 g de carne" solto parece erro de
+planilha, e o que ela faz com um erro de planilha é duvidar do número em vez de
+comprar a carne. *"Você tinha 1,5 kg, o escondidinho levou 500 g, sobrou 1 kg"*
+é uma frase que ela confere contra a própria geladeira. Ela existe porque o
+consumo é gravado separado do estoque: com um `UPDATE` no saldo, o porquê teria
+sido jogado fora. Ver [decisoes.md](decisoes.md), item 51.
+
+**E ela mudou de ideia no meio.** As 12 marmitas viraram 18 e tudo foi refeito —
+o custo por marmita continuou R$ 4,91, porque a receita está fechada e o que
+mudou foi o tamanho da fornada, não os ingredientes. O que mudou junto foi a
+falta: com 12 marmitas não faltava nada, com 18 faltam 500 g de cada.
+
+**Duas ressalvas ditas na língua dela.** *"Achei pouca referência pra esse prato,
+então trate como indicativo, não como preço firme de mercado."* Nenhum selo,
+nenhum `〔 〕`, nenhuma banda de confiança na mensagem.
+
+---
+
+## O que estas nove conversas não cobrem
 
 Dito aqui porque conjunto de casos sem fronteira escrita vira falsa sensação de
 cobertura.
 
-**Conversas longas.** A mais longa aqui tem sete turnos. A janela de vinte
+**Conversas longas.** A mais longa aqui tem oito turnos. A janela de vinte
 turnos com resumo nunca foi exercitada até o ponto em que o resumo é reescrito.
 
 **Duas pessoas ao mesmo tempo.** Nenhuma destas testa sessões simultâneas, e o

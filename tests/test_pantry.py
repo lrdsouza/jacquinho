@@ -92,3 +92,77 @@ def test_learned_package_size_does_not_zero_the_factor(database):
 
 def test_search_keyword_drops_grading_noise(pantry):
     assert pantry.find('Arroz branco tipo 1').search_keyword == 'Arroz branco'
+
+
+# --------------------------------------------------------- finite stock
+
+def test_stock_starts_at_what_the_spreadsheet_says(pantry):
+    beef = pantry.find('Carne moída (patinho)')
+    assert beef.stock == pytest.approx(1.5)
+    assert beef.used == pytest.approx(0.0)
+    assert beef.seeded_stock == pytest.approx(1.5)
+
+
+def test_a_committed_dish_takes_its_share_out_of_the_pantry(pantry):
+    """Her kilo of patinho is a kilo, not a supply."""
+    pantry.record_usage('lasanha de panela', [('carne moida patinho', 1.0)], portions=8)
+
+    beef = pantry.find('Carne moída (patinho)')
+    assert beef.stock == pytest.approx(0.5)
+    assert beef.used == pytest.approx(1.0)
+    assert beef.seeded_stock == pytest.approx(1.5)
+
+
+def test_the_second_dish_sees_what_the_first_one_ate(pantry):
+    """Two dishes wanting a kilo each, and only 1,5 kg in the fridge."""
+    pantry.record_usage('lasanha de panela', [('carne moida patinho', 1.0)], portions=8)
+    pantry.record_usage('escondidinho de carne', [('carne moida patinho', 1.0)], portions=8)
+
+    beef = pantry.find('Carne moída (patinho)')
+    # Stock never goes negative: what is missing is a shopping line, not a
+    # pantry with less than nothing in it.
+    assert beef.stock == pytest.approx(0.0)
+    assert beef.used == pytest.approx(1.5)
+
+
+def test_the_history_says_which_dish_took_what(pantry):
+    pantry.record_usage('lasanha de panela', [('carne moida patinho', 1.0)], portions=8)
+    history = pantry.usage_history('carne moida patinho')
+    assert [(row['dish'], row['quantity']) for row in history] == [
+        ('lasanha de panela', 1.0)
+    ]
+
+
+def test_a_dish_she_drops_gives_its_ingredients_back(pantry):
+    pantry.record_usage('lasanha de panela', [('carne moida patinho', 1.0)], portions=8)
+    assert pantry.forget_usage('lasanha de panela') == 1
+    assert pantry.find('Carne moída (patinho)').stock == pytest.approx(1.5)
+
+
+def test_nothing_is_written_for_an_empty_batch(pantry):
+    report = pantry.record_usage('prato nenhum', [], portions=4)
+    assert report['recorded'] is False
+    assert pantry.find('Carne moída (patinho)').stock == pytest.approx(1.5)
+
+
+def test_one_line_per_ingredient_even_when_the_recipe_asks_twice():
+    """A recipe can ask for tomato twice - the fresh one and the sauce."""
+    from tests.conftest import FakeDatabase
+    from app.domain.pantry import PantryRepository, PantrySheet
+    from tests.conftest import spreadsheet
+
+    pantry = PantryRepository(FakeDatabase(PantrySheet(spreadsheet()).rows()))
+    pantry.record_usage(
+        'bolonhesa',
+        [('tomate', 1.02), ('tomate', 0.8)],
+        portions=18,
+    )
+    history = pantry.usage_history('tomate')
+    assert len(history) == 1
+    assert history[0]['quantity'] == pytest.approx(1.82)
+
+
+def test_accepting_the_same_dish_twice_does_not_eat_the_pantry_twice(pantry):
+    for _ in range(2):
+        pantry.record_usage('lasanha', [('carne moida patinho', 1.0)], portions=8)
+    assert pantry.find('Carne moída (patinho)').stock == pytest.approx(0.5)

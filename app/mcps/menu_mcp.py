@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from ..domain.catalogue import BlockReason, CatalogueUnavailable as MemoryUnavailable
 from ..domain.budget import BudgetLedger
 from ..domain.catalogue import DishFeedbackStore, LaunchMenuStore, RecipeCatalogue
+from ..domain.costing import RecipeLock
 from ..domain.money import launch_projection
 from .base import BaseMCP
 
@@ -35,13 +36,50 @@ class MenuMCP(BaseMCP):
         'deliverable the whole conversation is for.'
     )
 
-    def __init__(self, settings, db, observer=None):
+    def __init__(self, settings, db, repository=None, observer=None):
         self.db = db
         self.observer = observer
+        self.repository = repository
         self.feedback = DishFeedbackStore(db)
         self.menu = LaunchMenuStore(db)
         self.catalogue = RecipeCatalogue(db)
+        self.lock = RecipeLock(db)
         super().__init__(settings)
+
+    def _deduct(self, dish: str) -> dict:
+        """Take the settled batch of this dish out of the pantry.
+
+        The amounts come from the locked recipe, resolved into base units while
+        the cost was being computed. Re-deriving them from ingredient names here
+        would be a second resolution of the same fact, and two resolutions are
+        two chances to disagree.
+        """
+        if self.repository is None:
+            return {'recorded': False, 'reason': 'pantry not wired in'}
+        settled = self.lock.locked(dish)
+        uses = (settled or {}).get('uses') or []
+        if not uses:
+            return {
+                'recorded': False,
+                'reason': (
+                    'Sem receita fechada para este prato, então nada saiu da '
+                    'despensa. Rode pricing_calculate_cmv antes.'
+                ),
+            }
+        report = self.repository.record_usage(
+            dish,
+            [(entry['ingredient_key'], entry['quantity']) for entry in uses],
+            int((settled or {}).get('portions') or 1),
+        )
+        left = {
+            entry['ingredient']: (
+                f'{self.repository.items[entry["ingredient_key"]].stock:g} '
+                f'{entry["base_unit"]}'
+            )
+            for entry in uses
+            if entry['ingredient_key'] in self.repository.items
+        }
+        return {**report, 'left_in_the_pantry': left}
 
     def _shelve(self, dish: str, comment: str) -> list[str]:
         '''Take a dish she does not want off the table, here and now.
@@ -140,10 +178,17 @@ class MenuMCP(BaseMCP):
             confidence_band: Annotated[str, Field(description="Band from confidence_assess_answer: 'high', 'medium' or 'low'.")],
             notes: Annotated[str, Field(description='Anything she should remember about this dish.')] = '',
         ) -> dict:
-            '''Put an accepted dish on the launch menu.
+            '''Put an accepted dish on the launch menu, and take its share out
+            of the pantry.
 
             Only after the viability gate passed, the CMV was complete, the price
             was grounded in the market, and she picked it herself.
+
+            Her stock is finite. A dish that goes on the menu is a dish she will
+            cook, so the batch it needs stops being available to the next dish -
+            written to Postgres here, at the moment of the decision, and not at
+            costing time, because pricing a dish she never sells must not empty
+            her fridge.
             '''
             try:
                 entry = self.menu.add(
@@ -152,17 +197,26 @@ class MenuMCP(BaseMCP):
                 )
             except MemoryUnavailable as error:
                 return {'added': False, 'error': str(error)}
-            return {'added': True, **entry}
+            return {'added': True, **entry, 'pantry': self._deduct(dish)}
 
         @self.mcp.tool
         def remove_dish(
             dish: Annotated[str, Field(description='Dish to take off the menu.')],
         ) -> dict:
-            '''Take a dish off the launch menu.'''
+            '''Take a dish off the launch menu, and put its ingredients back.'''
             try:
-                return {'removed': self.menu.remove(dish)}
+                removed = self.menu.remove(dish)
             except MemoryUnavailable as error:
                 return {'removed': False, 'error': str(error)}
+            given_back = (
+                self.repository.forget_usage(dish)
+                if removed and self.repository is not None
+                else 0
+            )
+            return {
+                'removed': removed,
+                'ingredients_back_in_the_pantry': given_back,
+            }
 
         @self.mcp.tool
         def build_launch_menu() -> dict:

@@ -158,6 +158,30 @@ ALTER TABLE recipe_costing
     ADD COLUMN IF NOT EXISTS shopping      JSONB NOT NULL DEFAULT '[]'::jsonb,
     ADD COLUMN IF NOT EXISTS shopping_cost NUMERIC(10,2) NOT NULL DEFAULT 0;
 
+-- What the whole batch takes out of the pantry, in base units, resolved while
+-- the cost was being computed. Stored with the recipe so accepting the dish
+-- does not have to re-derive it from names and risk resolving them differently.
+ALTER TABLE recipe_costing
+    ADD COLUMN IF NOT EXISTS uses JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- What a committed batch takes out of the pantry. Append-only, like the
+-- budget: the seeded stock stays untouched and what is available is derived,
+-- so "você tinha 1,5 kg, a lasanha levou 1 kg, sobraram 500 g" is a query and
+-- not a story. Her stock is finite, and a second dish that ignores what the
+-- first one ate sends her to the stove with nothing in the fridge.
+CREATE TABLE IF NOT EXISTS pantry_usage (
+    id              BIGSERIAL PRIMARY KEY,
+    dish            TEXT NOT NULL,
+    ingredient_key  TEXT NOT NULL,
+    quantity        NUMERIC(12,4) NOT NULL,
+    base_unit       TEXT NOT NULL,
+    portions        INTEGER NOT NULL DEFAULT 1,
+    committed_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS pantry_usage_by_ingredient
+    ON pantry_usage (ingredient_key);
+
 CREATE TABLE IF NOT EXISTS answer_assessments (
     id                  BIGSERIAL PRIMARY KEY,
     dish                TEXT NOT NULL,

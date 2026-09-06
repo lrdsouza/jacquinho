@@ -36,6 +36,7 @@ from starlette.responses import JSONResponse
 from ..domain.audit import MessageAudit
 from ..domain.claims import ClaimPipeline
 from ..domain.memory import ConversationStore
+from ..domain.pacing import check as pacing_check
 from ..domain.verdict import VerdictAnnouncement
 
 logger = logging.getLogger('jacquinho.hooks')
@@ -145,6 +146,33 @@ class HookRoutes:
             level = logger.warning if loose else logger.info
             level('jacquinho.claims %s', json.dumps(payload, ensure_ascii=False))
 
+    @staticmethod
+    def _log_pacing(reply: str) -> None:
+        """A wall that went out anyway leaves a line in the log.
+
+        The turn boundary cannot rewrite what she already read - only
+        pre_tool_call can block - so this is telemetry, not a gate. The gate is
+        `message_pacing` inside `confidence_assess_answer`, which the agent reads
+        while the draft is still a draft. This says how often the gate is being
+        walked past, which is the only way to know whether it works.
+        """
+        report = pacing_check(reply)
+        if report['one_subject_per_part']:
+            return
+        logger.warning(
+            'jacquinho.pacing %s',
+            json.dumps(
+                {
+                    'words': report['words'],
+                    'parts': report['parts'],
+                    'subjects': report['subjects'],
+                    'questions': len(report['questions']),
+                    'why': report['split_because'],
+                },
+                ensure_ascii=False,
+            ),
+        )
+
     def _audit_figures(self, session: str, reply: str) -> None:
         '''Every R$ in the message, against every R$ the tools produced.
 
@@ -204,6 +232,7 @@ class HookRoutes:
             # Only now is a value a promise: it reached her.
             self._judge_claims(session, reply)
             self.observer.mark_costs_told(session, reply)
+            self._log_pacing(reply)
 
             owed = self.observer.owed_announcement(session)
             if not owed:

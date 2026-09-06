@@ -9,8 +9,8 @@
 ![Postgres](https://img.shields.io/badge/postgres-17-4169E1?logo=postgresql&logoColor=white)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 ![Servidores MCP](https://img.shields.io/badge/servidores%20MCP-11-success)
-![Ferramentas](https://img.shields.io/badge/ferramentas-58-success)
-![Testes](https://img.shields.io/badge/testes-252-success)
+![Ferramentas](https://img.shields.io/badge/ferramentas-59-success)
+![Testes](https://img.shields.io/badge/testes-272-success)
 
 Um sous-chef de IA para a **Dona Maria**, cozinheira que está abrindo o primeiro
 delivery dela, o *Sabor da Maria*. Ela sabe cozinhar. O que ela não sabe é quais
@@ -223,9 +223,9 @@ Outras conversas, com o diagnóstico de cada falha, estão em
 
 ## As decisões que sustentam isso
 
-As cinquenta decisões de arquitetura, cada uma com motivo e consequência,
-estão em **[docs/decisoes.md](docs/decisoes.md)**. Estas cinco são as que
-respondem o desafio.
+As cinquenta e duas decisões de arquitetura, cada uma com motivo e
+consequência, estão em **[docs/decisoes.md](docs/decisoes.md)**. Estas seis são
+as que respondem o desafio.
 
 ### Ferramentas MCP, e nenhuma skill
 
@@ -291,6 +291,53 @@ o portão, recalcular custo e preço. Decisões
 [49](docs/decisoes.md#49-o-prato-arquivado-é-o-que-morreu-não-o-que-sobrou),
 [35](docs/decisoes.md#35-um-sim-com-mas-dentro-não-é-um-sim) e
 [43](docs/decisoes.md#43-a-receita-de-um-prato-fecha-uma-vez).
+
+### O estoque dela é finito, e baixa quando ela aceita o prato
+
+Ela tem **1,5 kg** de patinho. Não patinho à vontade. Se o segundo prato calcula
+em cima da geladeira que o primeiro já esvaziou, a lista de compras sai curta — e
+ela chega na cozinha com metade da carne que a fornada pede.
+
+Então o estoque deixou de ser um número lido da planilha e virou uma
+**subtração**: o que a planilha semeou, menos o que os pratos já aceitos
+consumiram. O consumo mora numa tabela só-adição, uma linha por ingrediente por
+prato.
+
+Numa conversa gravada com os bancos zerados, ela pôs dois pratos no cardápio e a
+segunda fornada bateu no fim da carne:
+
+```
+Dona Maria ▸ pensando melhor, essa bolonhesa eu quero fazer 18 marmitas, que o
+             pedido do fim de semana é grande
+
+Jacquinho  ▸ Só um aviso antes: você tinha 1,5 kg de carne moída; o
+             escondidinho levou 500 g, sobrou 1 kg. Pra 18 marmitas a
+             bolonhesa pede 1,5 kg, então faltam 500 g pra comprar.
+```
+
+Os dois pratos somam os 2 kg que as fornadas pedem contra os 1,5 kg que ela
+tinha, e o meio quilo que falta virou compra a R$ 14,00 — o preço por quilo que
+ela mesma pagou. A conversa inteira está em
+[docs/dialogos.md](docs/dialogos.md#certo-5--os-2-kg-de-patinho-e-o-meio-quilo-que-falta).
+
+Duas escolhas fazem essa frase existir. **Só-adição**, porque um `UPDATE` no
+estoque guarda o saldo e joga fora o porquê — e o que ela precisa ouvir não é o
+saldo, é para onde a carne foi; um "faltam 500 g" solto parece erro de planilha,
+e o que ela faz com um erro de planilha é duvidar do número em vez de comprar a
+carne. E **no aceite, não no cálculo**: orçar um prato é uma pergunta, colocá-lo
+no cardápio é uma decisão. O mesmo prato é orçado várias vezes, inclusive quando
+ela recusa; se cada orçamento baixasse o estoque, a despensa esvaziava por conta
+de perguntas.
+
+O caminho de volta é automático: tirar o prato do cardápio, ou reabrir a receita
+porque ela mudou de ideia, devolve o que aquele prato tinha levado.
+
+Aqui está a vantagem prática do Postgres, e é bem concreta: o estoque dela é um
+dado que o operador precisa poder mexer — repor o que ela comprou, corrigir o que
+a planilha trouxe errado, montar um cenário. Isso é um `UPDATE` de uma linha,
+conferível na hora com um `SELECT`. Guardado junto do estado de conversa, seria
+um blob que só o código sabe abrir. Decisão
+[51](docs/decisoes.md#51-o-estoque-dela-é-finito-e-baixa-quando-o-prato-entra-no-cardápio).
 
 ### Confiança por afirmação atômica, tipada pela saída do MCP
 
@@ -377,6 +424,17 @@ ferramenta consegue impor. A ideia central que o organiza:
 > pergunta que a despensa já responde, e nunca pergunta duas vezes o que ela já
 > respondeu.
 
+Uma regra de voz, porém, tinha como ser medida — e por isso foi. Ela lê no
+celular com a panela no fogo: receita, custo, compras, mercado e preço soldados
+num parágrafo é um parágrafo que ela passa o olho, e o que estava no meio se
+perde, em geral a pergunta. Então a resposta vai **em partes**, uma por linha, com
+a pergunta sozinha na última. O que se mede é empilhamento, não comprimento — uma
+resposta longa para uma pergunta grande é uma boa resposta. `message_pacing`
+volta em `confidence_assess_answer` dizendo em quantas partes o rascunho está e
+onde é a costura, sem nunca reescrever nada: prosa quebrada por regra soa
+quebrada, e o agente já sabe onde os próprios parágrafos terminam. Decisão
+[52](docs/decisoes.md#52-a-mensagem-vai-em-partes-e-o-tamanho-não-é-o-problema).
+
 O procedimento (que ferramenta chamar, em que ordem, o que exige o quê) **não**
 está lá. Está nas descrições das ferramentas e no `next_step` de cada resultado,
 onde existe verificação. Decisão [3](docs/decisoes.md#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode).
@@ -395,7 +453,7 @@ fazer".
 | **2.1** | Apresentar candidatas e pedir feedback dela | `menu_record_feedback` |
 | **2.2** | Utensílios, equipamentos, técnicas, restrições | catálogo de 26 itens, `kitchen_next_questions` |
 | **2.2** | **Não deixar comprar e descobrir depois** | `kitchen_elicitation_gaps`, `safe_to_shop` |
-| **2.3** | O que ela já tem, e em que quantidade | `recipes_check_pantry_coverage` |
+| **2.3** | O que ela já tem, e em que quantidade | `recipes_check_pantry_coverage`, `pantry_what_is_left` (o estoque baixa a cada prato aceito) |
 | **2.3** | O que falta comprar, o custo, e se cabe | `pricing_calculate_cmv`, `budget_check_purchase` |
 | **2.4** | CMV = Σ (quantidade usada × custo unitário) | `pricing_calculate_cmv`, aritmética em Python |
 | **2.4** | Custo unitário = preço pago ÷ quantidade comprada | `PantrySheet`, `UnitConverter` |
@@ -405,9 +463,11 @@ fazer".
 | **2.4** | **2–3 cenários, e ela decide** | `pricing_price_scenarios` |
 | **3** | Orçamento de R$ 80,00 para complementos | `budget_reserve_purchase` |
 
-Duas coisas fora do enunciado, que a conversa mostrou serem necessárias: dizer
-**o quanto confia** no que está falando, e fechar com **o resultado da fornada**,
-que é a pergunta que ela de fato faz.
+Três coisas fora do enunciado, que a conversa mostrou serem necessárias: dizer
+**o quanto confia** no que está falando, fechar com **o resultado da fornada**,
+que é a pergunta que ela de fato faz, e tratar a quantidade em estoque como
+**finita** — o enunciado dá a coluna, e um segundo prato que ignora o que o
+primeiro comeu manda ela para a cozinha com metade da carne.
 
 As **cinco escolhas** que o enunciado deixou a meu critério (modelo, context
 files, tools/MCP, estrutura de memória, skills) estão respondidas uma a uma em
@@ -458,11 +518,11 @@ torto.
 | Documento | Conteúdo |
 |---|---|
 | [docs/arquitetura.md](docs/arquitetura.md) | Componentes, camadas, fluxogramas e diagramas de sequência |
-| [docs/decisoes.md](docs/decisoes.md) | As 50 decisões de arquitetura, com motivo e consequência |
-| [docs/dialogos.md](docs/dialogos.md) | Oito conversas reais: quatro que deram certo, quatro que deram errado |
+| [docs/decisoes.md](docs/decisoes.md) | As 52 decisões de arquitetura, com motivo e consequência |
+| [docs/dialogos.md](docs/dialogos.md) | Nove conversas reais: cinco que deram certo, quatro que deram errado |
 | [docs/metricas.md](docs/metricas.md) | Como a confiança é calculada, o pipeline de afirmações, e as referências |
 | [docs/modelo-de-dados.md](docs/modelo-de-dados.md) | Esquema do Postgres, chaves do Redis, normalização de unidades |
-| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 58 ferramentas, os prompts e os recursos |
+| [docs/referencia-mcp.md](docs/referencia-mcp.md) | As 59 ferramentas, os prompts e os recursos |
 | [docs/operacao.md](docs/operacao.md) | Execução, credenciais, depuração, modos de falha |
 | [docs/testes.md](docs/testes.md) | A suíte automatizada e o que cada rodada de simulação achou |
 

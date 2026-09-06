@@ -73,12 +73,14 @@ class RecipeLock:
             'cmv_per_portion': float(row['cmv']) if row['cmv'] is not None else None,
             'shopping': row['shopping'],
             'shopping_cost': float(row['shopping_cost']),
+            'uses': row['uses'],
             'locked_at': row['locked_at'].isoformat(timespec='seconds'),
         }
 
     def lock(
         self, dish: str, lines: list, portions: int, cmv: float,
         shopping: list | None = None, shopping_cost: float = 0.0,
+        uses: list | None = None,
     ) -> dict:
         '''Settle the recipe, and with it the shopping list it implies.
 
@@ -91,8 +93,9 @@ class RecipeLock:
         self.db.ensure_schema()
         self.db.execute(
             '''INSERT INTO recipe_costing
-                       (slug, dish, lines, portions, cmv, shopping, shopping_cost)
-                    VALUES (%s, %s, %s::jsonb, %s, %s, %s::jsonb, %s)
+                       (slug, dish, lines, portions, cmv, shopping, shopping_cost,
+                        uses)
+                    VALUES (%s, %s, %s::jsonb, %s, %s, %s::jsonb, %s, %s::jsonb)
                ON CONFLICT (slug) DO UPDATE SET
                     dish = EXCLUDED.dish,
                     lines = EXCLUDED.lines,
@@ -100,12 +103,13 @@ class RecipeLock:
                     cmv = EXCLUDED.cmv,
                     shopping = EXCLUDED.shopping,
                     shopping_cost = EXCLUDED.shopping_cost,
+                    uses = EXCLUDED.uses,
                     locked_at = now(),
                     reopened_at = NULL,
                     reopened_because = NULL''',
             (self.slug(dish), dish, psycopg.types.json.Json(self.signature(lines)),
              portions, cmv, psycopg.types.json.Json(shopping or []),
-             round(shopping_cost, 2)),
+             round(shopping_cost, 2), psycopg.types.json.Json(uses or [])),
         )
         return self.locked(dish) or {}
 

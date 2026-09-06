@@ -164,8 +164,11 @@ sequenceDiagram
 
     A->>M: pantry_list_ingredients
     M->>R: sorted_items()
-    R->>PG: SELECT
-    PG-->>R: linhas
+    R->>PG: SELECT pantry_items
+    PG-->>R: o que a planilha semeou
+    R->>PG: SELECT sum(quantity) FROM pantry_usage
+    PG-->>R: o que os pratos aceitos já levaram
+    Note over R: estoque = semeado − consumido
     R-->>M: itens com custos unitários normalizados
     M-->>A: ingredientes, palavras-chave, pendências de unidade
 ```
@@ -173,6 +176,10 @@ sequenceDiagram
 A planilha é semente, não fonte de leitura. Depois da primeira subida nada mais
 a abre: o que a aplicação lê é o Postgres, e é por isso que um peso de embalagem
 descoberto na conversa fica gravado em vez de se perder no próximo start.
+
+O estoque é sempre uma subtração, nunca um número guardado. A linha semeada
+continua intacta e o consumo mora ao lado dela, para que a resposta não seja só
+o saldo mas a história: qual prato levou quanto, e quanto sobrou.
 
 ### Um prato precificado
 
@@ -185,15 +192,18 @@ sequenceDiagram
     participant E as economy
     participant Mk as market
     participant Mn as menu
+    participant Pt as pantry
 
     A->>K: analyse_recipe_requirements(texto da receita)
     K-->>A: exigências e o que ela nunca respondeu
     Note over A,K: repete até safe_to_shop
     A->>P: calculate_cmv(linhas, researched_prices)
     Note over P: fração no CMV,<br/>embalagem inteira na lista
+    P->>Pt: quanto sobrou de cada ingrediente
+    Pt-->>P: semeado menos o que pratos aceitos levaram
     P->>B: check(custo da compra) contra o saldo vivo
     B-->>P: cabe, ou quanto falta
-    P-->>A: CMV, compras, perguntas em aberto
+    P-->>A: custo, compras, why_short, perguntas em aberto
     A->>Mk: research_dish_prices(prato, cidade)
     Mk-->>A: faixa, fontes, confiança
     A->>P: price_scenarios(cmv, faixa)
@@ -205,6 +215,8 @@ sequenceDiagram
     A->>B: reserve_purchase(com as palavras dela)
     B-->>A: quanto sobra dos R$ 80
     A->>Mn: add_dish(prato, cmv, preço)
+    Mn->>Pt: record_usage(o que a fornada leva, do cadeado da receita)
+    Note over Pt: só aqui o estoque baixa:<br/>orçar é pergunta, aceitar é decisão
     A->>Mn: expected_return(quantas porções saem)
     Mn->>B: quanto ela ainda desembolsa
     B-->>Mn: reservado
@@ -215,6 +227,12 @@ Duas leituras cruzadas aparecem aqui e são deliberadas: `pricing` consulta o
 saldo do orçamento para que uma estimativa reflita o que já foi decidido, e
 `menu` consulta o mesmo saldo para separar, no fechamento, o que a comida custa
 do que ainda precisa sair do bolso dela.
+
+Uma escrita cruzada também: `menu` escreve o consumo na despensa. O estoque dela
+é finito e baixa quando o prato entra no cardápio, não quando é orçado — o mesmo
+prato é orçado várias vezes, inclusive quando ela recusa. As quantidades vêm do
+cadeado da receita, já resolvidas em unidade base na hora do cálculo, para que
+aceitar o prato não precise resolver os nomes uma segunda vez. Ver a decisão 51.
 
 ## Posse do estado
 

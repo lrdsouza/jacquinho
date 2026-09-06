@@ -16,6 +16,37 @@ from ..domain.units import UnitConverter, UnknownUnitError
 from .base import BaseMCP
 
 
+def _amount_she_says(quantity: float, unit: str) -> str:
+    """A quantity written the way a cook says it: 500 g, not 0.5 kg."""
+    if unit == 'kg' and abs(quantity) < 1:
+        return f'{quantity * 1000:g} g'.replace('.', ',')
+    if unit == 'l' and abs(quantity) < 1:
+        return f'{quantity * 1000:g} ml'.replace('.', ',')
+    if unit == 'un':
+        return (f'{quantity:g}' + (' unidade' if quantity == 1 else ' unidades')).replace('.', ',')
+    return f'{quantity:g} {unit}'.replace('.', ',')
+
+
+def _stock_story(item, spent_before: list[dict]) -> str:
+    """Where her stock went, in one sentence she can check against her fridge.
+
+    She does not need a ledger; she needs to hear that the kilo she had is not
+    there any more because the dish she already accepted used it. Without this
+    the shortfall reads like the spreadsheet was wrong, and the next thing she
+    does is doubt the number instead of buying the meat.
+    """
+    ate = ', '.join(
+        f'{_amount_she_says(row["quantity"], row["base_unit"])} '
+        f'na receita de {row["dish"]}'
+        for row in spent_before
+    )
+    return (
+        f'Você tinha {_amount_she_says(item.seeded_stock, item.base_unit)} de '
+        f'{item.name.lower()}; usou {ate}. Sobrou '
+        f'{_amount_she_says(item.stock, item.base_unit)}.'
+    )
+
+
 class RecipeLine(BaseModel):
     '''One ingredient line of a recipe, for a single portion.'''
 
@@ -288,6 +319,10 @@ class PricingMCP(BaseMCP):
                 ]
 
             used, to_buy, unknown, questions = [], [], [], []
+            # What the whole batch takes out of the pantry, resolved here where
+            # the units already are, and carried to the lock so accepting the
+            # dish can deduct it without resolving anything a second time.
+            uses: list[dict] = []
             cmv = 0.0
             bought = {
                 UnitConverter.normalise_text(entry.ingredient): entry
@@ -364,18 +399,46 @@ class PricingMCP(BaseMCP):
                 }
 
                 batch_need = base_quantity * portions
+                uses.append(
+                    {
+                        'ingredient_key': item.key,
+                        'ingredient': item.name,
+                        'quantity': round(batch_need, 6),
+                        'base_unit': item.base_unit,
+                    }
+                )
+                # Her stock is finite and the dishes already on the menu ate
+                # part of it. Say so in the same breath as the shortfall, or
+                # the number reads as if the spreadsheet had been wrong.
+                spent_before = self.repository.usage_history(item.key)
+                entry['stock_left'] = f'{item.stock:g} {item.base_unit}'
+                # The same two amounts as numbers, so the claim layer can check
+                # "sobraram 500 g" against a figure a tool produced instead of
+                # against a sentence.
+                entry['stock_left_quantity'] = round(item.stock, 4)
+                entry['already_used_quantity'] = round(item.used, 4)
+                if spent_before:
+                    entry['stock_story'] = _stock_story(item, spent_before)
+
                 if batch_need > item.stock + 1e-9:
                     shortfall = batch_need - item.stock
                     entry['short_on_stock'] = (
-                        f'has {item.stock:g} {item.base_unit}, needs {batch_need:g} '
-                        f'for {portions} portions'
+                        f'has {item.stock:g} {item.base_unit} left, needs '
+                        f'{batch_need:g} for {portions} portions'
                     )
                     to_buy.append(
                         {
                             'ingredient': item.name,
                             'buy': f'{shortfall:g} {item.base_unit}',
+                            'buy_quantity': round(shortfall, 4),
+                            'buy_unit': item.base_unit,
                             'estimated_cost': round(shortfall * item.unit_cost, 2),
                             'basis': 'estimated from the price she already paid',
+                            'why_short': entry.get('stock_story') or (
+                                f'a despensa dela tem {item.stock:g} '
+                                f'{item.base_unit} e a fornada pede '
+                                f'{batch_need:g} {item.base_unit}'
+                            ),
                         }
                     )
                 used.append(entry)
@@ -445,7 +508,8 @@ class PricingMCP(BaseMCP):
 
             if complete and dish:
                 self.lock.lock(dish, lines, portions, round(cmv, 2),
-                               shopping=to_buy, shopping_cost=shopping_cost)
+                               shopping=to_buy, shopping_cost=shopping_cost,
+                               uses=uses)
 
             return {
                 'dish': dish,
@@ -463,6 +527,13 @@ class PricingMCP(BaseMCP):
                 'calculation_complete': complete,
                 'ingredients': used,
                 'must_buy': to_buy,
+                'takes_out_of_the_pantry': uses,
+                # Only what earlier dishes already ate, and only when they ate
+                # something. Empty on the first dish of a consultation, which is
+                # exactly when there is no story to tell.
+                'pantry_already_spent': [
+                    entry['stock_story'] for entry in used if entry.get('stock_story')
+                ],
                 'shopping_cost': round(shopping_cost, 2),
                 'budget': budget_check,
                 'not_found': unknown,
@@ -524,9 +595,14 @@ class PricingMCP(BaseMCP):
                 }
             because = f'{what_changed} | ela: “{her_words}”'.strip(' |')
             done = self.lock.reopen(dish, because)
+            # The old recipe no longer describes this dish, so whatever it took
+            # out of her pantry was taken for a dish that will not be cooked.
+            # Put it back, or she buys meat for a lasanha she gave up on.
+            returned = self.repository.forget_usage(dish) if done else 0
             return {
                 'reopened': done,
                 'dish': dish,
+                'ingredients_back_in_the_pantry': returned,
                 'note': None if done else 'Não havia receita fechada para este prato.',
                 'next_step': (
                     'Refaça tudo que dependia da receita antiga: se for outro prato, '

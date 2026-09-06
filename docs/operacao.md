@@ -104,7 +104,7 @@ muda mais nada: os servidores MCP, as ferramentas e todas as regras se comportam
 de forma idêntica por baixo.
 
 O eixo que importa aqui não é inteligência bruta, e sim **confiabilidade de
-chamada de ferramenta**. São 58 ferramentas e cadeias de vários passos; um
+chamada de ferramenta**. São 59 ferramentas e cadeias de vários passos; um
 modelo que não segura um esquema de ferramenta falha aqui independentemente do
 tamanho.
 
@@ -177,7 +177,7 @@ O `jacquinho login` já passa a opção.
 ```bash
 jacquinho hermes auth status    # a credencial ficou gravada?
 jacquinho hermes model          # que modelos a assinatura oferece
-jacquinho tools                 # as 58 ferramentas respondem?
+jacquinho tools                 # as 59 ferramentas respondem?
 jacquinho                       # abre o chat
 ```
 
@@ -185,7 +185,7 @@ Vale rodar `jacquinho hermes model` **antes** da primeira conversa. O modelo
 padrão no `hermes-config.yaml` é `claude-sonnet-5`. O conjunto que uma assinatura
 libera pode ser diferente do que uma chave de API alcança; se ele não estiver
 lá, troque a linha `default:` pelo que aparecer. Nada mais muda: os onze
-servidores MCP e as 58 ferramentas se comportam de forma idêntica por baixo.
+servidores MCP e as 59 ferramentas se comportam de forma idêntica por baixo.
 
 ### Modelo local
 
@@ -208,7 +208,7 @@ de contar com ele numa demonstração.
 O modelo e o provedor estão fixados em `dockerfile/hermes-config.yaml`, que traz
 um bloco pronto para cada caminho. O padrão é **Claude Sonnet 5**. O agente faz
 muitas chamadas de ferramenta por turno e quase nenhuma pede raciocínio
-profundo, mas são 58 ferramentas e cadeias de vários passos, e é condução, não
+profundo, mas são 59 ferramentas e cadeias de vários passos, e é condução, não
 profundidade, que separa um turno bom de um turno perdido. `claude-haiku-4-5`
 continua sendo uma linha, se custo pesar mais.
 
@@ -263,6 +263,7 @@ agente pedir.
 | `jacquinho.claims` | Fim de turno, se a mensagem afirma algo conferível | A nota da mensagem, quantas afirmações foram conferidas, e quantas contradizem o que ela já ouviu |
 | `jacquinho.verdict` | Fim de turno, se um prato morreu ou voltou | `delivered: false` significa que ela **não** foi informada e o próximo turno começa fechado |
 | `jacquinho.figures` | Fim de turno, só se houver cifra sem lastro | Um R$ na mensagem que nenhuma ferramenta produziu, com o trecho onde aparece |
+| `jacquinho.pacing` | Fim de turno, só se saiu uma parede | Quantas partes a mensagem tinha, que assuntos empilhou e por quê. Telemetria, não portão: o portão é `message_pacing`, no rascunho |
 
 Turno limpo não gera as duas últimas. Se aparecerem, aponte para a mensagem:
 
@@ -311,6 +312,33 @@ docker exec jacquinho-postgres psql -U jacquinho -d jacquinho -c "
 
 Por que um prato saiu, o que o trouxe de volta, quanto do orçamento foi para
 quê, tudo com data e motivo.
+
+O estoque dela também, com o histórico de para onde a carne foi:
+
+```bash
+docker exec jacquinho-postgres psql -U jacquinho -d jacquinho -c "
+  SELECT i.ingredient,
+         i.stock_quantity          AS semeado,
+         COALESCE(sum(u.quantity), 0) AS ja_usado,
+         i.stock_quantity - COALESCE(sum(u.quantity), 0) AS sobra
+    FROM pantry_items i
+    LEFT JOIN pantry_usage u ON u.ingredient_key = i.ingredient_key
+   GROUP BY i.ingredient, i.stock_quantity
+  HAVING COALESCE(sum(u.quantity), 0) > 0;"
+```
+
+E é aqui que se **muda** esse dado, que é uma das razões práticas de o estoque
+morar no Postgres: repor o que ela comprou é um `UPDATE` de uma linha, e montar
+um cenário de demonstração é outro. O consumo é só-adição — para devolver o que
+um prato levou, apague as linhas dele, que é exatamente o que
+`menu_remove_dish` e `pricing_reopen_recipe` fazem.
+
+```bash
+# ela comprou mais meio quilo de patinho
+docker exec jacquinho-postgres psql -U jacquinho -d jacquinho -c "
+  UPDATE pantry_items SET stock_quantity = stock_quantity + 0.5
+   WHERE ingredient_key = 'carne moida patinho';"
+```
 
 ### Configuração do agente
 

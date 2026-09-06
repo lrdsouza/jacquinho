@@ -48,6 +48,40 @@ class PantryMCP(BaseMCP):
             }
 
         @self.mcp.tool
+        def what_is_left() -> dict:
+            """What the pantry still has, after the dishes already on the menu.
+
+            Her stock is finite: a kilo of patinho used by the lasanha is not
+            there for the next dish. This reads the seeded stock and the usage
+            already committed to Postgres and returns the difference, with the
+            history of which dish took what - so a shortfall can be explained
+            instead of merely announced.
+            """
+            self.repository.reload()
+            spent, untouched = [], 0
+            for item in self.repository.sorted_items():
+                if item.used <= 1e-9:
+                    untouched += 1
+                    continue
+                spent.append(
+                    {
+                        **item.as_dict(),
+                        'eaten_by': self.repository.usage_history(item.key),
+                    }
+                )
+            return {
+                'ingredients': [item.as_dict() for item in self.repository.sorted_items()],
+                'already_used': spent,
+                'untouched_ingredients': untouched,
+                'next_step': (
+                    'Se algum ingrediente aparece em `already_used`, diga a ela o '
+                    'que sobrou e por quê, usando `eaten_by`: qual prato levou '
+                    'quanto. Um "faltam 500 g" sem essa frase parece erro de '
+                    'planilha, e ela vai duvidar do número em vez de comprar.'
+                ),
+            }
+
+        @self.mcp.tool
         def find_ingredient(
             name: Annotated[str, Field(description='Ingredient name, accents optional.')],
         ) -> dict:

@@ -44,6 +44,11 @@ FACT_MAP: dict[str, tuple[tuple[str, ClaimKind, bool], ...]] = {
         # Every line of the breakdown she is read out loud.
         ('ingredients[].cost', ClaimKind.COST, False),
         ('budget.remaining_after', ClaimKind.BUDGET, False),
+        # Her stock is finite, so what is left of it and how much she still has
+        # to buy are facts of the pantry, not rhetoric. Amounts, not money.
+        ('ingredients[].stock_left_quantity', ClaimKind.PANTRY, False),
+        ('ingredients[].already_used_quantity', ClaimKind.PANTRY, False),
+        ('must_buy[].buy_quantity', ClaimKind.PANTRY, False),
     ),
     'pricing_price_scenarios': (
         # Candidates. She has not chosen yet, so none of these binds.
@@ -82,6 +87,11 @@ FACT_MAP: dict[str, tuple[tuple[str, ClaimKind, bool], ...]] = {
         ('price', ClaimKind.PRICE, True),
         ('she_receives', ClaimKind.RECEIPT, True),
         ('profit', ClaimKind.PROFIT, True),
+    ),
+    'pantry_what_is_left': (
+        ('ingredients[].stock', ClaimKind.PANTRY, True),
+        ('ingredients[].already_committed', ClaimKind.PANTRY, True),
+        ('ingredients[].stock_before_any_dish', ClaimKind.PANTRY, True),
     ),
     'menu_expected_return': (
         ('revenue', ClaimKind.PRICE, False),

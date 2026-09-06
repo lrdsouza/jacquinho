@@ -925,3 +925,106 @@ async def test_a_recipe_that_serves_six_is_divided_by_the_tool(built, server):
     # 1 kg for six portions is 166,7 g each, at R$ 28,00/kg.
     assert whole.data['cmv_per_portion'] == 4.67
     assert '166' in whole.data['breakdown_for_her'][0]
+
+
+@pytest.mark.asyncio
+async def test_a_committed_dish_empties_what_it_used(built, server):
+    """Her stock is finite, and the second dish has to see the first one's bill.
+
+    Measured as a difference, never against 1,5 kg: this database is shared with
+    every other test and with whatever the last real conversation accepted, and a
+    test that asserts an absolute stock tests the neighbours.
+    """
+    BEEF = 'Carne moída (patinho)'
+
+    def left() -> float:
+        built.repository.reload()
+        return built.repository.find(BEEF).stock
+
+    async with Client(server) as client:
+        try:
+            for dish in ('Primeira fornada', 'Segunda fornada'):
+                await client.call_tool('menu_remove_dish', {'dish': dish})
+                await client.call_tool(
+                    'kitchen_check_feasibility',
+                    {'dish': dish, 'equipment_needed': [], 'techniques_needed': []},
+                )
+
+            before = left()
+            first = await client.call_tool(
+                'pricing_calculate_cmv',
+                {'dish': 'Primeira fornada', 'portions': 4,
+                 'lines': [{'ingredient': BEEF, 'quantity': 250, 'unit': 'g'}]},
+            )
+            # Nothing has left the pantry yet: she has not accepted the dish.
+            beef_line = next(line for line in first.data['ingredients']
+                             if 'patinho' in line['ingredient'].lower())
+            assert beef_line['stock_left_quantity'] == pytest.approx(before)
+            assert first.data['takes_out_of_the_pantry'][0]['quantity'] == pytest.approx(1.0)
+
+            await client.call_tool(
+                'confidence_assess_answer',
+                {'dish': 'Primeira fornada',
+                 'draft_answer': 'O custo dessa fornada é o que a conta mostrou.',
+                 'claim': 'cost', 'mode': 'deterministic', 'evidence': {}},
+            )
+            await client.call_tool(
+                'menu_add_dish',
+                {'dish': 'Primeira fornada', 'category': 'main_course',
+                 'cmv': first.data['cmv_per_portion'], 'price': 19.90,
+                 'confidence_band': 'high'},
+            )
+
+            # A whole kilo of hers is gone, and the history says where it went.
+            assert left() == pytest.approx(max(before - 1.0, 0.0))
+            history = built.repository.usage_history('carne moida patinho')
+            assert ('Primeira fornada', 1.0) in [
+                (row['dish'], row['quantity']) for row in history
+            ]
+
+            second = await client.call_tool(
+                'pricing_calculate_cmv',
+                {'dish': 'Segunda fornada', 'portions': 4,
+                 'lines': [{'ingredient': BEEF, 'quantity': 250, 'unit': 'g'}]},
+            )
+            short = next(entry for entry in second.data['must_buy']
+                         if 'patinho' in entry['ingredient'].lower())
+            assert short['buy_quantity'] == pytest.approx(1.0 - left())
+            # And it says why, in her words, instead of announcing a shortfall.
+            assert 'Primeira fornada' in short['why_short']
+        finally:
+            for dish in ('Primeira fornada', 'Segunda fornada'):
+                await client.call_tool('menu_remove_dish', {'dish': dish})
+                await client.call_tool(
+                    'pricing_reopen_recipe',
+                    {'dish': dish, 'what_changed': 'fim do teste',
+                     'her_words': 'desisti desse prato'},
+                )
+
+
+@pytest.mark.asyncio
+async def test_costing_a_dish_she_never_accepts_leaves_the_pantry_alone(built, server):
+    """Pricing is a question. Only the menu is a decision."""
+    BEEF = 'Carne moída (patinho)'
+    async with Client(server) as client:
+        try:
+            built.repository.reload()
+            before = built.repository.find(BEEF).used
+            await client.call_tool(
+                'kitchen_check_feasibility',
+                {'dish': 'Orçamento solto', 'equipment_needed': [],
+                 'techniques_needed': []},
+            )
+            await client.call_tool(
+                'pricing_calculate_cmv',
+                {'dish': 'Orçamento solto', 'portions': 4,
+                 'lines': [{'ingredient': BEEF, 'quantity': 250, 'unit': 'g'}]},
+            )
+            built.repository.reload()
+            assert built.repository.find(BEEF).used == pytest.approx(before)
+        finally:
+            await client.call_tool(
+                'pricing_reopen_recipe',
+                {'dish': 'Orçamento solto', 'what_changed': 'fim do teste',
+                 'her_words': 'desisti desse prato'},
+            )

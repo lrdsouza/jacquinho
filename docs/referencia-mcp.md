@@ -1,6 +1,6 @@
 # Referência MCP
 
-![Ferramentas](https://img.shields.io/badge/ferramentas-58-success)
+![Ferramentas](https://img.shields.io/badge/ferramentas-59-success)
 ![Prompts](https://img.shields.io/badge/prompts-4-6E56CF)
 ![Recursos](https://img.shields.io/badge/recursos-1-0A7EA4)
 
@@ -57,6 +57,7 @@ o dado.
 | `pantry_find_ingredient` | Procura um ingrediente. | `name` | Tolera acento, caixa e parênteses; devolve sugestões quando não acha, nunca um quase-acerto. |
 | `pantry_reseed_from_spreadsheet` | Recarrega a despensa da planilha para o banco. | `force` | A aplicação lê o Postgres; a planilha só semeia. |
 | `pantry_record_package_size` | Registra quanto pesa uma embalagem vendida por peça. | `ingredient`, `quantity`, `unit` | Depois de perguntar a ela. Sem isso não dá para custear "200 g de cobertura" comprada por unidade. |
+| `pantry_what_is_left` | O que sobrou na despensa depois dos pratos já aceitos. | nenhum | Estoque semeado menos consumo, com o histórico de qual prato levou quanto. É o que permite dizer "a lasanha levou 1 kg, sobraram 500 g" em vez de só "faltam 500 g". |
 
 ---
 
@@ -178,7 +179,7 @@ conferência, e a gravação passa a dizer `her_words_verified: false`.
 
 | Ferramenta | O que faz | Argumentos | Notas |
 |---|---|---|---|
-| `confidence_assess_answer` | Pontua o quanto a evidência sustenta o rascunho. | `dish`, `draft_answer`, `evidence`, `claim`, `mode` | `claim` diz o que a mensagem afirma (`pantry_fact`, `dish_suggestion`, `feasibility`, `cost` ou `price`) e só a evidência daquele tipo é pontuada. Nota determinística na hora; em híbrido e llm devolve também um ticket de julgamento. |
+| `confidence_assess_answer` | Pontua o quanto a evidência sustenta o rascunho. | `dish`, `draft_answer`, `evidence`, `claim`, `mode` | `claim` diz o que a mensagem afirma (`pantry_fact`, `dish_suggestion`, `feasibility`, `cost` ou `price`) e só a evidência daquele tipo é pontuada. Nota determinística na hora; em híbrido e llm devolve também um ticket de julgamento. Devolve `message_pacing` em todo modo: em quantas partes o rascunho está e onde é a costura — fora da nota, porque uma parede pode estar perfeitamente lastreada. |
 | `confidence_submit_judgement` | Devolve o veredito do julgamento e fecha o relatório. | `ticket`, `verdict`, `confidence`, `unsupported_claims`, `issues` | No híbrido a nota final é a menor das duas. Ticket é de uso único. |
 | `confidence_audit_figures` | Confere cada número da mensagem contra o que as ferramentas devolveram. | `message`, `evidence` | Sem modelo: uma cifra ou veio de uma ferramenta ou não veio. Pega o preço inventado. |
 | `confidence_recent_assessments` | Toda resposta que foi avaliada, mais recente primeiro. | `limit` | O rastro por trás dos badges: rascunho, as duas notas, banda e impedimentos. |
@@ -227,7 +228,8 @@ conferência, e a gravação passa a dizer `her_words_verified: false`.
 | `caveat` / `warning` | Um limite do dado que precisa ser dito em voz alta |
 | `available` | Falso significa que um armazenamento ou fonte não foi alcançado |
 | `conversation_state` | Onde a conversa está: prato em jogo, portão, próximo passo. Vem em **toda** resposta |
-| `display.badge` | A linha de confiança a colar no fim da mensagem, como veio |
+| `caveat_for_her` | A ressalva pronta, na língua dela, para ser dita **dentro** da frase. O badge de confiança não vem no resultado: é telemetria e fica no log |
+| `message_pacing` | A forma do rascunho: em quantas partes está e onde é a costura |
 
 Além das ferramentas, um middleware no servidor pontua a trilha de evidências
 depois de cada chamada e escreve o resultado no log. Isso roda independentemente

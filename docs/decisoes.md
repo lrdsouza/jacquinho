@@ -1,6 +1,6 @@
 # Decisões de arquitetura
 
-![Registros](https://img.shields.io/badge/registros-50-6E56CF)
+![Registros](https://img.shields.io/badge/registros-52-6E56CF)
 ![Modelo](https://img.shields.io/badge/modelo-Claude%20Sonnet%205-D97757)
 
 Cada registro diz o que o sistema faz e por que é construído assim. Onde a
@@ -16,9 +16,9 @@ cada uma, com o registro que a desenvolve.
 
 | O que era escolha | O que foi escolhido | Por quê, em uma linha | Registro |
 |---|---|---|---|
-| **Modelo** | `claude-sonnet-5`, com OAuth de uma conta Anthropic Pro | O gargalo não é profundidade, é condução: são 58 ferramentas e cadeias longas | [20](#20-o-modelo-padrão-é-o-claude-sonnet-5) |
+| **Modelo** | `claude-sonnet-5`, com OAuth de uma conta Anthropic Pro | O gargalo não é profundidade, é condução: são 59 ferramentas e cadeias longas | [20](#20-o-modelo-padrão-é-o-claude-sonnet-5) |
 | **Context files** | Um só, `hermes/SOUL.md`, com voz e quem fala primeiro | O Hermes trata texto vindo de MCP como dado não confiável, então a persona **tem** que morar do lado dele | [3](#3-o-procedimento-vai-com-o-servidor-a-voz-não-pode) |
-| **Tools/MCP** | 58 ferramentas em 11 servidores, um endpoint HTTP | O que dá para conferir vira ferramenta, porque ferramenta executa e instrução só pede | [2](#2-um-endpoint-http-onze-servidores-montados), [4](#4-ferramentas-mcp-em-vez-de-skills) |
+| **Tools/MCP** | 59 ferramentas em 11 servidores, um endpoint HTTP | O que dá para conferir vira ferramenta, porque ferramenta executa e instrução só pede | [2](#2-um-endpoint-http-onze-servidores-montados), [4](#4-ferramentas-mcp-em-vez-de-skills) |
 | **Estrutura de memória** | Redis para a conversa (20 turnos + 1 resumo), Postgres para o que ela decidiu | Redis quando perder custa contexto; Postgres quando custa uma pergunta repetida ou dinheiro | [18](#18-o-redis-guarda-a-conversa-20-turnos-mais-1-resumo), [19](#19-o-postgres-guarda-os-dados-da-dona-maria) |
 | **Skills** | Nenhuma | Uma skill não deixa rastro de ter sido seguida; onde havia o que conferir, virou ferramenta | [4](#4-ferramentas-mcp-em-vez-de-skills) |
 
@@ -389,9 +389,10 @@ lê esse log ao lado do chat. Nada depende de o agente lembrar.
 Isso é a mesma regra da decisão sobre ferramentas contra skills, aplicada à
 própria camada de confiança: o que pode ser conferido não fica como pedido.
 
-**E é visível para quem opera.** Toda avaliação devolve um `display.badge`:
-`〔preço: confiança alta · CMV completo · 4 fontes〕`. Ele vai para o log e para
-`jacquinho confidence`.
+**E é visível para quem opera.** Toda avaliação constrói um badge:
+`〔preço: confiança alta · CMV completo · 4 fontes〕`. Ele vai para o log, para
+`answer_assessments` e para `jacquinho confidence` — e para nenhum outro lugar.
+O relatório que chega ao agente é o mesmo relatório **menos** esse campo.
 
 Durante um tempo ele ia também para a Dona Maria, colado no fim de cada
 mensagem, e a justificativa parecia boa: ela deveria saber quão firme é a
@@ -403,6 +404,18 @@ Um selo que aparece em toda mensagem também é um selo que ela aprende a ignora
 O que ela precisa saber continua sendo dito, dentro da frase e com as palavras
 dela: *"achei só uma referência de preço, então trate como indicativo"*. Some
 quando não há ressalva a fazer, que é como uma ressalva deveria se comportar.
+O relatório devolve isso pronto em `caveat_for_her`, no máximo duas linhas e só
+para os sinais que saíram fracos — uma mensagem que ressalva sobre tudo não
+ressalva sobre nada.
+
+**Tirar a instrução não bastou; tirar o campo bastou.** Duas vezes o texto que
+mandava colar o selo foi reescrito, e duas vezes o selo reapareceu embaixo de uma
+mensagem sobre lasanha. É o que um agente faz com uma instrução dentro de um
+resultado de ferramenta: obedece. Enquanto existisse um campo chamado `badge`
+com uma linha formatada dentro, ele continuaria sendo colado. Então o campo sai
+do payload antes de o relatório deixar o servidor, e o que sobra não tem como
+vazar. É a mesma lição das outras decisões deste documento, aplicada a nós
+mesmos: uma regra escrita onde não pode ser imposta é um conselho.
 
 **A confiança é da afirmação, não do pipeline.** A primeira versão pontuava toda
 mensagem contra os cinco sinais (gate, CMV, consenso, mercado, inflação) e o
@@ -593,14 +606,14 @@ português claro. Nada disso pede raciocínio profundo, e uma consultoria inteir
 gasta dezenas de chamadas.
 
 O que a simulação mostrou é que o gargalo não é profundidade, é **condução**.
-São 58 ferramentas e cadeias de vários passos, e o modelo mais barato perdia o
+São 59 ferramentas e cadeias de vários passos, e o modelo mais barato perdia o
 fio: chamava a ferramenta certa com o prato errado, esquecia de nomear o `dish`,
 repetia busca. Cada tropeço desses custa mais chamadas do que o modelo mais caro
 teria custado.
 
 **Consequência.** Trocar é uma linha. `claude-haiku-4-5` se custo pesar mais que
 condução, `claude-opus-5` quando capacidade importar mais que custo. Nada mais
-muda: os onze servidores MCP e as 58 ferramentas se comportam de forma idêntica
+muda: os onze servidores MCP e as 59 ferramentas se comportam de forma idêntica
 por baixo, porque o comportamento não mora no modelo.
 
 **Custo e latência.** O único turno caro do fluxo é o do juiz, e é por isso que a
@@ -1580,3 +1593,117 @@ em vez de multiplicar o que precisa ser acreditado.
 **Observabilidade.** O detalhamento é o mesmo dado que já ia para o log em
 `ingredients[]`, agora também numa forma que serve para falar. Não há segunda
 fonte de verdade.
+
+## 51. O estoque dela é finito, e baixa quando o prato entra no cardápio
+
+**Decisão.** A quantidade em estoque de cada ingrediente deixa de ser um número
+fixo lido da planilha e passa a ser uma **derivação**: o que a planilha semeou,
+menos o que os pratos já aceitos consumiram. O consumo mora numa tabela própria
+em Postgres, `pantry_usage`, escrita só-adição — uma linha por ingrediente por
+prato, com a quantidade em unidade base, o prato que a levou e o carimbo de
+tempo. A linha de `pantry_items` nunca é reescrita.
+
+```sql
+CREATE TABLE pantry_usage (
+    id             BIGSERIAL PRIMARY KEY,
+    dish           TEXT NOT NULL,
+    ingredient_key TEXT NOT NULL,
+    quantity       NUMERIC(12,4) NOT NULL,
+    base_unit      TEXT NOT NULL,
+    portions       INTEGER NOT NULL DEFAULT 1,
+    committed_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+**Motivo.** A despensa dela não é um almoxarifado. São 1,5 kg de patinho, não
+patinho à vontade. Sem isso, o segundo prato calculava em cima de uma geladeira
+que o primeiro já tinha esvaziado, e a lista de compras saía curta — o erro que
+custa caro, porque ela chega na cozinha com metade da carne que a fornada pede.
+
+*Por que só-adição, e não um `UPDATE` no estoque.* Porque a frase que ela precisa
+ouvir não é o saldo, é a história: *"você tinha 1,5 kg de patinho; a lasanha
+levou 1 kg e sobraram 500 g."* Um `UPDATE` guarda o saldo e joga fora o porquê.
+Com o consumo separado, o estoque semeado continua legível ao lado do que cada
+prato levou, e a explicação é uma consulta, não uma reconstrução. É a mesma
+escolha já feita no orçamento (decisão 36), pelo mesmo motivo.
+
+*Por que no aceite, e não no cálculo.* Orçar um prato é uma pergunta; colocá-lo
+no cardápio é uma decisão. `pricing_calculate_cmv` roda várias vezes por prato,
+inclusive para pratos que ela recusa — se cada orçamento baixasse o estoque, a
+despensa esvaziava por conta de perguntas. Então quem escreve é `menu_add_dish`,
+no momento em que ela escolheu.
+
+*De onde vêm as quantidades.* Da receita fechada. `pricing_calculate_cmv` já
+resolveu cada linha para unidade base ao calcular o custo, e guarda esse
+resultado no cadeado da receita (decisão 43), no campo `uses`. `menu_add_dish` lê
+de lá. Re-derivar a partir dos nomes no aceite seria resolver o mesmo fato duas
+vezes, e duas resoluções são duas chances de discordar.
+
+**Consequência.** O caminho de volta existe e é automático. `menu_remove_dish`
+devolve o que o prato tinha levado, e `pricing_reopen_recipe` também — se a
+receita mudou, o que ela consumia era de um prato que não vai mais ser feito.
+Sem isso, desistir de uma lasanha deixaria a carne dela presa num prato que não
+existe mais.
+
+O estoque nunca fica negativo: o que falta é uma linha de compra, não uma
+despensa com menos que nada dentro.
+
+**O que ela ouve.** `pricing_calculate_cmv` passa a devolver `pantry_already_spent`
+e, em cada item que falta, `why_short` — a frase pronta, com o prato que levou e
+o quanto sobrou. `pantry_what_is_left` mostra o quadro inteiro com o histórico
+por ingrediente. A regra de voz correspondente está no SOUL.md: um "faltam 500 g"
+solto parece erro de planilha, e o que ela faz com um erro de planilha é duvidar
+do número em vez de comprar a carne.
+
+**Conferência.** As duas quantidades saem também como número puro —
+`ingredients[].stock_left_quantity`, `ingredients[].already_used_quantity` e
+`must_buy[].buy_quantity` — e entram no mapa de saídas tipadas (decisão 47) como
+afirmações de `PANTRY`. Assim "sobraram 500 g" é conferido contra uma cifra que
+uma ferramenta produziu, e não contra uma frase.
+
+**Por que isso é um argumento a favor do Postgres.** O estoque dela é um dado que
+o operador precisa poder mexer: repor o que ela comprou, corrigir o que a
+planilha trouxe errado, montar um cenário para demonstração. Com uma tabela
+relacional isso é um `UPDATE` de uma linha, verificável na hora com um `SELECT`.
+Guardado no Redis, junto do resto do estado de conversa, seria um blob que só o
+código sabe abrir.
+
+## 52. A mensagem vai em partes, e o tamanho não é o problema
+
+**Decisão.** Uma resposta se divide em partes — uma por linha, cada uma
+resolvendo uma coisa — e a pergunta, quando existe, vai sozinha na última.
+`confidence_assess_answer` devolve `message_pacing` com o rascunho medido:
+em quantas partes está, que assuntos cada parte resolve, quantas perguntas
+carrega e onde é a costura. `app/domain/pacing.py` faz a medida.
+
+**Motivo.** Ela lê no celular, com a panela no fogo. Receita, equipamento,
+custo, compras, mercado e preço soldados num parágrafo só é um parágrafo que ela
+passa o olho, e o que estava no meio se perde — em geral, a pergunta. O agente
+pergunta, ela não vê, e o turno seguinte abre cobrando uma decisão que ela nunca
+teve chance de tomar.
+
+O que se mede é **empilhamento, não comprimento**. Uma resposta longa para uma
+pergunta grande é uma boa resposta; o que quebra é soldar quatro decisões numa
+linha. Por isso o teto é por parte — no máximo dois assuntos e oitenta palavras
+em cada — e não pela mensagem inteira.
+
+**Consequência.** A ferramenta nunca reescreve a mensagem. Quebrar prosa por
+regra produz prosa que soa quebrada, e o agente já sabe onde os próprios
+parágrafos terminam: o que volta é a costura, no momento em que ele já está
+perguntando se o rascunho está pronto.
+
+`message_pacing` não entra na nota de confiança. Uma parede pode estar
+perfeitamente lastreada, e uma frase curta pode ser um chute — são dois defeitos
+diferentes e misturá-los apagaria os dois.
+
+**Onde a regra é imposta.** No rascunho, dentro de `confidence_assess_answer`.
+O limite de turno do runtime é conhecido: o Hermes entrega **uma** mensagem do
+assistente por turno, e só `pre_tool_call` pode bloquear — o gancho de fim de
+turno não tem como reescrever o que ela já leu. Então "partes" aqui são blocos
+dentro do turno, que é como ela vê na tela; num gateway que aceite mais de um
+envio, a mesma regra produz mais de uma mensagem e nada neste módulo muda.
+
+**Observabilidade.** Quando uma parede sai mesmo assim, o gancho de fim de turno
+grava `jacquinho.pacing` com o número de partes, os assuntos e o motivo. Não é
+um portão — é a única forma de saber com que frequência o portão está sendo
+contornado.

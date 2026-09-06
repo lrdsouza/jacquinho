@@ -16,6 +16,7 @@ mede, e onde ela erra hoje.
 - [Impedimentos](#impedimentos)
 - [O segundo avaliador](#o-segundo-avaliador)
 - [Falhas conhecidas](#falhas-conhecidas-e-o-que-foi-feito)
+- [A forma da mensagem](#a-forma-da-mensagem-message_pacing)
 - [Como melhorar](#como-melhorar)
 
 ---
@@ -504,6 +505,49 @@ onde mora a maior parte de uma conversa.
 
 Para isso continua existindo o juiz, que lê o rascunho, e ele é a única parte
 paga desta pilha.
+
+E não julga a **forma**. Uma mensagem pode estar inteiramente lastreada e ainda
+ser ilegível para ela, e esse é um defeito diferente — medido à parte, logo
+abaixo.
+
+## A forma da mensagem: `message_pacing`
+
+Uma medida separada, que sai em `confidence_assess_answer` junto da nota e
+**não entra nela**. A nota responde "isso é verdade?"; esta responde "ela vai
+conseguir ler?". Somar as duas apagaria as duas: uma parede perfeitamente
+lastreada continuaria com nota alta, e uma frase curta e chutada também.
+
+| Campo | O que é |
+|---|---|
+| `one_subject_per_part` | O veredito. `false` significa quebre antes de mandar |
+| `parts` | Em quantas partes o rascunho está, contando por quebra de linha |
+| `subjects` | Que decisões a mensagem inteira está resolvendo |
+| `questions` | Cada frase que pergunta alguma coisa a ela |
+| `split_because` | Por que está reprovado, na língua do agente |
+| `how_to_split` | Onde é a costura |
+
+Três regras, e nenhuma delas é sobre tamanho:
+
+1. **Nenhuma parte resolve mais de dois assuntos.** Prato, cozinha, custo,
+   compras, orçamento, mercado e preço são decisões diferentes; soldadas num
+   parágrafo, ela passa o olho e o que estava no meio se perde.
+2. **Nenhuma parte passa de oitenta palavras.** Uma parte pode ser sobre uma
+   coisa só e ainda ser uma página dela.
+3. **Uma pergunta, na última parte.** Pergunta no meio é pergunta que ela não vê;
+   duas perguntas na mesma mensagem viram uma, porque ela responde a primeira.
+
+O que os assuntos detectam são **decisões**, não substantivos: "quando for ao
+mercado" não é referência de mercado, e uma panela citada numa receita não é uma
+pergunta sobre a cozinha dela. Os marcadores são frases, não palavras soltas,
+justamente por isso.
+
+A ferramenta nunca reescreve a mensagem. Prosa quebrada por regra soa quebrada,
+e o agente já sabe onde os próprios parágrafos terminam — o que volta é a
+costura, no instante em que ele já está perguntando se o rascunho está pronto.
+
+Quando uma parede sai mesmo assim, o gancho de fim de turno grava
+`jacquinho.pacing` com as partes, os assuntos e o motivo. Não é um portão: é
+como se sabe com que frequência o portão está sendo contornado.
 
 ### Calibrar os degraus
 

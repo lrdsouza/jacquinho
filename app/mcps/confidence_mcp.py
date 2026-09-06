@@ -13,6 +13,7 @@ from psycopg.types.json import Json
 from ..domain.database import DatabaseUnavailable
 from ..domain.memory import RedisBackend
 from ..domain.audit import MessageAudit
+from ..domain.pacing import check as pacing_check
 from ..domain.confidence import (
     Claim,
     ConfidenceBadge,
@@ -54,8 +55,11 @@ class ConfidenceMCP(BaseMCP):
         'a judging ticket; evaluate it as its own turn, answering only against the '
         'evidence, then call submit_judgement with that ticket. An answer whose '
         'band is low, or that carries blocking_issues, is not ready to send. '
-        'Every report comes with display.badge: append that line, exactly as '
-        'written, to the end of the message you send her.'
+        'The badge never leaves this server: it is telemetry, it goes to the log '
+        'and to answer_assessments, and she never sees it. What she gets is '
+        'caveat_for_her - the reservation as a sentence in her own language, '
+        'said inside the message. Also read message_pacing: a draft that settles '
+        'four subjects at once is four messages, not one.'
     )
 
     def __init__(self, settings, db, observer=None):
@@ -105,13 +109,27 @@ class ConfidenceMCP(BaseMCP):
                  report['deterministic'].get('claim', 'price'),
                  report['deterministic']['score'],
                  judge_score if isinstance(judge_score, (int, float)) else None,
-                 report['confidence'], report['band'], report['display']['badge'],
+                 report['confidence'], report['band'],
+                 report['telemetry']['badge'],
                  Json(report['blocking_issues']),
                  Json(report['deterministic']['signals'])),
             )
         except DatabaseUnavailable:
             # Losing the audit trail must never lose the assessment itself.
             pass
+
+    @staticmethod
+    def _for_the_agent(report: dict) -> dict:
+        """The report minus the one field she must never read.
+
+        The badge is telemetry, and it stayed in the payload with an instruction
+        to paste it at the end of her message. The agent obeyed - which is what
+        agents do with instructions in tool results - and she read
+        '〔preço: confiança média · sem preço de mercado〕' under a message about
+        her own lasagna. Removing the instruction was not enough twice; removing
+        the field is.
+        """
+        return {key: value for key, value in report.items() if key != 'telemetry'}
 
     def _registry(self) -> JudgementRegistry:
         # Redis: a ticket lives for one exchange and is worthless after it.
@@ -141,6 +159,11 @@ class ConfidenceMCP(BaseMCP):
             The deterministic pass scores only the evidence that claim needs,
             and returns immediately.
 
+            ``message_pacing`` comes back in every mode and is not part of the
+            score: it says whether the draft is one message or four stapled
+            together. A grounded wall of text is still a wall, and the question
+            buried in the middle of it is a question she never answers.
+
             In hybrid or llm mode the reply also carries a judging ticket. Run
             it as a separate turn, judging the draft against the evidence and
             nothing else, then call submit_judgement. In hybrid the final score
@@ -157,10 +180,15 @@ class ConfidenceMCP(BaseMCP):
                 claim=claim,
             )
 
+            # How much the draft is carrying is a property of the draft, not of
+            # the evidence, so it is checked in every mode and never lowers the
+            # score: a message can be perfectly grounded and still be a wall.
+            pacing = pacing_check(draft_answer)
+
             if mode == ConfidenceMode.DETERMINISTIC:
                 report = ConfidenceReport.combine(mode, verdict, None, None)
                 self._persist(dish, draft_answer, report)
-                return report
+                return {**self._for_the_agent(report), 'message_pacing': pacing}
 
             ticket_id = self._ticket_id(dish, draft_answer)
             self._registry().open(
@@ -181,9 +209,9 @@ class ConfidenceMCP(BaseMCP):
                 'status': 'awaiting_judgement',
                 'mode': mode,
                 'deterministic': verdict.as_dict(),
-                'preview_badge': ConfidenceBadge.build(
-                    verdict.score, verdict.signals, verdict.blocking_issues,
-                    verdict.claim,
+                'message_pacing': pacing,
+                'caveat_for_her': ConfidenceBadge.caveats_for_her(
+                    verdict.signals, verdict.blocking_issues
                 ),
                 'judging_ticket': {
                     'ticket': ticket_id,
@@ -249,7 +277,10 @@ class ConfidenceMCP(BaseMCP):
                 stored['mode'], deterministic, judgement, None
             )
             self._persist(stored['dish'], '', report)
-            return report
+            return {
+                **self._for_the_agent(report),
+                'message_pacing': pacing_check(stored.get('draft_answer') or ''),
+            }
 
         @self.mcp.tool
         def recent_assessments(

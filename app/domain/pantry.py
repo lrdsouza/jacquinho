@@ -8,6 +8,7 @@ running system never depends on a file being mounted.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -34,6 +35,11 @@ class PantryItem:
     sheet_unit: str
     package_label: str | None
     priced_per_piece: bool
+    # What committed batches already took out of it. Kept beside the stock so a
+    # message can say "você tinha 1,5 kg e a lasanha levou 1 kg" instead of
+    # announcing a number with no history.
+    used: float = 0.0
+    seeded_stock: float = 0.0
     key: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -43,6 +49,8 @@ class PantryItem:
         payload = {
             'ingredient': self.name,
             'stock': round(self.stock, 4),
+            'already_committed': round(self.used, 4),
+            'stock_before_any_dish': round(self.seeded_stock, 4),
             'unit': self.base_unit,
             'unit_cost': round(self.unit_cost, 4),
             'unit_cost_label': f'R$ {self.unit_cost:.2f}/{self.base_unit}',
@@ -227,6 +235,7 @@ class PantryRepository:
             self.items = {}
             return
 
+        used = self._committed_usage()
         items: dict[str, PantryItem] = {}
         for row in rows:
             key = row['ingredient_key']
@@ -237,9 +246,17 @@ class PantryRepository:
             stock_package = self._package_for(key, row['stock_unit'] or row['bought_unit'])
             price = float(row['price_paid'])
 
+            seeded = float(row['stock_quantity']) * stock_package.factor
+            spent = used.get(key, 0.0)
+
             items[key] = PantryItem(
                 name=row['ingredient'],
-                stock=float(row['stock_quantity']) * stock_package.factor,
+                # What is left, never what was bought. A dish committed earlier
+                # already took its share out, and the next dish has to see the
+                # fridge as it is now.
+                stock=max(seeded - spent, 0.0),
+                used=min(spent, seeded),
+                seeded_stock=seeded,
                 base_unit=package.base_unit,
                 dimension=package.dimension,
                 unit_cost=price / (bought * package.factor),
@@ -251,6 +268,112 @@ class PantryRepository:
                 ),
             )
         self.items = items
+
+    def _committed_usage(self) -> dict[str, float]:
+        """How much of each ingredient the dishes on the menu already ate."""
+        try:
+            rows = self.db.query(
+                """SELECT ingredient_key, sum(quantity) AS spent
+                     FROM pantry_usage
+                 GROUP BY ingredient_key"""
+            )
+        except DatabaseUnavailable:
+            return {}
+        return {row['ingredient_key']: float(row['spent']) for row in rows}
+
+    def record_usage(
+        self, dish: str, lines: Iterable[tuple[str, float]], portions: int
+    ) -> dict[str, object]:
+        """Take a committed batch out of the pantry.
+
+        Append-only on purpose: the seeded row is never rewritten, so the stock
+        she started with stays readable next to what each dish consumed. Called
+        once per dish, when the dish is accepted onto the menu - not when it is
+        merely costed, because pricing a dish she never sells should not empty
+        her fridge.
+        """
+        # One line per ingredient, not per recipe line. A recipe can ask for
+        # tomato twice - the fresh one and the one that becomes the sauce - and
+        # two rows would make the story read "levou 1 kg e levou 1,8 kg" instead
+        # of "levou 2,8 kg".
+        totals: dict[str, float] = {}
+        for key, quantity in lines:
+            if float(quantity) > 0:
+                totals[key] = totals.get(key, 0.0) + float(quantity)
+
+        rows = [
+            {
+                'dish': dish,
+                'ingredient_key': key,
+                'quantity': quantity,
+                'base_unit': self.items[key].base_unit if key in self.items else '',
+                'portions': int(portions),
+            }
+            for key, quantity in totals.items()
+        ]
+        if not rows:
+            return {'recorded': False, 'reason': 'nothing to take out of the pantry'}
+
+        with self.db.connect() as conn:
+            # Accepting the same dish twice must not eat her pantry twice. The
+            # dish owns its rows: writing them again replaces them.
+            conn.cursor().execute(
+                'DELETE FROM pantry_usage WHERE dish = %(dish)s', {'dish': dish}
+            )
+            conn.cursor().executemany(
+                """INSERT INTO pantry_usage
+                       (dish, ingredient_key, quantity, base_unit, portions)
+                    VALUES (%(dish)s, %(ingredient_key)s, %(quantity)s,
+                            %(base_unit)s, %(portions)s)""",
+                rows,
+            )
+            conn.commit()
+        self.reload()
+        return {
+            'recorded': True,
+            'dish': dish,
+            'ingredients': len(rows),
+            'left': {
+                row['ingredient_key']: round(self.items[row['ingredient_key']].stock, 4)
+                for row in rows
+                if row['ingredient_key'] in self.items
+            },
+        }
+
+    def usage_history(self, key: str) -> list[dict[str, object]]:
+        """Which dishes ate this ingredient, oldest first."""
+        try:
+            rows = self.db.query(
+                """SELECT dish, quantity, base_unit, portions, committed_at
+                     FROM pantry_usage
+                    WHERE ingredient_key = %(key)s
+                 ORDER BY id""",
+                {'key': key},
+            )
+        except DatabaseUnavailable:
+            return []
+        return [
+            {
+                'dish': row['dish'],
+                'quantity': float(row['quantity']),
+                'base_unit': row['base_unit'],
+                'portions': int(row['portions']),
+            }
+            for row in rows
+        ]
+
+    def forget_usage(self, dish: str) -> int:
+        """Put a dish's share back - she took it off the menu."""
+        try:
+            with self.db.connect() as conn:
+                cur = conn.cursor()
+                cur.execute('DELETE FROM pantry_usage WHERE dish = %(dish)s', {'dish': dish})
+                removed = cur.rowcount or 0
+                conn.commit()
+        except DatabaseUnavailable:
+            return 0
+        self.reload()
+        return removed
 
     def _package_for(self, key: str, unit: str) -> Package:
         '''Spreadsheet package, overridden by a size learned in conversation.

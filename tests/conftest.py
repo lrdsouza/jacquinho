@@ -35,12 +35,25 @@ class FakeDatabase:
     def __init__(self, rows):
         self.rows = rows
         self.package_sizes: list[dict] = []
+        # Append-only, exactly like the table: a test that lets a dish rewrite
+        # the stock row would not be testing what production does.
+        self.usage: list[dict] = []
 
     def query(self, sql, params=()):
         if 'pantry_items' in sql:
             return list(self.rows)
         if 'package_sizes' in sql:
             return list(self.package_sizes)
+        if 'pantry_usage' in sql and 'sum(quantity)' in sql:
+            totals: dict[str, float] = {}
+            for row in self.usage:
+                totals[row['ingredient_key']] = (
+                    totals.get(row['ingredient_key'], 0.0) + float(row['quantity'])
+                )
+            return [{'ingredient_key': k, 'spent': v} for k, v in totals.items()]
+        if 'pantry_usage' in sql:
+            key = (params or {}).get('key') if isinstance(params, dict) else None
+            return [row for row in self.usage if row['ingredient_key'] == key]
         return []
 
     def one(self, sql, params=()):
@@ -48,6 +61,41 @@ class FakeDatabase:
         return rows[0] if rows else None
 
     def execute(self, sql, params=()):
+        pass
+
+    def connect(self):
+        return _FakeConnection(self)
+
+
+class _FakeConnection:
+    """Just enough of a psycopg connection for the pantry's writes."""
+
+    def __init__(self, db):
+        self.db = db
+        self.rowcount = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def cursor(self):
+        return self
+
+    def executemany(self, sql, rows):
+        if 'pantry_usage' in sql:
+            self.db.usage.extend(dict(row) for row in rows)
+
+    def execute(self, sql, params=()):
+        if 'DELETE FROM pantry_usage' in sql:
+            dish = (params or {}).get('dish')
+            before = len(self.db.usage)
+            self.db.usage = [r for r in self.db.usage if r['dish'] != dish]
+            self.rowcount = before - len(self.db.usage)
+        return self
+
+    def commit(self):
         pass
 
 

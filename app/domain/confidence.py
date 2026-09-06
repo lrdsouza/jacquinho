@@ -73,17 +73,54 @@ BAND_LABEL = {'high': 'alta', 'medium': 'média', 'low': 'baixa'}
 
 
 class ConfidenceBadge:
-    """A one-line marker the agent appends to what it says.
+    """A one-line marker, for whoever operates this system.
 
-    Confidence that only exists in a tool result is confidence nobody sees. The
-    badge turns the score into something readable at the end of a message -
-    which band, and the two or three facts that decided it - so a weak answer
-    announces itself instead of reading exactly like a strong one.
+    It compresses the score into something readable - which band, and the two or
+    three facts that decided it - so a weak answer is distinguishable from a
+    strong one at a glance in the log and in `answer_assessments`.
 
     It is deliberately not a bare percentage: a number invites false precision
     about a heuristic, while 'CMV completo, 6 fontes de preço' says what is
     actually known.
+
+    **It never reaches Dona Maria.** It used to: the report handed it back with
+    an instruction to paste it at the end of the message, and the agent obeyed,
+    so she read '〔preço: confiança média · sem preço de mercado · inflação
+    antiga〕' at the bottom of a message about lasagna. She is a cook, not an
+    evaluator of this system. What she gets is the caveat in her own language,
+    inside the sentence - `caveat_for_her` below - and the badge is stripped
+    before the report leaves the server.
     """
+
+    # signal -> what to say to her when it is the weakest thing in the answer.
+    IN_HER_WORDS = {
+        'market': 'não achei preço firme de mercado pra esse prato, então trate '
+                  'a comparação como indicativa',
+        'web_consensus': 'achei pouca receita batendo, então pode ser que os '
+                         'ingredientes variem de uma versão pra outra',
+        'economy': 'o número de inflação que eu tenho é da última publicação, '
+                   'pode ter mudado',
+        'cost': 'ainda não fechei o custo dessa fornada, então esse preço não '
+                'está firme',
+        'feasibility': 'ainda falta você me responder uma coisa da sua cozinha '
+                       'antes de eu cravar isso',
+        'pantry': 'não conferi sua despensa ainda pra esse prato',
+    }
+
+    @classmethod
+    def caveats_for_her(cls, signals: list, blocking: list[str]) -> list[str]:
+        """The reservation she is owed, as a sentence, not as a label.
+
+        Only the signals that actually came out weak, and only the two worst:
+        a message that hedges about everything hedges about nothing.
+        """
+        if blocking:
+            return []
+        weak = sorted(
+            (s for s in signals if s.score < 0.75 and s.name in cls.IN_HER_WORDS),
+            key=lambda s: s.score,
+        )
+        return [cls.IN_HER_WORDS[s.name] for s in weak[:2]]
 
     @staticmethod
     def _evidence(signals: list) -> list[str]:
@@ -528,14 +565,15 @@ class ConfidenceReport:
             'confidence': round(final, 2),
             'band': band_for(final),
             'basis': basis,
-            'display': {
-                'badge': badge,
-                'instruction': (
-                    'Append this line, exactly as written, at the end of the message '
-                    'you send her. It is how she can tell a well-supported answer '
-                    'from a shaky one at a glance. Do not quote the numeric score.'
-                ),
-            },
+            # Telemetry. Stripped before this report reaches the agent: it is
+            # for the log and for answer_assessments, and it is the one thing
+            # she must never read.
+            'telemetry': {'badge': badge},
+            # What she is owed instead: the reservation as a sentence in her own
+            # language, to be said inside the message and not stapled to it.
+            'caveat_for_her': ConfidenceBadge.caveats_for_her(
+                deterministic.signals, deterministic.blocking_issues
+            ),
             'deterministic': deterministic.as_dict(),
             'llm_judge': judge if judge else {'ran': False, 'reason': judge_error},
             'assessors_disagree': disagreement,
@@ -548,8 +586,8 @@ class ConfidenceReport:
             'blocking_issues': deterministic.blocking_issues,
             'how_to_use': (
                 'band "low" means do not present this as a recommendation; say what '
-                'is missing and ask. Send the display.badge line at the end of the '
-                'message; do not quote the numeric score, which invites false '
-                'precision about a heuristic.'
+                'is missing and ask. Never put a band, a score or a 〔 〕 marker in '
+                'her message: she is a cook, not an evaluator of this system. Say '
+                'each line of caveat_for_her inside a sentence instead.'
             ),
         }
